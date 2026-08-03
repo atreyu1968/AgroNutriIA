@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Platform,
@@ -61,6 +61,30 @@ export default function FarmsScreen() {
       biometricCheckInProgress.current = false;
     }
   };
+
+  // null = still checking whether the device has biometrics configured
+  const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(
+    Platform.OS === 'web' ? false : null,
+  );
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [hasHardware, enrolled] = await Promise.all([
+          LocalAuthentication.hasHardwareAsync(),
+          LocalAuthentication.isEnrolledAsync(),
+        ]);
+        if (!cancelled) setBiometricAvailable(hasHardware && enrolled);
+      } catch {
+        if (!cancelled) setBiometricAvailable(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const farmsQuery = useListFarms({
     query: { queryKey: getListFarmsQueryKey(), enabled: !!token },
@@ -145,14 +169,20 @@ export default function FarmsScreen() {
                   <Text style={[styles.settingTitle, { color: c.foreground }]}>
                     Bloqueo biométrico
                   </Text>
-                  <Text style={[styles.settingSubtitle, { color: c.mutedForeground }]}>
-                    Pide huella o Face ID al abrir la app
+                  <Text
+                    testID="text-biometric-setting-subtitle"
+                    style={[styles.settingSubtitle, { color: c.mutedForeground }]}
+                  >
+                    {biometricAvailable === false
+                      ? 'Configura la biometría en los ajustes del dispositivo para usar el bloqueo'
+                      : 'Pide huella o Face ID al abrir la app'}
                   </Text>
                 </View>
                 <Switch
                   testID="switch-biometric-lock"
-                  value={biometricLockEnabled === true}
+                  value={biometricAvailable !== false && biometricLockEnabled === true}
                   onValueChange={handleBiometricToggle}
+                  disabled={biometricAvailable !== true}
                   trackColor={{ true: c.primary }}
                 />
               </Card>
