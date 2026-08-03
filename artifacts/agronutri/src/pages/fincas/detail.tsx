@@ -214,7 +214,7 @@ export default function FincaDetail() {
         <TabsContent value="sectores"><SectorsTab farmId={farmId} /></TabsContent>
         <TabsContent value="analiticas"><AnalysesTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
         <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} onCreate={() => setActiveTab("calculadora")} /></TabsContent>
-        <TabsContent value="calculadora"><CalculadoraTab farmId={farmId} defaultPlantCount={farm.plantCount} defaultWeeklyLitres={farm.weeklyLitresPerPlant} /></TabsContent>
+        <TabsContent value="calculadora"><CalculadoraTab farmId={farmId} defaultPlantCount={farm.plantCount} defaultWeeklyLitres={farm.weeklyLitresPerPlant} onNavigateTab={setActiveTab} /></TabsContent>
         <TabsContent value="fitosanitarios"><FitosanitariosTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
         <TabsContent value="informes"><ReportsTab farmId={farmId} /></TabsContent>
         <TabsContent value="miembros"><MembersTab farmId={farmId} /></TabsContent>

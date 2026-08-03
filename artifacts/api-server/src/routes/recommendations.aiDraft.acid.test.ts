@@ -267,6 +267,43 @@ test("useAcid sin riego semanal configurado → 422 que menciona el riego", asyn
   assert.equal(await draftCount(dryFarmId), draftsBefore);
 });
 
+test("useAcid con targetPh válido se acepta y crea el borrador", async () => {
+  await insertAnalysis(farmId, "water", [
+    { name: "pH", value: 7.8, unit: "" },
+    { name: "Bicarbonatos", value: 250, unit: "mg/L" },
+  ]);
+  const callsBefore = openaiCalls;
+  const draftsBefore = await draftCount(farmId);
+
+  const { status, json } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
+    useAcid: true,
+    targetPh: 5.8,
+  });
+
+  assert.equal(status, 201, `esperaba 201, recibí ${status}: ${JSON.stringify(json)}`);
+  assert.ok(openaiCalls > callsBefore, "debe llamar al modelo");
+  assert.equal(await draftCount(farmId), draftsBefore + 1, "debe crear el borrador");
+});
+
+test("targetPh fuera de rango → 400 sin llamar al modelo", async () => {
+  await insertAnalysis(farmId, "water", [
+    { name: "pH", value: 7.8, unit: "" },
+    { name: "Bicarbonatos", value: 250, unit: "mg/L" },
+  ]);
+  const callsBefore = openaiCalls;
+  const draftsBefore = await draftCount(farmId);
+
+  for (const bad of [3.9, 7.6]) {
+    const { status } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
+      useAcid: true,
+      targetPh: bad,
+    });
+    assert.equal(status, 400, `targetPh=${bad} debe rechazarse con 400`);
+  }
+  assert.equal(openaiCalls, callsBefore, "no debe llamar al modelo");
+  assert.equal(await draftCount(farmId), draftsBefore, "no debe crear borrador");
+});
+
 test("useAcid con datos completos supera la validación y crea el borrador", async () => {
   await insertAnalysis(farmId, "water", [
     { name: "pH", value: 7.8, unit: "" },

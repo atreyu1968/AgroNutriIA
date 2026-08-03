@@ -3,6 +3,8 @@ import {
   useRunCalculation,
   useListFertilizers,
   useListSectors,
+  useListAnalyses,
+  getListAnalysesQueryKey,
   useGenerateAiDraftRecommendation,
   useCreateRecommendation,
   useUpdateRecommendation,
@@ -23,20 +25,28 @@ import { formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ImportAnalysisButton } from "@/pages/fincas/detail-tabs";
 
+// Réplica de la normalización y detección de parámetros del servidor
+// (artifacts/api-server/src/routes/recommendations.ts, validación 422 con useAcid).
 export default function CalculadoraTab({
   farmId,
   defaultPlantCount,
   defaultWeeklyLitres,
+  onNavigateTab,
 }: {
   farmId: number;
   defaultPlantCount?: number | null;
   defaultWeeklyLitres?: number | null;
+  onNavigateTab?: (tab: string) => void;
 }) {
   const { data: fertilizers } = useListFertilizers();
   const { data: sectors } = useListSectors(farmId);
   const [aiSectorId, setAiSectorId] = useState<string>("global");
   const [useAcid, setUseAcid] = useState(false);
   const [targetPh, setTargetPh] = useState("5.8");
+  // Solo se consultan las analíticas cuando el usuario marca la casilla de ácido.
+  const { data: analyses, isLoading: analysesLoading } = useListAnalyses(farmId, {
+    query: { queryKey: getListAnalysesQueryKey(farmId), enabled: useAcid },
+  });
 
   const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
   const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
@@ -108,6 +118,45 @@ export default function CalculadoraTab({
       },
     },
   });
+
+  // Comprobación previa de datos de agua para el cálculo de ácido, espejo de la
+  // validación 422 del servidor: analítica de agua, pH, bicarbonatos y riego semanal.
+  const selectedSector =
+    aiSectorId === "global" ? null : sectors?.find((s) => String(s.id) === aiSectorId) ?? null;
+  const acidMissing: Array<{ key: string; label: string; tab: string; tabLabel: string }> = [];
+  if (useAcid && analyses) {
+    const waterAnalyses = analyses
+      .filter((a) => a.type === "water")
+      .sort((a, b) => (a.sampleDate < b.sampleDate ? 1 : a.sampleDate > b.sampleDate ? -1 : b.id - a.id));
+    // Igual que el servidor: con sector se prefiere su analítica y se cae a la global;
+    // sin sector, la global y en su defecto la más reciente.
+    const water = selectedSector
+      ? waterAnalyses.find((a) => a.sectorId === selectedSector.id) ??
+        waterAnalyses.find((a) => a.sectorId == null) ??
+        null
+      : waterAnalyses.find((a) => a.sectorId == null) ?? waterAnalyses[0] ?? null;
+    if (!water) {
+      acidMissing.push({ key: "water", label: "Una analítica de agua", tab: "analiticas", tabLabel: "Ir a Analíticas" });
+    } else {
+      if (!water.parameters.some((p) => isPhParam(p.name))) {
+        acidMissing.push({ key: "ph", label: "El pH en la analítica de agua", tab: "analiticas", tabLabel: "Ir a Analíticas" });
+      }
+      if (!water.parameters.some((p) => isBicarbParam(p.name))) {
+        acidMissing.push({ key: "bicarb", label: "Los bicarbonatos (o alcalinidad) en la analítica de agua", tab: "analiticas", tabLabel: "Ir a Analíticas" });
+      }
+    }
+    const weeklyLitres = selectedSector?.weeklyLitresPerPlant ?? defaultWeeklyLitres;
+    const plants = selectedSector?.plantCount ?? defaultPlantCount;
+    if (!(weeklyLitres != null && weeklyLitres > 0 && plants != null && plants > 0)) {
+      acidMissing.push({
+        key: "volume",
+        label: "El riego semanal (litros por planta y número de plantas)",
+        tab: selectedSector ? "sectores" : "config",
+        tabLabel: selectedSector ? "Ir a Sectores" : "Ir a Ajustes de la finca",
+      });
+    }
+  }
+  const acidBlocked = useAcid && (analysesLoading || acidMissing.length > 0);
 
   const buildValidItems = () =>
     items
@@ -273,8 +322,9 @@ export default function CalculadoraTab({
                       },
                     })
                   }
-                  disabled={aiMutation.isPending}
+                  disabled={aiMutation.isPending || acidBlocked}
                   className="h-8 gap-1"
+                  data-testid="button-generate-ai"
                 >
                   <Bot className="w-3.5 h-3.5" /> {aiMutation.isPending ? "Generando..." : "Generar con IA"}
                 </Button>
@@ -289,6 +339,43 @@ export default function CalculadoraTab({
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {useAcid && analysesLoading && (
+                <p className="text-xs text-muted-foreground" data-testid="text-acid-checking">
+                  Comprobando los datos de agua necesarios para el cálculo de ácido…
+                </p>
+              )}
+              {useAcid && !analysesLoading && acidMissing.length > 0 && (
+                <div
+                  className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm space-y-2"
+                  data-testid="alert-acid-missing-data"
+                >
+                  <p className="font-medium flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    Faltan datos para calcular los litros de ácido
+                  </p>
+                  <ul className="space-y-1.5">
+                    {acidMissing.map((m) => (
+                      <li key={m.key} className="flex items-center justify-between gap-2 text-xs" data-testid={`acid-missing-${m.key}`}>
+                        <span>{m.label}</span>
+                        {onNavigateTab && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 gap-1 text-xs shrink-0"
+                            onClick={() => onNavigateTab(m.tab)}
+                            data-testid={`link-acid-missing-${m.key}`}
+                          >
+                            {m.tabLabel} <ArrowRight className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Completa esos datos o desmarca la opción de ácido para poder generar el programa.
+                  </p>
+                </div>
+              )}
               {aiDraft && (
                 <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
                   <p className="font-medium flex items-center gap-2">
@@ -501,3 +588,16 @@ function NutrientBox({ label, value, color, sub = false }: { label: string, valu
     </div>
   );
 }
+
+const normalizeParamName = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const isPhParam = (name: string) => {
+  const n = normalizeParamName(name);
+  return n === "ph" || n.startsWith("ph ") || n.includes("ph agua") || /\bph\b/.test(n);
+};
+
+const isBicarbParam = (name: string) => {
+  const n = normalizeParamName(name);
+  return n.includes("bicarbonat") || n.includes("hco3") || n.includes("alcalinid") || n.includes("carbonat");
+};
