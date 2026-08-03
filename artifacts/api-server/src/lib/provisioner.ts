@@ -105,6 +105,10 @@ export async function provisionInstallation(installationId: number): Promise<voi
         ADMIN_EMAIL: adminEmail,
         ADMIN_PASSWORD: adminPassword,
         ADMIN_NAME: clean(inst.contactName),
+        // Para el reporte automático de uso (fincas activas → cargo variable):
+        // la URL pública de la central y el token secreto de la instalación.
+        CENTRAL_URL: (process.env.APP_URL ?? "").replace(/\/+$/, ""),
+        INSTALL_TOKEN: inst.apiToken,
       });
       for (const s of STEPS) await logEvent(installationId, s.step, "ok", s.label);
       await logEvent(installationId, "script", "ok", output.slice(-800));

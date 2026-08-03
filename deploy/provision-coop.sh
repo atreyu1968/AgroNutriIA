@@ -25,6 +25,8 @@
 #   ADMIN_EMAIL     Email del administrador inicial (obligatorio)
 #   ADMIN_PASSWORD  Contraseña temporal del administrador (obligatoria)
 #   ADMIN_NAME      Nombre del administrador (por defecto: Administrador)
+#   CENTRAL_URL     URL pública de la central de facturación (para el reporte de uso)
+#   INSTALL_TOKEN   Token secreto de la instalación (autentica el reporte de uso)
 #   APP_DIR         Instalación base compartida (por defecto /opt/agronutri)
 #   PORT_BASE       Primer puerto candidato (por defecto 3100)
 # ============================================================================
@@ -98,6 +100,16 @@ DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
 APP_URL=https://${DOMAIN}
 EOF
+# Reporte automático de uso: la instancia cuenta sus fincas activas y las
+# envía a diario a la central (POST /api/billing/usage) para el cargo variable.
+if [[ -n "${CENTRAL_URL:-}" && -n "${INSTALL_TOKEN:-}" ]]; then
+  cat >> "$ENV_FILE" <<EOF
+CENTRAL_URL=${CENTRAL_URL}
+INSTALL_TOKEN=${INSTALL_TOKEN}
+EOF
+else
+  echo "AVISO: CENTRAL_URL / INSTALL_TOKEN no definidos; la instancia no reportará su uso a la central." >&2
+fi
 chmod 600 "$ENV_FILE"
 
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startReportSweeper } from "./lib/reportSweeper";
+import { startUsageReporter } from "./lib/usageReporter";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,5 @@ app.listen(port, host, (err) => {
 
   logger.info({ port }, "Server listening");
   startReportSweeper();
+  startUsageReporter();
 });
