@@ -2,3 +2,4 @@
 - [OpenAPI Params name collisions](orval-zod.md) — ops with both path and query params can collide on generated `<Op>Params` types; avoid query params on such ops or rename.
 - [Stale TS builds](stale-ts-build.md) — phantom "property does not exist" errors after merges: rebuild lib project refs with `tsc -b lib/<pkg>` before trusting them.
 - [esbuild externals](esbuild-externals.md) — pdfkit/fontkit and pdf-parse/@napi-rs/canvas cannot be bundled by esbuild; keep them in the `external` list.
+- [pdfkit footers](pdfkit-footer.md) — zero out `margins.bottom` before writing footer text in the bottom margin, or pdfkit silently appends blank pages.

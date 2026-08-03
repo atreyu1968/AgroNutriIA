@@ -239,7 +239,7 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const sections = buildSections(d);
   await new Promise<void>((resolve, reject) => {
-    const doc = new PDFDocument({ margin: MARGIN, size: "A4" });
+    const doc = new PDFDocument({ margin: MARGIN, size: "A4", bufferPages: true });
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
     // Header band
@@ -267,6 +267,34 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
         doc.moveDown(0.3);
         drawTable(doc, s.table);
       }
+    }
+    // Footer with page numbers on every buffered page
+    const range = doc.bufferedPageRange();
+    const total = range.start + range.count;
+    for (let i = range.start; i < total; i++) {
+      doc.switchToPage(i);
+      // Writing inside the bottom margin would trigger an automatic page break; disable it temporarily
+      const savedBottom = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
+      const footerY = doc.page.height - MARGIN + 8;
+      doc.fontSize(8).font("Helvetica").fillColor("#777777");
+      doc.text(pdfSafe(d.farm.name), MARGIN, footerY, {
+        width: doc.page.width - MARGIN * 2,
+        align: "left",
+        lineBreak: false,
+      });
+      doc.text(`Página ${i - range.start + 1} de ${range.count}`, MARGIN, footerY, {
+        width: doc.page.width - MARGIN * 2,
+        align: "center",
+        lineBreak: false,
+      });
+      doc.text("AgroNutri AI", MARGIN, footerY, {
+        width: doc.page.width - MARGIN * 2,
+        align: "right",
+        lineBreak: false,
+      });
+      doc.fillColor("black");
+      doc.page.margins.bottom = savedBottom;
     }
     doc.end();
     stream.on("finish", () => resolve());
