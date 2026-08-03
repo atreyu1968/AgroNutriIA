@@ -85,9 +85,16 @@ function buildSections(d: ReportData): Section[] {
   }
   if (d.recommendation) {
     const r = d.recommendation;
+    const originLabel = r.source === "ai" ? "[IA]" : "[Técnico]";
+    const originDate = new Date(r.updatedAt ?? r.createdAt).toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
     sections.push({
       heading: `${n}. Programa semanal de fertirrigación recomendado`,
       paragraphs: [
+        `Origen del programa: ${originLabel} · Fecha del programa: ${originDate}.`,
         r.title ?? "",
         r.rationale ?? "",
         r.estimatedEcDsM != null ? `CE estimada de la solución: ${r.estimatedEcDsM} dS/m.` : "",
