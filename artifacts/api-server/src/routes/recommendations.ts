@@ -180,6 +180,7 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
   }
   const requestedSectorId = parsedBody.data.sectorId ?? null;
   const useAcid = parsedBody.data.useAcid === true;
+  const targetPh = useAcid && parsedBody.data.targetPh != null ? parsedBody.data.targetPh : null;
   let sector: typeof sectorsTable.$inferSelect | null = null;
   if (requestedSectorId != null) {
     const [s] = await db
@@ -262,7 +263,7 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     ? `
 
 IMPORTANTE — ACIDIFICACIÓN DEL AGUA: el agricultor ha decidido usar ácido para bajar el pH del agua de riego. Tenlo en cuenta al diseñar el programa:
-- Calcula los LITROS de ácido necesarios POR SEMANA a partir del pH y los bicarbonatos del análisis de agua y del volumen semanal de riego, para llevar el agua a un pH objetivo de 5,5–6,0.
+- Calcula los LITROS de ácido necesarios POR SEMANA a partir del pH y los bicarbonatos del análisis de agua y del volumen semanal de riego, para llevar el agua a ${targetPh != null ? `un pH objetivo de ${targetPh}` : "un pH objetivo de 5,5–6,0"}.
 - Si el catálogo incluye un ácido (p. ej. ácido nítrico, fosfórico o sulfúrico), inclúyelo como un producto más del programa con su dosis semanal en L y el motivo "corrección de pH del agua", y descuenta el nitrógeno o fósforo que aporte del resto del abonado.
 - Si no hay ningún ácido en el catálogo, NO lo inventes como producto: indica en la justificación los litros semanales estimados de ácido y de qué tipo, y ajusta el programa asumiendo el agua ya acidificada.
 - Evita recomendar productos alcalinizantes o bicarbonatados que contrarresten la acidificación.`

@@ -14,4 +14,11 @@ export type GenerateAiDraftRecommendationBody = {
   sectorId?: number | null;
   /** Si es true, la finca usa ácido para bajar el pH del agua de riego y la IA debe tenerlo en cuenta */
   useAcid?: boolean;
+  /**
+     * pH objetivo del agua de riego cuando se usa ácido; si se omite, se usa el rango 5,5–6,0
+     * @minimum 4
+     * @maximum 7.5
+     * @nullable
+     */
+  targetPh?: number | null;
 };

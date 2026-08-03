@@ -36,6 +36,7 @@ export default function CalculadoraTab({
   const { data: sectors } = useListSectors(farmId);
   const [aiSectorId, setAiSectorId] = useState<string>("global");
   const [useAcid, setUseAcid] = useState(false);
+  const [targetPh, setTargetPh] = useState("5.8");
 
   const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
   const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
@@ -225,6 +226,21 @@ export default function CalculadoraTab({
                   />
                   Uso de ácido para bajar el pH del agua
                 </label>
+                {useAcid && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">pH objetivo</span>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min={4}
+                      max={7.5}
+                      value={targetPh}
+                      onChange={(e) => setTargetPh(e.target.value)}
+                      className="h-8 w-20 text-xs"
+                      data-testid="input-target-ph"
+                    />
+                  </div>
+                )}
                 {sectors && sectors.length > 0 && (
                   <Select value={aiSectorId} onValueChange={setAiSectorId}>
                     <SelectTrigger className="h-8 w-[170px] text-xs" data-testid="select-ai-sector">
@@ -246,7 +262,14 @@ export default function CalculadoraTab({
                       farmId,
                       data: {
                         ...(aiSectorId === "global" ? {} : { sectorId: Number(aiSectorId) }),
-                        ...(useAcid ? { useAcid: true } : {}),
+                        ...(useAcid
+                          ? {
+                              useAcid: true,
+                              ...(Number.isFinite(parseFloat(targetPh))
+                                ? { targetPh: parseFloat(targetPh) }
+                                : {}),
+                            }
+                          : {}),
                       },
                     })
                   }
