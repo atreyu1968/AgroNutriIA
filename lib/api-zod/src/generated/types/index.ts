@@ -71,6 +71,7 @@ export * from './phytoRefreshBody';
 export * from './phytoRefreshResult';
 export * from './phytoRefreshResultDetailsItem';
 export * from './phytoRefreshResultDetailsItemStatus';
+export * from './phytoSplitAllResult';
 export * from './phytoSplitResult';
 export * from './phytoTreatment';
 export * from './phytoTreatmentCreate';

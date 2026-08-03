@@ -1097,6 +1097,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PhytoRefreshResult"
 
+  /phyto/products/split-all:
+    post:
+      operationId: splitAllPhytoProducts
+      tags: [phyto]
+      summary: Split every catalog entry that groups several commercial names, skipping entries the user cannot modify
+      responses:
+        "200":
+          description: Batch split summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhytoSplitAllResult"
+
   /phyto/products/{productId}/split:
     post:
       operationId: splitPhytoProduct
@@ -1646,6 +1659,25 @@ components:
         skippedNames:
           type: array
           description: Nombres que ya existían en el catálogo y no se han duplicado
+          items: { type: string }
+    PhytoSplitAllResult:
+      type: object
+      required: [totalGrouped, splitProducts, skippedNames, notOwned]
+      properties:
+        totalGrouped:
+          type: integer
+          description: Fichas agrupadas encontradas en el catálogo
+        splitProducts:
+          type: array
+          description: Nombres agrupados originales de las fichas que se han dividido
+          items: { type: string }
+        skippedNames:
+          type: array
+          description: Nombres individuales omitidos porque ya existían en el catálogo
+          items: { type: string }
+        notOwned:
+          type: array
+          description: Fichas agrupadas no divididas porque el usuario no puede modificarlas
           items: { type: string }
     PhytoRefreshBody:
       type: object

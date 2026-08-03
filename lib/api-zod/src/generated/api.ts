@@ -1856,6 +1856,17 @@ export const RefreshPhytoProductsResponse = zod.object({
 
 
 /**
+ * @summary Split every catalog entry that groups several commercial names, skipping entries the user cannot modify
+ */
+export const SplitAllPhytoProductsResponse = zod.object({
+  "totalGrouped": zod.number().int().describe('Fichas agrupadas encontradas en el catálogo'),
+  "splitProducts": zod.array(zod.string()).describe('Nombres agrupados originales de las fichas que se han dividido'),
+  "skippedNames": zod.array(zod.string()).describe('Nombres individuales omitidos porque ya existían en el catálogo'),
+  "notOwned": zod.array(zod.string()).describe('Fichas agrupadas no divididas porque el usuario no puede modificarlas')
+})
+
+
+/**
  * @summary Split a catalog entry that groups several commercial names into one entry per name
  */
 export const SplitPhytoProductParams = zod.object({

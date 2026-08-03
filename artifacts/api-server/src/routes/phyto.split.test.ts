@@ -191,3 +191,66 @@ test("un producto inexistente devuelve 404", async () => {
   const split = await api("POST", "/phyto/products/999999/split", creatorToken);
   assert.equal(split.status, 404);
 });
+
+// Otros tests corren en paralelo sobre la misma BD, así que las aserciones
+// usan "incluye" en vez de igualdad exacta sobre los totales del lote.
+test("dividir todas divide las fichas propias, omite nombres existentes y respeta las ajenas", async () => {
+  const pre = await api("POST", "/phyto/products", creatorToken, {
+    productName: `Lote Pre ${suffix}`,
+  });
+  assert.equal(pre.status, 201);
+  const groupedA = `Lote Uno ${suffix}, Lote Dos ${suffix}`;
+  const groupedB = `Lote Pre ${suffix}, Lote Tres ${suffix}`;
+  const groupedAjena = `Lote Ajena Uno ${suffix}, Lote Ajena Dos ${suffix}`;
+  const a = await api("POST", "/phyto/products", creatorToken, { productName: groupedA });
+  const b = await api("POST", "/phyto/products", creatorToken, { productName: groupedB });
+  const ajena = await api("POST", "/phyto/products", otherToken, { productName: groupedAjena });
+  assert.equal(a.status, 201);
+  assert.equal(b.status, 201);
+  assert.equal(ajena.status, 201);
+
+  const r = await api("POST", "/phyto/products/split-all", creatorToken);
+  assert.equal(r.status, 200);
+  assert.ok(r.raw.totalGrouped >= 3);
+  assert.ok(r.raw.splitProducts.includes(groupedA));
+  assert.ok(r.raw.splitProducts.includes(groupedB));
+  // El nombre que ya existía no se duplica.
+  assert.ok(r.raw.skippedNames.includes(`Lote Pre ${suffix}`));
+  // La ficha ajena se salta sin abortar el lote y queda intacta.
+  assert.ok(r.raw.notOwned.includes(groupedAjena));
+  const [ajenaRow] = await db
+    .select()
+    .from(phytoProductsTable)
+    .where(eq(phytoProductsTable.id, ajena.raw.id));
+  assert.equal(ajenaRow.productName, groupedAjena);
+
+  // Las marcas propias existen ahora como fichas sueltas.
+  const list = await api("GET", "/phyto/products", creatorToken);
+  const names = list.raw.map((p: any) => p.productName);
+  for (const n of [`Lote Uno ${suffix}`, `Lote Dos ${suffix}`, `Lote Tres ${suffix}`]) {
+    assert.ok(names.includes(n), `falta ${n}`);
+  }
+  assert.ok(!names.includes(groupedA));
+  assert.ok(!names.includes(groupedB));
+});
+
+test("sin permisos de catálogo, dividir todas devuelve 403", async () => {
+  const [noFarm] = await db
+    .insert(usersTable)
+    .values({
+      email: `phyto-splitall-nofarm-${suffix}@test.local`,
+      passwordHash: "x",
+      name: "Sin finca",
+      isAdmin: false,
+    })
+    .returning();
+  createdUserIds.push(noFarm.id);
+  const token = randomUUID();
+  await db.insert(sessionsTable).values({
+    id: token,
+    userId: noFarm.id,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+  });
+  const r = await api("POST", "/phyto/products/split-all", token);
+  assert.equal(r.status, 403);
+});

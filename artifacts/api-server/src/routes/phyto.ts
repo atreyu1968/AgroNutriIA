@@ -27,6 +27,7 @@ import {
   UpdatePhytoProductResponse,
   RefreshPhytoProductsBody,
   SplitPhytoProductResponse,
+  SplitAllPhytoProductsResponse,
   RefreshPhytoProductsResponse,
   PhytoConsultBody,
   PhytoPlanPdfBody,
@@ -470,30 +471,19 @@ export function splitProductNames(productName: string): string[] {
 // fecha de autorización NO se copian a las nuevas: son propios de cada marca y
 // los completará "Actualizar con IA". Los nombres que ya existen en el catálogo
 // se omiten para no crear duplicados.
-router.post("/phyto/products/:productId/split", async (req, res): Promise<void> => {
-  if (!(await canEditCatalog(req.user!))) {
-    res.status(403).json({ error: "Sin permisos para modificar el catálogo" });
-    return;
-  }
-  const productId = parseIntParam(req.params.productId);
-  const [existing] = await db
-    .select()
-    .from(phytoProductsTable)
-    .where(eq(phytoProductsTable.id, productId));
-  if (!existing) {
-    res.status(404).json({ error: "Producto no encontrado" });
-    return;
-  }
-  if (!canMutateProduct(req.user!, existing)) {
-    res.status(403).json({ error: "Solo el administrador o quien lo añadió puede modificarlo" });
-    return;
-  }
-  const names = splitProductNames(existing.productName);
-  if (names.length < 2) {
-    res.status(400).json({ error: "Esta ficha no agrupa varios nombres comerciales" });
-    return;
-  }
+type SplitOutcome = {
+  // null si todos los nombres ya existían y la ficha se ha dejado intacta.
+  products: PhytoProduct[] | null;
+  skippedNames: string[];
+};
 
+// Núcleo de la división, compartido por el endpoint por ficha y el de lote.
+// Asume que el llamante ya ha comprobado permisos y que names.length >= 2.
+async function splitGroupedProduct(
+  userId: number,
+  existing: PhytoProduct,
+  names: string[],
+): Promise<SplitOutcome> {
   const skippedNames: string[] = [];
   const products: PhytoProduct[] = [];
 
@@ -526,10 +516,7 @@ router.post("/phyto/products/:productId/split", async (req, res): Promise<void> 
     }
   }
   if (!renamed) {
-    res.status(409).json({
-      error: "Todos los nombres de esta ficha ya existen como fichas separadas en el catálogo",
-    });
-    return;
+    return { products: null, skippedNames };
   }
   for (const name of toInsert) {
     try {
@@ -551,7 +538,7 @@ router.post("/phyto/products/:productId/split", async (req, res): Promise<void> 
           exceptional: existing.exceptional,
           notes: existing.notes,
           sourceUrl: existing.sourceUrl,
-          createdBy: existing.createdBy ?? req.user!.id,
+          createdBy: existing.createdBy ?? userId,
         })
         .returning();
       products.push(row);
@@ -562,19 +549,88 @@ router.post("/phyto/products/:productId/split", async (req, res): Promise<void> 
     }
   }
   await audit({
-    userId: req.user!.id,
+    userId,
     farmId: null,
     action: "phyto_product_split",
     entityType: "phyto_product",
     entityId: existing.id,
     detail: `${existing.productName} → ${products.map((p) => p.productName).join(", ")}`,
   });
+  return { products, skippedNames };
+}
+
+router.post("/phyto/products/:productId/split", async (req, res): Promise<void> => {
+  if (!(await canEditCatalog(req.user!))) {
+    res.status(403).json({ error: "Sin permisos para modificar el catálogo" });
+    return;
+  }
+  const productId = parseIntParam(req.params.productId);
+  const [existing] = await db
+    .select()
+    .from(phytoProductsTable)
+    .where(eq(phytoProductsTable.id, productId));
+  if (!existing) {
+    res.status(404).json({ error: "Producto no encontrado" });
+    return;
+  }
+  if (!canMutateProduct(req.user!, existing)) {
+    res.status(403).json({ error: "Solo el administrador o quien lo añadió puede modificarlo" });
+    return;
+  }
+  const names = splitProductNames(existing.productName);
+  if (names.length < 2) {
+    res.status(400).json({ error: "Esta ficha no agrupa varios nombres comerciales" });
+    return;
+  }
+  const { products, skippedNames } = await splitGroupedProduct(req.user!.id, existing, names);
+  if (!products) {
+    res.status(409).json({
+      error: "Todos los nombres de esta ficha ya existen como fichas separadas en el catálogo",
+    });
+    return;
+  }
   res.json(
     SplitPhytoProductResponse.parse({
       products: await Promise.all(
         products.map(async (p) => serializeProduct(p, await userName(p.createdBy))),
       ),
       skippedNames,
+    }),
+  );
+});
+
+// Divide de una vez todas las fichas del catálogo que agrupan varios nombres
+// comerciales. Respeta la propiedad: las fichas que el usuario no puede
+// modificar (ni admin ni creador) se saltan sin abortar el lote. Devuelve un
+// resumen con lo dividido y lo omitido.
+router.post("/phyto/products/split-all", async (req, res): Promise<void> => {
+  if (!(await canEditCatalog(req.user!))) {
+    res.status(403).json({ error: "Sin permisos para modificar el catálogo" });
+    return;
+  }
+  const all = await db.select().from(phytoProductsTable).orderBy(phytoProductsTable.id);
+  const grouped = all.filter((p) => splitProductNames(p.productName).length > 1);
+
+  const splitProducts: string[] = [];
+  const skippedNames: string[] = [];
+  const notOwned: string[] = [];
+  for (const p of grouped) {
+    if (!canMutateProduct(req.user!, p)) {
+      notOwned.push(p.productName);
+      continue;
+    }
+    // Secuencial a propósito: cada división ve las fichas creadas por las
+    // anteriores y así no se duplican nombres repetidos entre fichas.
+    const r = await splitGroupedProduct(req.user!.id, p, splitProductNames(p.productName));
+    skippedNames.push(...r.skippedNames);
+    if (r.products) splitProducts.push(p.productName);
+  }
+  res.json(
+    SplitAllPhytoProductsResponse.parse({
+      totalGrouped: grouped.length,
+      splitProducts,
+      skippedNames,
+      notOwned,
     }),
   );
 });

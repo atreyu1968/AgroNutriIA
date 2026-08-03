@@ -256,6 +256,17 @@ export interface PhytoSplitResult {
   skippedNames: string[];
 }
 
+export interface PhytoSplitAllResult {
+  /** Fichas agrupadas encontradas en el catálogo */
+  totalGrouped: number;
+  /** Nombres agrupados originales de las fichas que se han dividido */
+  splitProducts: string[];
+  /** Nombres individuales omitidos porque ya existían en el catálogo */
+  skippedNames: string[];
+  /** Fichas agrupadas no divididas porque el usuario no puede modificarlas */
+  notOwned: string[];
+}
+
 export interface PhytoRefreshBody {
   /**
      * Máximo de productos a completar en esta pasada (por defecto 6)

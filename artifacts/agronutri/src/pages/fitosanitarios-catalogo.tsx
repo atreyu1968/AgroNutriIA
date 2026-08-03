@@ -5,6 +5,7 @@ import {
   useDeletePhytoProduct,
   useRefreshPhytoProducts,
   useSplitPhytoProduct,
+  useSplitAllPhytoProducts,
   useCreatePhytoProduct,
   useUpdatePhytoProduct,
   useGetMe,
@@ -112,6 +113,7 @@ export default function FitosanitariosCatalogo() {
   };
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [splitProduct, setSplitProduct] = useState<PhytoProduct | null>(null);
+  const [splitAllOpen, setSplitAllOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<PhytoProduct | null>(null);
   const queryClient = useQueryClient();
@@ -210,6 +212,40 @@ export default function FitosanitariosCatalogo() {
     },
   });
 
+  // Fichas cuyo nombre agrupa varias marcas; sobre todas ellas actúa "Dividir todas".
+  const groupedProducts = products?.filter((p) => splitNames(p.productName).length > 1) ?? [];
+
+  const splitAllMutation = useSplitAllPhytoProducts({
+    mutation: {
+      onSuccess: (r) => {
+        queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+        setSplitAllOpen(false);
+        if (r.totalGrouped === 0) {
+          toast({ title: "Nada que dividir", description: "No hay fichas que agrupen varios nombres comerciales." });
+          return;
+        }
+        const parts: string[] = [`${r.splitProducts.length} de ${r.totalGrouped} ficha(s) divididas`];
+        if (r.skippedNames.length) {
+          parts.push(`nombres omitidos por existir ya: ${r.skippedNames.join(", ")}`);
+        }
+        if (r.notOwned.length) {
+          parts.push(`sin permiso para modificar (no divididas): ${r.notOwned.join(", ")}`);
+        }
+        toast({
+          title: "División completada",
+          description:
+            parts.join(". ") +
+            '. Usa "Actualizar con IA" para completar el nº de registro y la fecha de cada marca.',
+        });
+      },
+      onError: (err) => {
+        setSplitAllOpen(false);
+        const msg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "No se pudieron dividir las fichas", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
   const deleteMutation = useDeletePhytoProduct({
     mutation: {
       onSuccess: () => {
@@ -244,6 +280,17 @@ export default function FitosanitariosCatalogo() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          {canEdit && groupedProducts.length > 0 && (
+            <Button
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={() => setSplitAllOpen(true)}
+              disabled={splitAllMutation.isPending}
+            >
+              <Ungroup className="w-4 h-4" />
+              {splitAllMutation.isPending ? "Dividiendo..." : `Dividir todas (${groupedProducts.length})`}
+            </Button>
+          )}
           {canEdit && (
             <Button
               variant="outline"
@@ -425,6 +472,36 @@ export default function FitosanitariosCatalogo() {
               onClick={() => splitProduct && splitMutation.mutate({ productId: splitProduct.id })}
             >
               {splitMutation.isPending ? "Dividiendo..." : "Dividir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={splitAllOpen} onOpenChange={setSplitAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Dividir todas las fichas agrupadas?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Hay {groupedProducts.length} ficha(s) cuyo nombre agrupa varias marcas. Cada una se
+                  dividirá en una ficha por marca, conservando la materia activa, las plagas y las
+                  notas comunes.
+                </p>
+                <p>
+                  Los nombres que ya existan en el catálogo se omitirán y las fichas que no puedas
+                  modificar se saltarán. Al terminar verás un resumen.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={splitAllMutation.isPending}
+              onClick={() => splitAllMutation.mutate()}
+            >
+              {splitAllMutation.isPending ? "Dividiendo..." : "Dividir todas"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
