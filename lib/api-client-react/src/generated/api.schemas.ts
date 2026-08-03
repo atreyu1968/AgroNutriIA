@@ -858,6 +858,11 @@ export interface Report {
   format: string;
   /** generating | ready | error */
   status: string;
+  /**
+     * Avisos no bloqueantes de la generación (p. ej. logo ausente)
+     * @nullable
+     */
+  warnings?: string[] | null;
   /** @nullable */
   downloadUrl?: string | null;
   /** @nullable */

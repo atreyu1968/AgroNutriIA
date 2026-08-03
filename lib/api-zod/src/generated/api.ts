@@ -1510,6 +1510,7 @@ export const ListReportsResponseItem = zod.object({
   "title": zod.string(),
   "format": zod.string().describe('pdf | docx'),
   "status": zod.string().describe('generating | ready | error'),
+  "warnings": zod.array(zod.string()).nullish().describe('Avisos no bloqueantes de la generación (p. ej. logo ausente)'),
   "downloadUrl": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1534,6 +1535,7 @@ export const CreateReportResponse = zod.object({
   "title": zod.string(),
   "format": zod.string().describe('pdf | docx'),
   "status": zod.string().describe('generating | ready | error'),
+  "warnings": zod.array(zod.string()).nullish().describe('Avisos no bloqueantes de la generación (p. ej. logo ausente)'),
   "downloadUrl": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
   "createdAt": zod.string()

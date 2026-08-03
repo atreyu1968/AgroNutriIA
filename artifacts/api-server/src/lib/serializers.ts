@@ -148,6 +148,7 @@ export function serializeReport(r: Report, createdByName?: string | null) {
     title: r.title,
     format: r.format,
     status: r.status,
+    warnings: r.warnings ?? null,
     downloadUrl:
       r.status === "ready" ? `/api/farms/${r.farmId}/reports/${r.id}/download` : null,
     createdByName: createdByName ?? null,

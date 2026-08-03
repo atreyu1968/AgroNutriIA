@@ -41,6 +41,11 @@ export function resolveLogo(logoPath: string = LOGO_PATH): string | null {
   return null;
 }
 
+/** Aviso que se propaga al registro del informe cuando falta el logo. */
+export function missingLogoWarning(logoPath: string = LOGO_PATH): string {
+  return `El informe se generó sin el logotipo porque falta el archivo en ${path.relative(process.cwd(), logoPath)}. Restaura el logo en esa ruta para que aparezca en los próximos informes.`;
+}
+
 export type ReportData = {
   title: string;
   farm: Farm;
@@ -277,9 +282,10 @@ function drawTable(doc: PDFKit.PDFDocument, table: string[][]): void {
   doc.y = y;
 }
 
-export async function generatePdf(d: ReportData, filePath: string): Promise<void> {
+export async function generatePdf(d: ReportData, filePath: string): Promise<string[]> {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const sections = buildSections(d);
+  const warnings: string[] = [];
   await new Promise<void>((resolve, reject) => {
     const doc = new PDFDocument({ margin: MARGIN, size: "A4", bufferPages: true });
     const stream = fs.createWriteStream(filePath);
@@ -295,6 +301,7 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
       doc.image(logoPath, MARGIN, MARGIN, { width: logoW });
       doc.y = MARGIN + logoW * LOGO_RATIO + 14;
     } else {
+      warnings.push(missingLogoWarning());
       doc.y = MARGIN;
     }
     doc.x = MARGIN;
@@ -352,13 +359,16 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
     stream.on("finish", () => resolve());
     stream.on("error", reject);
   });
+  return warnings;
 }
 
-export async function generateDocx(d: ReportData, filePath: string): Promise<void> {
+export async function generateDocx(d: ReportData, filePath: string): Promise<string[]> {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const sections = buildSections(d);
+  const warnings: string[] = [];
   const logoW = 140;
   const logoPath = resolveLogo();
+  if (!logoPath) warnings.push(missingLogoWarning());
   const children: (Paragraph | Table)[] = [
     ...(logoPath
       ? [
@@ -464,4 +474,5 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<voi
   });
   const buffer = await Packer.toBuffer(doc);
   fs.writeFileSync(filePath, buffer);
+  return warnings;
 }

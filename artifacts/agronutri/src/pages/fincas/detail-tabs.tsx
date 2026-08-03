@@ -39,7 +39,7 @@ import { z } from "zod";
 import { formatDateTime, formatDate, formatNumber } from "@/lib/utils";
 
 // --- Sectors Tab ---
-import { Trash2, Plus, Pencil, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot, TrendingUp } from "lucide-react";
+import { Trash2, Plus, Pencil, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot, TrendingUp, AlertTriangle } from "lucide-react";
 export function SectorsTab({ farmId }: { farmId: number }) {
   const { data: sectors, isLoading } = useListSectors(farmId);
   const { toast } = useToast();
@@ -1026,6 +1026,16 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                     {r.status === 'ready' ? <span className="text-green-600 font-medium">Listo</span> : 
                      r.status === 'generating' ? <span className="text-amber-600 animate-pulse">Generando...</span> : 
                      <span className="text-destructive">Error</span>}
+                    {r.warnings && r.warnings.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {r.warnings.map((w, i) => (
+                          <div key={i} className="flex items-start gap-1 text-xs text-amber-700" data-testid={`text-report-warning-${r.id}-${i}`}>
+                            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span>{w}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {r.status === 'ready' && r.downloadUrl && (

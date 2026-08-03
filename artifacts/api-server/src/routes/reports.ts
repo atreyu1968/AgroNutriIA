@@ -177,11 +177,13 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         authorName,
         date: new Date().toLocaleDateString("es-ES"),
       };
-      if (parsed.data.format === "pdf") await generatePdf(data, filePath);
-      else await generateDocx(data, filePath);
+      const warnings =
+        parsed.data.format === "pdf"
+          ? await generatePdf(data, filePath)
+          : await generateDocx(data, filePath);
       await db
         .update(reportsTable)
-        .set({ status: "ready", filePath })
+        .set({ status: "ready", filePath, warnings: warnings.length ? warnings : null })
         .where(and(eq(reportsTable.id, report.id), eq(reportsTable.status, "generating")));
       await audit({
         userId,

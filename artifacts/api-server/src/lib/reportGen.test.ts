@@ -343,14 +343,19 @@ test("generatePdf y generateDocx generan el informe sin logo si el fichero falta
   console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
   try {
     const pdfPath = path.join(tmpDir, "informe-sin-logo.pdf");
-    await generatePdf(data, pdfPath);
+    const pdfWarnings = await generatePdf(data, pdfPath);
+    assert.equal(pdfWarnings.length, 1, "generatePdf devuelve el aviso de logo ausente");
+    assert.ok(pdfWarnings[0].includes("sin el logotipo"), "el aviso indica que falta el logo");
+    assert.ok(pdfWarnings[0].includes("assets/logo.png"), "el aviso incluye la ruta esperada del logo");
     const pdfBuf = fs.readFileSync(pdfPath);
     assert.equal(pdfBuf.subarray(0, 5).toString("latin1"), "%PDF-", "el PDF se genera igualmente");
     const { text } = await extractPdf(pdfBuf);
     assert.ok(text.includes("Informe de fertirrigación"), "el PDF sin logo conserva el título");
 
     const docxPath = path.join(tmpDir, "informe-sin-logo.docx");
-    await generateDocx(data, docxPath);
+    const docxWarnings = await generateDocx(data, docxPath);
+    assert.equal(docxWarnings.length, 1, "generateDocx devuelve el aviso de logo ausente");
+    assert.ok(docxWarnings[0].includes("assets/logo.png"), "el aviso incluye la ruta esperada del logo");
     const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
     const docXml = await zip.file("word/document.xml")!.async("string");
     assert.ok(docXml.includes("Informe de fertirrigación"), "el DOCX sin logo conserva el título");

@@ -55,6 +55,7 @@ export const reportsTable = pgTable("reports", {
   title: text("title").notNull(),
   format: text("format").notNull(), // pdf | docx
   status: text("status").notNull().default("generating"), // generating | ready | error
+  warnings: text("warnings").array(),
   filePath: text("file_path"),
   createdBy: integer("created_by").references(() => usersTable.id, {
     onDelete: "set null",

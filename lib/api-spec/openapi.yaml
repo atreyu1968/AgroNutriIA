@@ -1941,6 +1941,10 @@ components:
         title: { type: string }
         format: { type: string, description: "pdf | docx" }
         status: { type: string, description: "generating | ready | error" }
+        warnings:
+          type: ["array", "null"]
+          items: { type: string }
+          description: Avisos no bloqueantes de la generación (p. ej. logo ausente)
         downloadUrl: { type: ["string", "null"] }
         createdByName: { type: ["string", "null"] }
         createdAt: { type: string }
