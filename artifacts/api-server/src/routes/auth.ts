@@ -181,12 +181,12 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
       base = `${req.protocol}://${req.get("host") ?? "localhost"}`;
     }
     const resetUrl = `${base}/restablecer?token=${token}`;
-    if (emailConfigured()) {
+    if (await emailConfigured()) {
       await sendPasswordResetEmail(user.email, user.name, resetUrl);
     } else {
       logger.warn(
         { email: user.email, resetUrl },
-        "RESEND_API_KEY no configurada: no se ha enviado el email de recuperación (enlace en este log)",
+        "Clave de Resend no configurada (ni en Administración ni en el entorno): no se ha enviado el email de recuperación (enlace en este log)",
       );
     }
     await audit({ userId: user.id, action: "forgot_password", entityType: "user", entityId: user.id });

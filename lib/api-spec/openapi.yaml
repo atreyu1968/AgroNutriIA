@@ -1241,6 +1241,36 @@ paths:
         "204":
           description: Deleted
 
+  /admin/settings/email:
+    get:
+      operationId: adminGetEmailSettings
+      tags: [admin]
+      summary: Get email (Resend) settings (admin only)
+      responses:
+        "200":
+          description: Email settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminEmailSettings"
+    put:
+      operationId: adminUpdateEmailSettings
+      tags: [admin]
+      summary: Update email (Resend) settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEmailSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminEmailSettings"
+
 components:
   parameters:
     UserId:
@@ -1508,6 +1538,26 @@ components:
         company: { type: ["string", "null"] }
         role: { type: string, enum: [owner, technician, manager, viewer] }
         isAdmin: { type: boolean }
+    AdminEmailSettings:
+      type: object
+      required: [configured, source]
+      properties:
+        configured: { type: boolean, description: Hay una clave de Resend disponible }
+        source: { type: string, enum: [db, env, none], description: De dónde sale la clave activa }
+        apiKeyMasked: { type: ["string", "null"], description: Clave guardada en BD, enmascarada }
+        emailFrom: { type: ["string", "null"], description: Remitente configurado en BD }
+    AdminEmailSettingsInput:
+      type: object
+      properties:
+        resendApiKey:
+          type: ["string", "null"]
+          maxLength: 200
+          description: Clave de API de Resend; null o vacío la borra
+        emailFrom:
+          type: ["string", "null"]
+          maxLength: 200
+          description: Remitente, p. ej. "AgroNutri <no-reply@midominio.com>"; null o vacío lo borra
+
     AdminFarm:
       type: object
       required: [id, ownerId, ownerName, name, memberCount]

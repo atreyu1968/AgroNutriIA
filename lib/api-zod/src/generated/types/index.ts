@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminEmailSettings';
+export * from './adminEmailSettingsInput';
+export * from './adminEmailSettingsSource';
 export * from './adminFarm';
 export * from './adminUser';
 export * from './adminUserCreate';

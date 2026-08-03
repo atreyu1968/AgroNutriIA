@@ -275,6 +275,50 @@ export interface AdminUserCreate {
   isAdmin?: boolean;
 }
 
+/**
+ * De dónde sale la clave activa
+ */
+export type AdminEmailSettingsSource = typeof AdminEmailSettingsSource[keyof typeof AdminEmailSettingsSource];
+
+
+export const AdminEmailSettingsSource = {
+  db: 'db',
+  env: 'env',
+  none: 'none',
+} as const;
+
+export interface AdminEmailSettings {
+  /** Hay una clave de Resend disponible */
+  configured: boolean;
+  /** De dónde sale la clave activa */
+  source: AdminEmailSettingsSource;
+  /**
+     * Clave guardada en BD
+     * @nullable
+     */
+  apiKeyMasked?: string | null;
+  /**
+     * Remitente configurado en BD
+     * @nullable
+     */
+  emailFrom?: string | null;
+}
+
+export interface AdminEmailSettingsInput {
+  /**
+     * Clave de API de Resend; null o vacío la borra
+     * @maxLength 200
+     * @nullable
+     */
+  resendApiKey?: string | null;
+  /**
+     * Remitente, p. ej. "AgroNutri <no-reply@midominio.com>"; null o vacío lo borra
+     * @maxLength 200
+     * @nullable
+     */
+  emailFrom?: string | null;
+}
+
 export interface AdminFarm {
   id: number;
   ownerId: number;

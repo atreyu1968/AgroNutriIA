@@ -1,9 +1,14 @@
+import { eq, inArray } from "drizzle-orm";
+import { db, appSettingsTable } from "@workspace/db";
+import { encryptSecret, decryptSecret } from "./crypto";
 import { logger } from "./logger";
 
 /**
  * Envío de emails mediante Resend (https://resend.com).
  *
- * Variables de entorno:
+ * La clave y el remitente se leen primero de la configuración guardada por el
+ * administrador (tabla app_settings, editable en Administración → Configuración);
+ * si no hay nada guardado, se usan las variables de entorno:
  * - RESEND_API_KEY  Clave de API de Resend. Si falta, no se envía email y se
  *                   registra el enlace en los logs (útil en desarrollo).
  * - EMAIL_FROM      Remitente, p. ej. "AgroNutri <no-reply@midominio.com>".
@@ -12,20 +17,75 @@ import { logger } from "./logger";
  */
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+export const SETTING_RESEND_API_KEY = "resend_api_key";
+export const SETTING_EMAIL_FROM = "email_from";
+
 export function appUrl(): string {
   return (process.env.APP_URL ?? "").replace(/\/+$/, "");
 }
 
-export function emailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+export type EmailConfig = {
+  apiKey: string | null;
+  from: string;
+  /** De dónde sale la clave activa. */
+  source: "db" | "env" | "none";
+  /** Valores guardados en BD (sin fallback a entorno). */
+  dbApiKey: string | null;
+  dbFrom: string | null;
+};
+
+export async function getEmailConfig(): Promise<EmailConfig> {
+  const rows = await db
+    .select()
+    .from(appSettingsTable)
+    .where(inArray(appSettingsTable.key, [SETTING_RESEND_API_KEY, SETTING_EMAIL_FROM]));
+  const storedKey = rows.find((r) => r.key === SETTING_RESEND_API_KEY)?.value?.trim() || null;
+  let dbApiKey: string | null = null;
+  if (storedKey) {
+    try {
+      dbApiKey = decryptSecret(storedKey);
+    } catch (err) {
+      logger.error({ err }, "No se pudo descifrar la clave de Resend guardada; se ignora");
+    }
+  }
+  const dbFrom = rows.find((r) => r.key === SETTING_EMAIL_FROM)?.value?.trim() || null;
+  const envKey = process.env.RESEND_API_KEY?.trim() || null;
+  const apiKey = dbApiKey ?? envKey;
+  return {
+    apiKey,
+    from:
+      dbFrom ?? process.env.EMAIL_FROM?.trim() ?? "AgroNutri <onboarding@resend.dev>",
+    source: dbApiKey ? "db" : envKey ? "env" : "none",
+    dbApiKey,
+    dbFrom,
+  };
+}
+
+export async function setEmailSetting(key: string, rawValue: string | null): Promise<void> {
+  if (rawValue == null) {
+    await db.delete(appSettingsTable).where(eq(appSettingsTable.key, key));
+    return;
+  }
+  // Las claves de API se guardan cifradas en reposo, igual que las de OpenAI.
+  const value = key === SETTING_RESEND_API_KEY ? encryptSecret(rawValue) : rawValue;
+  await db
+    .insert(appSettingsTable)
+    .values({ key, value, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: appSettingsTable.key,
+      set: { value, updatedAt: new Date() },
+    });
+}
+
+export async function emailConfigured(): Promise<boolean> {
+  return Boolean((await getEmailConfig()).apiKey);
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const { apiKey, from } = await getEmailConfig();
   if (!apiKey) {
-    throw new Error("RESEND_API_KEY no configurada");
+    throw new Error("Clave de Resend no configurada");
   }
-  const from = process.env.EMAIL_FROM ?? "AgroNutri <onboarding@resend.dev>";
   const resp = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: {

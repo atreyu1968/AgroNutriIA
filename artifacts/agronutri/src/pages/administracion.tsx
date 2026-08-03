@@ -10,6 +10,9 @@ import {
   useAdminDeleteFarm,
   useGetMe,
   getGetMeQueryKey,
+  useAdminGetEmailSettings,
+  getAdminGetEmailSettingsQueryKey,
+  useAdminUpdateEmailSettings,
   type AdminUser,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,7 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus, Mail, Loader2 } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propietario",
@@ -180,6 +183,7 @@ export default function Administracion() {
         <TabsList>
           <TabsTrigger value="usuarios" className="gap-2"><Users className="w-4 h-4" /> Usuarios</TabsTrigger>
           <TabsTrigger value="fincas" className="gap-2"><MapPin className="w-4 h-4" /> Fincas</TabsTrigger>
+          <TabsTrigger value="configuracion" className="gap-2"><Mail className="w-4 h-4" /> Configuración</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios" className="mt-6">
@@ -267,6 +271,10 @@ export default function Administracion() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="configuracion" className="mt-6">
+          <EmailSettingsCard />
         </TabsContent>
       </Tabs>
 
@@ -440,5 +448,120 @@ export default function Administracion() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function EmailSettingsCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useAdminGetEmailSettings({
+    query: { queryKey: getAdminGetEmailSettingsQueryKey() },
+  });
+  const [apiKey, setApiKey] = useState("");
+  const [emailFrom, setEmailFrom] = useState<string | null>(null);
+  const updateMutation = useAdminUpdateEmailSettings({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Configuración de email guardada" });
+        queryClient.invalidateQueries({ queryKey: getAdminGetEmailSettingsQueryKey() });
+        setApiKey("");
+        setEmailFrom(null);
+      },
+      onError: (err: unknown) =>
+        toast({ title: "No se pudo guardar", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
+  const fromValue = emailFrom ?? settings?.emailFrom ?? "";
+  const save = () => {
+    updateMutation.mutate({
+      data: {
+        ...(apiKey.trim() ? { resendApiKey: apiKey.trim() } : {}),
+        ...(emailFrom != null ? { emailFrom: emailFrom.trim() ? emailFrom.trim() : null } : {}),
+      },
+    });
+  };
+
+  return (
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Mail className="w-4 h-4" /> Envío de emails (Resend)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Se usa para enviar el email de recuperación de contraseña. Crea la clave en{" "}
+          <a href="https://resend.com" target="_blank" rel="noreferrer" className="underline">resend.com</a>{" "}
+          (API Keys). Si no hay clave configurada, la app no envía emails y deja el enlace de
+          recuperación en el registro del servidor.
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-24" />
+        ) : (
+          <>
+            <div className="flex items-center gap-2 text-sm" data-testid="email-settings-status">
+              <Badge variant={settings?.configured ? "default" : "secondary"}>
+                {settings?.configured ? "Configurado" : "Sin configurar"}
+              </Badge>
+              {settings?.source === "db" && (
+                <span className="text-muted-foreground">Clave guardada aquí: {settings.apiKeyMasked}</span>
+              )}
+              {settings?.source === "env" && (
+                <span className="text-muted-foreground">Usando la clave del servidor (variable de entorno)</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resend-key">Clave de API de Resend</Label>
+              <Input
+                id="resend-key"
+                type="password"
+                placeholder={settings?.apiKeyMasked ? "Escribe una clave nueva para sustituirla" : "re_..."}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                data-testid="input-resend-key"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email-from">Remitente</Label>
+              <Input
+                id="email-from"
+                placeholder="AgroNutri <no-reply@midominio.com> (vacío = remitente de pruebas de Resend)"
+                value={fromValue}
+                onChange={(e) => setEmailFrom(e.target.value)}
+                data-testid="input-email-from"
+              />
+              <p className="text-xs text-muted-foreground">
+                Para usar tu propio dominio como remitente, verifícalo antes en Resend (apartado Domains).
+                Con el remitente de pruebas solo se pueden enviar emails a la dirección de tu cuenta de Resend.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={save}
+                disabled={updateMutation.isPending || (!apiKey.trim() && emailFrom == null)}
+                data-testid="button-save-email-settings"
+              >
+                {updateMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
+                ) : (
+                  "Guardar"
+                )}
+              </Button>
+              {settings?.apiKeyMasked && (
+                <Button
+                  variant="outline"
+                  disabled={updateMutation.isPending}
+                  onClick={() => updateMutation.mutate({ data: { resendApiKey: null } })}
+                  data-testid="button-clear-resend-key"
+                >
+                  Quitar clave guardada
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

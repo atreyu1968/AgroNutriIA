@@ -9,9 +9,17 @@ import {
   AdminUpdateUserBody,
   AdminUpdateUserResponse,
   AdminListFarmsResponse,
+  AdminUpdateEmailSettingsBody,
+  AdminGetEmailSettingsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { audit } from "../lib/audit";
+import {
+  getEmailConfig,
+  setEmailSetting,
+  SETTING_RESEND_API_KEY,
+  SETTING_EMAIL_FROM,
+} from "../lib/email";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -243,6 +251,49 @@ router.delete("/admin/farms/:farmId", async (req, res): Promise<void> => {
     detail: farm.name,
   });
   res.status(204).send();
+});
+
+function maskKey(key: string): string {
+  if (key.length <= 8) return "••••";
+  return `${key.slice(0, 6)}••••${key.slice(-4)}`;
+}
+
+async function emailSettingsPayload() {
+  const cfg = await getEmailConfig();
+  return {
+    configured: Boolean(cfg.apiKey),
+    source: cfg.source,
+    apiKeyMasked: cfg.dbApiKey ? maskKey(cfg.dbApiKey) : null,
+    emailFrom: cfg.dbFrom,
+  };
+}
+
+router.get("/admin/settings/email", async (_req, res): Promise<void> => {
+  res.json(AdminGetEmailSettingsResponse.parse(await emailSettingsPayload()));
+});
+
+router.put("/admin/settings/email", async (req, res): Promise<void> => {
+  const parsed = AdminUpdateEmailSettingsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if ("resendApiKey" in parsed.data) {
+    const raw = parsed.data.resendApiKey?.trim() || null;
+    await setEmailSetting(SETTING_RESEND_API_KEY, raw);
+  }
+  if ("emailFrom" in parsed.data) {
+    const raw = parsed.data.emailFrom?.trim() || null;
+    await setEmailSetting(SETTING_EMAIL_FROM, raw);
+  }
+  await audit({
+    userId: req.user!.id,
+    action: "admin_email_settings_updated",
+    entityType: "settings",
+    entityId: 0,
+    detail: "Resend",
+  });
+  res.json(AdminGetEmailSettingsResponse.parse(await emailSettingsPayload()));
 });
 
 export default router;

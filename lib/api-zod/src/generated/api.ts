@@ -2022,3 +2022,36 @@ export const AdminDeleteFarmParams = zod.object({
 export const AdminDeleteFarmResponse = zod.void()
 
 
+/**
+ * @summary Get email (Resend) settings (admin only)
+ */
+export const AdminGetEmailSettingsResponse = zod.object({
+  "configured": zod.boolean().describe('Hay una clave de Resend disponible'),
+  "source": zod.enum(['db', 'env', 'none']).describe('De dónde sale la clave activa'),
+  "apiKeyMasked": zod.string().nullish().describe('Clave guardada en BD'),
+  "emailFrom": zod.string().nullish().describe('Remitente configurado en BD')
+})
+
+
+/**
+ * @summary Update email (Resend) settings (admin only)
+ */
+export const adminUpdateEmailSettingsBodyResendApiKeyMax = 200;
+
+export const adminUpdateEmailSettingsBodyEmailFromMax = 200;
+
+
+
+export const AdminUpdateEmailSettingsBody = zod.object({
+  "resendApiKey": zod.string().max(adminUpdateEmailSettingsBodyResendApiKeyMax).nullish().describe('Clave de API de Resend; null o vacío la borra'),
+  "emailFrom": zod.string().max(adminUpdateEmailSettingsBodyEmailFromMax).nullish().describe('Remitente, p. ej. \"AgroNutri <no-reply@midominio.com>\"; null o vacío lo borra')
+})
+
+export const AdminUpdateEmailSettingsResponse = zod.object({
+  "configured": zod.boolean().describe('Hay una clave de Resend disponible'),
+  "source": zod.enum(['db', 'env', 'none']).describe('De dónde sale la clave activa'),
+  "apiKeyMasked": zod.string().nullish().describe('Clave guardada en BD'),
+  "emailFrom": zod.string().nullish().describe('Remitente configurado en BD')
+})
+
+
