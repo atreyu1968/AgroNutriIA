@@ -116,6 +116,24 @@ function buildSections(d: ReportData): Section[] {
 const MARGIN = 50;
 const CELL_PAD = 5;
 
+/**
+ * PDFKit's built-in Helvetica only supports WinAnsi (Latin-1) characters.
+ * Analyses imported from lab PDFs often carry Greek mu, special dashes, etc.,
+ * which would render as mojibake. Normalize to safe equivalents.
+ */
+function pdfSafe(text: string): string {
+  return text
+    .replace(/[\u03BC\u00B5]/g, "\u00B5") // Greek mu → micro sign (WinAnsi)
+    .replace(/[\u2010-\u2015\u2212]/g, "-") // dashes/minus → hyphen
+    .replace(/[\u2018\u2019\u201A]/g, "'")
+    .replace(/[\u201C\u201D\u201E]/g, '"')
+    .replace(/\u2026/g, "...")
+    .replace(/[\u00A0\u2000-\u200B]/g, " ")
+    .normalize("NFC")
+    // Drop anything outside Latin-1 that Helvetica cannot encode
+    .replace(/[^\u0000-\u00FF\u0152\u0153\u0160\u0161\u0178\u017D\u017E\u20AC]/g, "");
+}
+
 function statusColor(text: string): string | null {
   const t = text.toLowerCase();
   if (t === "muy_alto" || t === "muy_bajo") return "#b91c1c";
@@ -159,7 +177,7 @@ function drawTable(doc: PDFKit.PDFDocument, table: string[][]): void {
         .font(ri === 0 ? "Helvetica-Bold" : "Helvetica")
         .fontSize(9)
         .fillColor(color)
-        .text(ri > 0 && isStatusCol ? cell.replace(/_/g, " ") : cell, x + CELL_PAD, y + CELL_PAD, {
+        .text(pdfSafe(ri > 0 && isStatusCol ? cell.replace(/_/g, " ") : cell), x + CELL_PAD, y + CELL_PAD, {
           width: colWidths[ci] - CELL_PAD * 2,
           lineBreak: true,
         });
@@ -199,7 +217,10 @@ function drawTable(doc: PDFKit.PDFDocument, table: string[][]): void {
     }
   };
 
-  ensureSpace(headerH + rowHeight(table[1] ?? header, false));
+  if (y + headerH + rowHeight(table[1] ?? header, false) > bottom) {
+    doc.addPage();
+    y = MARGIN;
+  }
   drawRow(header, 0, y, headerH);
   y += headerH;
 
@@ -224,7 +245,7 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
     doc.rect(0, 0, doc.page.width, 6).fill("#1e4d36");
     doc.fillColor("black");
     doc.y = MARGIN;
-    doc.fontSize(18).font("Helvetica-Bold").fillColor("#1e4d36").text(d.title);
+    doc.fontSize(18).font("Helvetica-Bold").fillColor("#1e4d36").text(pdfSafe(d.title));
     doc.moveDown(0.3);
     doc
       .fontSize(10)
@@ -240,7 +261,7 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
       doc.fillColor("black");
       doc.moveDown(0.3);
       doc.fontSize(10).font("Helvetica");
-      for (const p of s.paragraphs) doc.text(p, { lineGap: 2 });
+      for (const p of s.paragraphs) doc.text(pdfSafe(p), { lineGap: 2 });
       if (s.table) {
         doc.moveDown(0.3);
         drawTable(doc, s.table);
