@@ -55,7 +55,12 @@ export async function resolveCredential(
       .select()
       .from(credentialsTable)
       .where(eq(credentialsTable.id, cfg.credentialId));
-    if (cred && cred.isActive) return cred;
+    // Only honor the farm-level credential if it belongs to the farm owner or to the
+    // requesting user; otherwise a stale/foreign credential id could spend another
+    // user's OpenAI quota.
+    if (cred && cred.isActive && (cred.userId === farm.ownerId || cred.userId === user.id)) {
+      return cred;
+    }
   }
   const creds = await db
     .select()

@@ -648,6 +648,39 @@ export const CreateAnalysisResponse = zod.object({
 })
 
 
+/**
+ * @summary Upload a lab analysis PDF and extract its data with AI
+ */
+export const ImportAnalysisPdfParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const ImportAnalysisPdfBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const ImportAnalysisPdfResponse = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "sectorId": zod.number().int().nullish(),
+  "type": zod.enum(['soil', 'leaf', 'water']),
+  "reference": zod.string().nullish(),
+  "laboratory": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "sampleDate": zod.string().describe('YYYY-MM-DD'),
+  "parameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.number(),
+  "unit": zod.string().nullish(),
+  "refLow": zod.number().nullish(),
+  "refHigh": zod.number().nullish(),
+  "status": zod.string().nullish().describe('muy_bajo | bajo | normal | alto | muy_alto')
+})),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string().nullish()
+})
+
+
 export const GetAnalysisParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "analysisId": zod.coerce.number().int()
@@ -1354,5 +1387,98 @@ export const GetDashboardResponse = zod.object({
 })),
   "alerts": zod.array(zod.string())
 })
+
+
+/**
+ * @summary List all users (admin only)
+ */
+export const AdminListUsersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "company": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "isAdmin": zod.boolean(),
+  "aiMonthlyLimitEur": zod.number().nullish(),
+  "farmCount": zod.number().int(),
+  "createdAt": zod.string()
+})
+export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
+
+
+/**
+ * @summary Update a user (admin only)
+ */
+export const AdminUpdateUserParams = zod.object({
+  "userId": zod.coerce.number().int()
+})
+
+
+export const adminUpdateUserBodyAiMonthlyLimitEurMin = 0;
+
+export const adminUpdateUserBodyPasswordMin = 8;
+
+
+
+export const AdminUpdateUserBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "role": zod.enum(['owner', 'technician', 'manager', 'viewer']).optional(),
+  "isAdmin": zod.boolean().optional(),
+  "aiMonthlyLimitEur": zod.number().min(adminUpdateUserBodyAiMonthlyLimitEurMin).nullish(),
+  "password": zod.string().min(adminUpdateUserBodyPasswordMin).optional()
+})
+
+export const AdminUpdateUserResponse = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "company": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "isAdmin": zod.boolean(),
+  "aiMonthlyLimitEur": zod.number().nullish(),
+  "farmCount": zod.number().int(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a user (admin only)
+ */
+export const AdminDeleteUserParams = zod.object({
+  "userId": zod.coerce.number().int()
+})
+
+export const AdminDeleteUserResponse = zod.void()
+
+
+/**
+ * @summary List all farms (admin only)
+ */
+export const AdminListFarmsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "ownerId": zod.number().int(),
+  "ownerName": zod.string(),
+  "name": zod.string(),
+  "companyName": zod.string().nullish(),
+  "island": zod.string().nullish(),
+  "municipality": zod.string().nullish(),
+  "plantCount": zod.number().int().nullish(),
+  "surfaceHa": zod.number().nullish(),
+  "memberCount": zod.number().int(),
+  "createdAt": zod.string().nullish()
+})
+export const AdminListFarmsResponse = zod.array(AdminListFarmsResponseItem)
+
+
+/**
+ * @summary Delete a farm (admin only)
+ */
+export const AdminDeleteFarmParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const AdminDeleteFarmResponse = zod.void()
 
 

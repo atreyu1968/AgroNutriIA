@@ -9,6 +9,7 @@ import credentialsRouter from "./credentials";
 import conversationsRouter from "./conversations";
 import reportsRouter from "./reports";
 import miscRouter from "./misc";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(credentialsRouter);
 router.use(conversationsRouter);
 router.use(reportsRouter);
 router.use(miscRouter);
+router.use(adminRouter);
 
 export default router;

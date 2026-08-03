@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { 
   useListSectors, useCreateSector, useDeleteSector,
-  useListAnalyses, useCreateAnalysis,
+  useListAnalyses, useCreateAnalysis, useImportAnalysisPdf,
   useListRecommendations, useChangeRecommendationStatus,
   useListReports, useCreateReport,
   useListMembers, useAddMember, useRemoveMember,
@@ -24,7 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download } from "lucide-react";
+import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2 } from "lucide-react";
 import { formatDateTime, formatDate, formatNumber } from "@/lib/utils";
 
 // --- Sectors Tab ---
@@ -71,14 +71,69 @@ export function SectorsTab({ farmId }: { farmId: number }) {
 }
 
 // --- Analyses Tab ---
+export function ImportAnalysisButton({ farmId }: { farmId: number }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const importPdf = useImportAnalysisPdf({
+    mutation: {
+      onSuccess: (analysis) => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+        const tipo = analysis.type === "soil" ? "suelo" : analysis.type === "leaf" ? "foliar" : "agua";
+        toast({
+          title: "Analítica importada",
+          description: `El técnico virtual ha extraído ${analysis.parameters?.length ?? 0} parámetros de la analítica de ${tipo}${analysis.reference ? ` (${analysis.reference})` : ""}. Ya se usa en la calculadora y en las recomendaciones.`,
+        });
+      },
+      onError: (err: unknown) => {
+        const anyErr = err as { response?: { data?: { error?: string } }; data?: { error?: string }; message?: string };
+        toast({
+          title: "No se pudo importar el PDF",
+          description: anyErr?.response?.data?.error ?? anyErr?.data?.error ?? anyErr?.message ?? "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  return (
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) importPdf.mutate({ farmId, data: { file } });
+          e.target.value = "";
+        }}
+      />
+      <Button size="sm" variant="outline" disabled={importPdf.isPending} onClick={() => fileRef.current?.click()}>
+        {importPdf.isPending ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Extrayendo datos…</>
+        ) : (
+          <><Upload className="w-4 h-4 mr-2" /> Importar PDF</>
+        )}
+      </Button>
+    </>
+  );
+}
+
 export function AnalysesTab({ farmId }: { farmId: number }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Analíticas</h3>
-        <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Nueva Analítica</Button>
+        <div className="flex gap-2">
+          <ImportAnalysisButton farmId={farmId} />
+          <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Nueva Analítica</Button>
+        </div>
       </div>
+      <p className="text-sm text-muted-foreground -mt-2">
+        Sube el PDF del laboratorio y el técnico virtual extraerá los parámetros automáticamente (requiere clave de OpenAI en Ajustes).
+      </p>
       <Card>
         <Table>
           <TableHeader>

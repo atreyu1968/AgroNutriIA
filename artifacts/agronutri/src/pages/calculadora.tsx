@@ -8,6 +8,7 @@ import { Calculator, Plus, Trash2, Droplets, FlaskConical, AlertTriangle, ArrowR
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { ImportAnalysisButton } from "@/pages/fincas/detail-tabs";
 
 export default function Calculadora() {
   const { data: fertilizers } = useListFertilizers();
@@ -82,6 +83,14 @@ export default function Calculadora() {
                     ))}
                   </SelectContent>
                 </Select>
+                {farmId != null && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <ImportAnalysisButton farmId={farmId} />
+                    <p className="text-xs text-muted-foreground">
+                      Sube una analítica en PDF y el técnico virtual incorporará sus datos (agua, suelo, foliar) al cálculo.
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Número de Plantas</Label>

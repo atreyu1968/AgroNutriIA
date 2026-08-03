@@ -22,6 +22,7 @@ tags:
   - name: usage
   - name: audit
   - name: dashboard
+  - name: admin
 paths:
   /healthz:
     get:
@@ -346,6 +347,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Analysis"
+  /farms/{farmId}/analyses/import:
+    post:
+      operationId: importAnalysisPdf
+      tags: [analyses]
+      summary: Upload a lab analysis PDF and extract its data with AI
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Analysis created from the PDF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
+
   /farms/{farmId}/analyses/{analysisId}:
     get:
       operationId: getAnalysis
@@ -805,8 +832,85 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: List all users (admin only)
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+
+  /admin/users/{userId}:
+    patch:
+      operationId: adminUpdateUser
+      tags: [admin]
+      summary: Update a user (admin only)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+    delete:
+      operationId: adminDeleteUser
+      tags: [admin]
+      summary: Delete a user (admin only)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Deleted
+
+  /admin/farms:
+    get:
+      operationId: adminListFarms
+      tags: [admin]
+      summary: List all farms (admin only)
+      responses:
+        "200":
+          description: All farms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminFarm"
+
+  /admin/farms/{farmId}:
+    delete:
+      operationId: adminDeleteFarm
+      tags: [admin]
+      summary: Delete a farm (admin only)
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "204":
+          description: Deleted
+
 components:
   parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
     FarmId:
       name: farmId
       in: path
@@ -905,6 +1009,45 @@ components:
         aiMonthlyLimitEur: { type: ["number", "null"] }
         aiResponseStyle: { type: string }
         password: { type: string, minLength: 8 }
+
+    AdminUser:
+      type: object
+      required: [id, email, name, role, isAdmin, farmCount, createdAt]
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        name: { type: string }
+        company: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        role: { type: string }
+        isAdmin: { type: boolean }
+        aiMonthlyLimitEur: { type: ["number", "null"] }
+        farmCount: { type: integer }
+        createdAt: { type: string }
+    AdminUserUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1 }
+        role: { type: string, enum: [owner, technician, manager, viewer] }
+        isAdmin: { type: boolean }
+        aiMonthlyLimitEur: { type: ["number", "null"], minimum: 0 }
+        password: { type: string, minLength: 8 }
+    AdminFarm:
+      type: object
+      required: [id, ownerId, ownerName, name, memberCount]
+      properties:
+        id: { type: integer }
+        ownerId: { type: integer }
+        ownerName: { type: string }
+        name: { type: string }
+        companyName: { type: ["string", "null"] }
+        island: { type: ["string", "null"] }
+        municipality: { type: ["string", "null"] }
+        plantCount: { type: ["integer", "null"] }
+        surfaceHa: { type: ["number", "null"] }
+        memberCount: { type: integer }
+        createdAt: { type: ["string", "null"] }
 
     Farm:
       type: object

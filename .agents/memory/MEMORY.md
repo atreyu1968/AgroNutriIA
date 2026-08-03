@@ -1,3 +1,3 @@
 - [Orval + zod version](orval-zod.md) — Orval 8 emits zod-v4 syntax by default; pin `override.zod.version: 3` when the workspace uses zod 3.x.
 - [OpenAPI Params name collisions](orval-zod.md) — ops with both path and query params can collide on generated `<Op>Params` types; avoid query params on such ops or rename.
-- [esbuild externals for pdfkit](esbuild-externals.md) — pdfkit/fontkit cannot be bundled by esbuild (breaks @swc/helpers cjs resolution); keep them in the `external` list.
+- [esbuild externals](esbuild-externals.md) — pdfkit/fontkit and pdf-parse/@napi-rs/canvas cannot be bundled by esbuild; keep them in the `external` list.

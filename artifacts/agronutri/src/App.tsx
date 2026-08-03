@@ -14,6 +14,7 @@ import Fertilizantes from '@/pages/fertilizantes';
 import ConsumoIA from '@/pages/consumo';
 import Auditoria from '@/pages/auditoria';
 import Calculadora from '@/pages/calculadora';
+import Administracion from '@/pages/administracion';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,9 @@ function Router() {
       </Route>
       <Route path="/calculadora">
         <AppLayout><Calculadora /></AppLayout>
+      </Route>
+      <Route path="/administracion">
+        <AppLayout><Administracion /></AppLayout>
       </Route>
       <Route path="/ajustes">
         <AppLayout><Ajustes /></AppLayout>

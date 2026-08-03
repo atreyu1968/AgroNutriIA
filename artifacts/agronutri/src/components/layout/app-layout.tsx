@@ -3,7 +3,7 @@ import { Link, Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { 
   Sprout, LayoutDashboard, MapPin, Calculator, FlaskConical, 
-  Activity, ShieldCheck, Settings, LogOut, Menu, User 
+  Activity, ShieldCheck, Settings, LogOut, Menu, User, Users 
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/fertilizantes", label: "Fertilizantes", icon: FlaskConical },
   { href: "/consumo", label: "Consumo IA", icon: Activity },
   { href: "/auditoria", label: "Auditoría", icon: ShieldCheck, adminOnly: true },
+  { href: "/administracion", label: "Administración", icon: Users, adminOnly: true },
   { href: "/ajustes", label: "Ajustes", icon: Settings },
 ];
 

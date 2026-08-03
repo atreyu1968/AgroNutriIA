@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminFarm';
+export * from './adminUser';
+export * from './adminUserUpdate';
+export * from './adminUserUpdateRole';
 export * from './analysis';
 export * from './analysisInput';
 export * from './analysisInputType';
@@ -40,6 +44,7 @@ export * from './fertilizerInput';
 export * from './fertilizerUpdate';
 export * from './getUsageParams';
 export * from './healthStatus';
+export * from './importAnalysisPdfBody';
 export * from './listAuditLogParams';
 export * from './loginInput';
 export * from './message';

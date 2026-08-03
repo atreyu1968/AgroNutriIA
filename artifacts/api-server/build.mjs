@@ -32,6 +32,8 @@ async function buildAll() {
       "sharp",
       "pdfkit",
       "fontkit",
+      "pdf-parse",
+      "@napi-rs/canvas",
       "better-sqlite3",
       "sqlite3",
       "canvas",

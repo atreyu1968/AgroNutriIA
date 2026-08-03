@@ -57,6 +57,66 @@ export interface UserProfileUpdate {
   password?: string;
 }
 
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  /** @nullable */
+  company?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  role: string;
+  isAdmin: boolean;
+  /** @nullable */
+  aiMonthlyLimitEur?: number | null;
+  farmCount: number;
+  createdAt: string;
+}
+
+export type AdminUserUpdateRole = typeof AdminUserUpdateRole[keyof typeof AdminUserUpdateRole];
+
+
+export const AdminUserUpdateRole = {
+  owner: 'owner',
+  technician: 'technician',
+  manager: 'manager',
+  viewer: 'viewer',
+} as const;
+
+export interface AdminUserUpdate {
+  /** @minLength 1 */
+  name?: string;
+  role?: AdminUserUpdateRole;
+  isAdmin?: boolean;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  aiMonthlyLimitEur?: number | null;
+  /** @minLength 8 */
+  password?: string;
+}
+
+export interface AdminFarm {
+  id: number;
+  ownerId: number;
+  ownerName: string;
+  name: string;
+  /** @nullable */
+  companyName?: string | null;
+  /** @nullable */
+  island?: string | null;
+  /** @nullable */
+  municipality?: string | null;
+  /** @nullable */
+  plantCount?: number | null;
+  /** @nullable */
+  surfaceHa?: number | null;
+  memberCount: number;
+  /** @nullable */
+  createdAt?: string | null;
+}
+
 export interface Farm {
   id: number;
   ownerId: number;
@@ -705,6 +765,10 @@ export interface DashboardSummary {
   recentActivity: AuditEntry[];
   alerts: string[];
 }
+
+export type ImportAnalysisPdfBody = {
+  file: Blob;
+};
 
 export type GetUsageParams = {
 /**
