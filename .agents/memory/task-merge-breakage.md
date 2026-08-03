@@ -8,4 +8,6 @@ Automatic merges of task branches into main can auto-resolve conflicts in large 
 
 **How to apply:** after any task merge, run typecheck/build (and restart affected workflows) before assuming health. To repair, reconstruct each side's intent from the pre-merge commits in `git log --all` instead of trusting the merged version of conflicted regions.
 
+**Rebase conflict tips:** during a task rebase, the conflict labels are swapped ("ours" = main, "theirs" = your replayed commit). For conflicts in the OpenAPI spec, hand-merge only `openapi.yaml`, then `git checkout` one side of the generated clients and run `pnpm run codegen` in the spec package — never hand-merge generated client files. Also inspect non-conflicted but auto-merged hot files (typecheck them): the platform pre-merge can mangle them even without markers; repair by taking main's version and re-applying `git diff REBASE_HEAD^ REBASE_HEAD -- <file>` with `git apply --3way`.
+
 **Rebase corollary:** if your commits carry a hand-repaired copy of a hot shared file, every rebase onto a newer main replays the old repair and can re-corrupt it. Once main's version becomes healthy again, drop your copy: adopt main's file wholesale and re-apply only your minimal deltas (e.g. missing permission checks).

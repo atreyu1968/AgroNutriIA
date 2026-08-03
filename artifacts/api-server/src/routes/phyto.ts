@@ -1,14 +1,17 @@
 import { Router, type IRouter } from "express";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import OpenAI from "openai";
 import {
   db,
+  farmsTable,
+  farmMembersTable,
   phytoTreatmentsTable,
   phytoProductsTable,
   sectorsTable,
   type PhytoTreatment,
   type PhytoProduct,
   type Sector,
+  type User,
 } from "@workspace/db";
 import {
   ListPhytoTreatmentsResponse,
@@ -74,7 +77,28 @@ router.get("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =>
     .where(eq(phytoTreatmentsTable.farmId, farmId))
     .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
   const sectors = await sectorMap(farmId);
-  const result = [];
+        let result: unknown;
+
+async function canEditCatalog(user: User): Promise<boolean> {
+  if (user.isAdmin) return true;
+  const [owned] = await db
+    .select({ id: farmsTable.id })
+    .from(farmsTable)
+    .where(eq(farmsTable.ownerId, user.id))
+    .limit(1);
+  if (owned) return true;
+  const [membership] = await db
+    .select({ id: farmMembersTable.id })
+    .from(farmMembersTable)
+    .where(
+      and(
+        eq(farmMembersTable.userId, user.id),
+        inArray(farmMembersTable.role, ["owner", "technician"]),
+      ),
+    )
+    .limit(1);
+  return Boolean(membership);
+}
   for (const t of rows) {
     result.push(
       serializeTreatment(
@@ -95,10 +119,12 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     return;
   }
   if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos para registrar tratamientos" });
+    res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
     return;
   }
-  const parsed = CreatePhytoTreatmentBody.safeParse(req.body);
+  const parsed = PhytoConsultBody.safeParse(req.body);
+
+  const existing = await findExistingProduct(parsed.data);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -108,10 +134,7 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     res.status(400).json({ error: "El sector no pertenece a esta finca" });
     return;
   }
-  const [t] = await db
-    .insert(phytoTreatmentsTable)
-    .values({ ...parsed.data, farmId, createdBy: req.user!.id })
-    .returning();
+  const [t] = await db.select().from(phytoTreatmentsTable).where(eq(phytoTreatmentsTable.id, treatmentId));
   await audit({
     userId: req.user!.id,
     farmId,
@@ -264,22 +287,35 @@ async function upsertProduct(
 router.get("/phyto/products", async (_req, res): Promise<void> => {
   const rows = await db
     .select()
-    .from(phytoProductsTable)
-    .orderBy(desc(phytoProductsTable.updatedAt));
-  const result = [];
-  for (const p of rows) {
-    result.push(serializeProduct(p, await userName(p.createdBy)));
-  }
-  res.json(ListPhytoProductsResponse.parse(result));
-});
+    .from(phytoTreatmentsTable)
+    .where(eq(phytoTreatmentsTable.farmId, farmId))
+    .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
+        let result: unknown;
 
-router.post("/phyto/products", async (req, res): Promise<void> => {
-  const parsed = CreatePhytoProductBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const { product, created } = await upsertProduct(parsed.data, req.user!.id, false);
+async function canEditCatalog(user: User): Promise<boolean> {
+  if (user.isAdmin) return true;
+  const [owned] = await db
+    .select({ id: farmsTable.id })
+    .from(farmsTable)
+    .where(eq(farmsTable.ownerId, user.id))
+    .limit(1);
+  if (owned) return true;
+  const [membership] = await db
+    .select({ id: farmMembersTable.id })
+    .from(farmMembersTable)
+    .where(
+      and(
+        eq(farmMembersTable.userId, user.id),
+        inArray(farmMembersTable.role, ["owner", "technician"]),
+      ),
+    )
+    .limit(1);
+  return Boolean(membership);
+}
+  const parsed = PhytoConsultBody.safeParse(req.body);
+
+  const existing = await findExistingProduct(parsed.data);
+              const { product, created } = await upsertProduct(check.data, req.user!.id, true);
   await audit({
     userId: req.user!.id,
     farmId: null,
@@ -394,7 +430,13 @@ router.post("/farms/:farmId/phyto/plan-pdf", async (req, res): Promise<void> => 
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  const parsed = PhytoPlanPdfBody.safeParse(req.body);
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
+    return;
+  }
+  const parsed = PhytoConsultBody.safeParse(req.body);
+
+  const existing = await findExistingProduct(parsed.data);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -428,6 +470,8 @@ router.post("/farms/:farmId/phyto/consult", async (req, res): Promise<void> => {
     return;
   }
   const parsed = PhytoConsultBody.safeParse(req.body);
+
+  const existing = await findExistingProduct(parsed.data);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -571,6 +615,27 @@ INSTRUCCIONES DE RESPUESTA:
       input = input.concat(response.output as OpenAI.Responses.ResponseInputItem[]);
       for (const call of functionCalls) {
         let result: unknown;
+
+async function canEditCatalog(user: User): Promise<boolean> {
+  if (user.isAdmin) return true;
+  const [owned] = await db
+    .select({ id: farmsTable.id })
+    .from(farmsTable)
+    .where(eq(farmsTable.ownerId, user.id))
+    .limit(1);
+  if (owned) return true;
+  const [membership] = await db
+    .select({ id: farmMembersTable.id })
+    .from(farmMembersTable)
+    .where(
+      and(
+        eq(farmMembersTable.userId, user.id),
+        inArray(farmMembersTable.role, ["owner", "technician"]),
+      ),
+    )
+    .limit(1);
+  return Boolean(membership);
+}
         if (call.name === "guardar_producto_autorizado") {
           try {
             const args = JSON.parse(call.arguments) as ProductInput;

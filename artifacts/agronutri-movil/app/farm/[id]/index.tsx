@@ -317,6 +317,17 @@ export default function FarmDetailScreen() {
           </Pressable>
         ) : null}
         <Pressable
+          testID="button-phyto"
+          accessibilityRole="button"
+          onPress={() => router.push(`/farm/${farmId}/phyto`)}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Feather name="shield" size={17} color={c.foreground} />
+        </Pressable>
+        <Pressable
           testID="button-chat"
           accessibilityRole="button"
           onPress={() => router.push(`/farm/${farmId}/chat`)}
