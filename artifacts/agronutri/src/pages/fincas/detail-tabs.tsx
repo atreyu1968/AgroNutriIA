@@ -6,7 +6,7 @@ import {
 import { 
   useListSectors, useCreateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis, useUpdateAnalysis,
-  useListRecommendations, useChangeRecommendationStatus,
+  useListRecommendations, useChangeRecommendationStatus, useListConversations, getListConversationsQueryKey,
   useListReports, useCreateReport,
   useListMembers, useAddMember, useRemoveMember,
   useGetFarmApiConfig, useSetFarmApiConfig, useListCredentials,
@@ -806,12 +806,7 @@ export function RecommendationsTab({ farmId }: { farmId: number }) {
                     <span>{formatDate(r.createdAt)}</span>
                     <span>{r.items?.length || 0} fertilizantes</span>
                     {r.estimatedEcDsM && <span>CE: {r.estimatedEcDsM} dS/m</span>}
-                    {r.updatedByName && (
-                      <span>
-                        Ajustado por {r.updatedByName}
-                        {r.updatedAt && formatDate(r.updatedAt) !== formatDate(r.createdAt) && ` el ${formatDate(r.updatedAt)}`}
-                      </span>
-                    )}
+                    {r.updatedByName && <span>Ajustado por {r.updatedByName}</span>}
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">Ver detalles</Button>
@@ -856,6 +851,10 @@ export function ReportsTab({ farmId }: { farmId: number }) {
   const [selectedRecId, setSelectedRecId] = useState<string>("none");
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [chatConversationId, setChatConversationId] = useState<number | null>(null);
+  const [selectedConvId, setSelectedConvId] = useState<string>("new");
+  const { data: farmConversations } = useListConversations(farmId, {
+    query: { enabled: genOpen, queryKey: getListConversationsQueryKey(farmId) },
+  });
 
   const handleGenerate = () => {
     createMutation.mutate({
@@ -907,8 +906,32 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Conversación con el técnico IA</Label>
+                <Select
+                  value={selectedConvId}
+                  onValueChange={(v) => {
+                    setSelectedConvId(v);
+                    setChatConversationId(v === "new" ? null : parseInt(v, 10));
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">Nueva conversación</SelectItem>
+                    {farmConversations?.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.title}{c.updatedAt ? ` · ${formatDate(c.updatedAt)}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Reutiliza una conversación anterior (Nutrición o Calculadora) para incluir sus observaciones en el informe, o empieza una nueva abajo.
+                </p>
+              </div>
               <ChatTecnicoPanel
                 farmId={farmId}
+                activeConversationId={selectedConvId === "new" ? null : parseInt(selectedConvId, 10)}
                 conversationTitle="Chat del informe técnico"
                 description="Cuéntale al técnico IA lo que quieres reflejar en el informe y adjunta documentos (PDF) o imágenes (fotos de campo, etiquetas, analíticas escaneadas...). La conversación se resumirá en la sección «Observaciones del técnico» del informe."
                 allowAttachments

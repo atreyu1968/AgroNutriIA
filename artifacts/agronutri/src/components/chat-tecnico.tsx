@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import {
   useCreateConversation,
+  useGetConversation,
+  getGetConversationQueryKey,
   useSendMessage,
   useUploadConversationAttachment,
   useListProductSheets,
@@ -32,6 +34,7 @@ export function ChatTecnicoPanel({
   allowAttachments = false,
   onConversationChange,
   compact = false,
+  activeConversationId = null,
 }: {
   farmId: number;
   buildDraftContext?: () => string | null;
@@ -40,6 +43,8 @@ export function ChatTecnicoPanel({
   allowAttachments?: boolean;
   onConversationChange?: (id: number | null) => void;
   compact?: boolean;
+  /** Existing conversation to load and continue. Pass null to start fresh. */
+  activeConversationId?: number | null;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -57,6 +62,29 @@ export function ChatTecnicoPanel({
     },
   });
   const createConversation = useCreateConversation();
+
+  // Load an existing conversation (from Nutrición/Calculadora) when selected.
+  const { data: existingConv, isFetching: loadingExisting } = useGetConversation(
+    farmId,
+    activeConversationId ?? 0,
+    {
+      query: {
+        enabled: activeConversationId != null,
+        queryKey: getGetConversationQueryKey(farmId, activeConversationId ?? 0),
+      },
+    },
+  );
+  useEffect(() => {
+    if (activeConversationId == null) {
+      setConversationId(null);
+      setMessages([]);
+      return;
+    }
+    if (existingConv?.conversation.id === activeConversationId) {
+      setConversationId(activeConversationId);
+      setMessages(existingConv.messages);
+    }
+  }, [activeConversationId, existingConv]);
 
   const setConv = (id: number) => {
     setConversationId(id);
@@ -243,6 +271,9 @@ export function ChatTecnicoPanel({
       <CardContent className="space-y-3">
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
         <div ref={scrollRef} className={`${compact ? "max-h-56" : "max-h-80"} overflow-y-auto space-y-3 pr-1`}>
+          {loadingExisting && messages.length === 0 && (
+            <p className="text-xs text-muted-foreground animate-pulse">Cargando conversación...</p>
+          )}
           {messages.map((m, idx) => (
             <div key={`${m.id}-${idx}`} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
