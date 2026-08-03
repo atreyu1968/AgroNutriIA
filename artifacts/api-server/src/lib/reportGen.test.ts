@@ -6,7 +6,7 @@ import path from "node:path";
 import JSZip from "jszip";
 import { PDFParse } from "pdf-parse";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
-import { generatePdf, generateDocx, pdfSafe, type ReportData } from "./reportGen";
+import { generatePdf, generateDocx, pdfSafe, resolveLogo, type ReportData } from "./reportGen";
 
 const now = new Date("2026-01-15T10:00:00Z");
 
@@ -311,6 +311,62 @@ test("el logo de AgroNutri existe en assets y es un PNG válido", () => {
     "89504e470d0a1a0a",
     "el logo debe tener la firma PNG",
   );
+});
+
+test("resolveLogo devuelve la ruta cuando el logo existe", () => {
+  const logoPath = path.resolve(process.cwd(), "assets", "logo.png");
+  assert.equal(resolveLogo(logoPath), logoPath);
+});
+
+test("resolveLogo avisa en logs y devuelve null si falta el logo", () => {
+  const missing = path.join(tmpDir, "no-existe", "logo.png");
+  const warnings: string[] = [];
+  const origWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    assert.equal(resolveLogo(missing), null, "devuelve null si el logo no existe");
+  } finally {
+    console.warn = origWarn;
+  }
+  assert.equal(warnings.length, 1, "deja constancia en los logs");
+  assert.ok(warnings[0].includes("Falta el logo"), "el aviso menciona que falta el logo");
+  assert.ok(warnings[0].includes(missing), "el aviso incluye la ruta esperada del logo");
+});
+
+test("generatePdf y generateDocx generan el informe sin logo si el fichero falta", async () => {
+  const assetsDir = path.resolve(process.cwd(), "assets");
+  const logoPath = path.join(assetsDir, "logo.png");
+  const backupPath = path.join(assetsDir, "logo.png.bak");
+  fs.renameSync(logoPath, backupPath);
+  const warnings: string[] = [];
+  const origWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    const pdfPath = path.join(tmpDir, "informe-sin-logo.pdf");
+    await generatePdf(data, pdfPath);
+    const pdfBuf = fs.readFileSync(pdfPath);
+    assert.equal(pdfBuf.subarray(0, 5).toString("latin1"), "%PDF-", "el PDF se genera igualmente");
+    const { text } = await extractPdf(pdfBuf);
+    assert.ok(text.includes("Informe de fertirrigación"), "el PDF sin logo conserva el título");
+
+    const docxPath = path.join(tmpDir, "informe-sin-logo.docx");
+    await generateDocx(data, docxPath);
+    const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
+    const docXml = await zip.file("word/document.xml")!.async("string");
+    assert.ok(docXml.includes("Informe de fertirrigación"), "el DOCX sin logo conserva el título");
+    const mediaFiles = Object.keys(zip.files).filter(
+      (f) => f.startsWith("word/media/") && !zip.files[f].dir,
+    );
+    assert.equal(mediaFiles.length, 0, "el DOCX no incluye imágenes si falta el logo");
+
+    assert.ok(
+      warnings.some((w) => w.includes("Falta el logo")),
+      "se registra un aviso claro de logo ausente",
+    );
+  } finally {
+    console.warn = origWarn;
+    fs.renameSync(backupPath, logoPath);
+  }
 });
 
 test("generatePdf incrusta el logo como imagen en el PDF", async () => {

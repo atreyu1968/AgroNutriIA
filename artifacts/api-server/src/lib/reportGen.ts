@@ -28,6 +28,19 @@ const LOGO_PATH = path.resolve(process.cwd(), "assets", "logo.png");
 // Original 1745x435 px (≈ 4:1)
 const LOGO_RATIO = 435 / 1745;
 
+/**
+ * Comprueba si el logo existe antes de generar el informe. Si falta, el
+ * informe se genera sin logo y se deja constancia en los logs en lugar de
+ * fallar con un ENOENT críptico y bloquear el informe.
+ */
+export function resolveLogo(logoPath: string = LOGO_PATH): string | null {
+  if (fs.existsSync(logoPath)) return logoPath;
+  console.warn(
+    `[reportGen] Falta el logo en ${logoPath}: el informe se generará sin logo.`,
+  );
+  return null;
+}
+
 export type ReportData = {
   title: string;
   farm: Farm;
@@ -275,10 +288,15 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
     doc.rect(0, 0, doc.page.width, 6).fill("#1e4d36");
     doc.fillColor("black");
     doc.y = MARGIN;
-    // Logo en la cabecera de la primera página
+    // Logo en la cabecera de la primera página (si existe; si falta, se avisa en logs)
     const logoW = 140;
-    doc.image(LOGO_PATH, MARGIN, MARGIN, { width: logoW });
-    doc.y = MARGIN + logoW * LOGO_RATIO + 14;
+    const logoPath = resolveLogo();
+    if (logoPath) {
+      doc.image(logoPath, MARGIN, MARGIN, { width: logoW });
+      doc.y = MARGIN + logoW * LOGO_RATIO + 14;
+    } else {
+      doc.y = MARGIN;
+    }
     doc.x = MARGIN;
     doc.fontSize(18).font("Helvetica-Bold").fillColor("#1e4d36").text(pdfSafe(d.title));
     doc.moveDown(0.3);
@@ -340,16 +358,21 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<voi
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const sections = buildSections(d);
   const logoW = 140;
+  const logoPath = resolveLogo();
   const children: (Paragraph | Table)[] = [
-    new Paragraph({
-      children: [
-        new ImageRun({
-          type: "png",
-          data: fs.readFileSync(LOGO_PATH),
-          transformation: { width: logoW, height: Math.round(logoW * LOGO_RATIO) },
-        }),
-      ],
-    }),
+    ...(logoPath
+      ? [
+          new Paragraph({
+            children: [
+              new ImageRun({
+                type: "png",
+                data: fs.readFileSync(logoPath),
+                transformation: { width: logoW, height: Math.round(logoW * LOGO_RATIO) },
+              }),
+            ],
+          }),
+        ]
+      : []),
     new Paragraph({ text: d.title, heading: HeadingLevel.TITLE }),
     new Paragraph({
       children: [
