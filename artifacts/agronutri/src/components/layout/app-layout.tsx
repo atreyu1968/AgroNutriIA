@@ -2,7 +2,7 @@ import { useGetMe, useLogout, getGetMeQueryKey } from "@workspace/api-client-rea
 import { Link, Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { 
-  Sprout, LayoutDashboard, MapPin, Calculator, FlaskConical, 
+  Sprout, LayoutDashboard, MapPin, FlaskConical, 
   Activity, ShieldCheck, Settings, LogOut, Menu, User, Users 
 } from "lucide-react";
 import { useState } from "react";
@@ -12,7 +12,6 @@ import { useQueryClient } from "@tanstack/react-query";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/fincas", label: "Mis Fincas", icon: MapPin },
-  { href: "/calculadora", label: "Calculadora", icon: Calculator },
   { href: "/fertilizantes", label: "Fertilizantes", icon: FlaskConical },
   { href: "/consumo", label: "Consumo IA", icon: Activity },
   { href: "/auditoria", label: "Auditoría", icon: ShieldCheck, adminOnly: true },

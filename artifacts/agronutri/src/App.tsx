@@ -13,7 +13,6 @@ import Ajustes from '@/pages/ajustes';
 import Fertilizantes from '@/pages/fertilizantes';
 import ConsumoIA from '@/pages/consumo';
 import Auditoria from '@/pages/auditoria';
-import Calculadora from '@/pages/calculadora';
 import Administracion from '@/pages/administracion';
 
 const queryClient = new QueryClient({
@@ -57,9 +56,6 @@ function Router() {
       </Route>
       <Route path="/auditoria">
         <AppLayout><Auditoria /></AppLayout>
-      </Route>
-      <Route path="/calculadora">
-        <AppLayout><Calculadora /></AppLayout>
       </Route>
       <Route path="/administracion">
         <AppLayout><Administracion /></AppLayout>

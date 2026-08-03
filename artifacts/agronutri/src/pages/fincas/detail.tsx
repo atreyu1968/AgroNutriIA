@@ -4,12 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Droplets, MapPin, Sprout, TestTube, FileText, Settings, Users, ArrowRight } from "lucide-react";
+import { AlertTriangle, Droplets, MapPin, Sprout, TestTube, FileText, Settings, Users, ArrowRight, Calculator } from "lucide-react";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
 import { SectorsTab, AnalysesTab, RecommendationsTab, ReportsTab, MembersTab, ConfigTab } from "./detail-tabs";
+import CalculadoraTab from "@/pages/calculadora";
 
 export default function FincaDetail() {
   const [match, params] = useRoute("/fincas/:id");
@@ -75,6 +76,7 @@ export default function FincaDetail() {
             <TabsTrigger value="sectores" className="gap-2"><Droplets className="w-4 h-4" /> Sectores</TabsTrigger>
             <TabsTrigger value="analiticas" className="gap-2"><TestTube className="w-4 h-4" /> Analíticas</TabsTrigger>
             <TabsTrigger value="recomendaciones" className="gap-2"><Sprout className="w-4 h-4" /> Nutrición</TabsTrigger>
+            <TabsTrigger value="calculadora" className="gap-2"><Calculator className="w-4 h-4" /> Calculadora</TabsTrigger>
             <TabsTrigger value="informes" className="gap-2"><FileText className="w-4 h-4" /> Informes</TabsTrigger>
             <TabsTrigger value="miembros" className="gap-2"><Users className="w-4 h-4" /> Miembros</TabsTrigger>
             {farm.myRole === 'owner' && (
@@ -186,6 +188,7 @@ export default function FincaDetail() {
         <TabsContent value="sectores"><SectorsTab farmId={farmId} /></TabsContent>
         <TabsContent value="analiticas"><AnalysesTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
         <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} /></TabsContent>
+        <TabsContent value="calculadora"><CalculadoraTab farmId={farmId} defaultPlantCount={farm.plantCount} defaultWeeklyLitres={farm.weeklyLitresPerPlant} /></TabsContent>
         <TabsContent value="informes"><ReportsTab farmId={farmId} /></TabsContent>
         <TabsContent value="miembros"><MembersTab farmId={farmId} /></TabsContent>
         {farm.myRole === 'owner' && <TabsContent value="config"><ConfigTab farmId={farmId} /></TabsContent>}

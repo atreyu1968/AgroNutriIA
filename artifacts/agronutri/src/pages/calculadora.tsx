@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useRunCalculation, useListFertilizers, useListFarms } from "@workspace/api-client-react";
+import { useRunCalculation, useListFertilizers } from "@workspace/api-client-react";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,14 +11,23 @@ import { formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ImportAnalysisButton } from "@/pages/fincas/detail-tabs";
 
-export default function Calculadora() {
+export default function CalculadoraTab({
+  farmId,
+  defaultPlantCount,
+  defaultWeeklyLitres,
+}: {
+  farmId: number;
+  defaultPlantCount?: number | null;
+  defaultWeeklyLitres?: number | null;
+}) {
   const { data: fertilizers } = useListFertilizers();
-  const { data: farms } = useListFarms();
-  const [selectedFarmId, setSelectedFarmId] = useState<string>("");
-  const farmId = selectedFarmId ? parseInt(selectedFarmId, 10) : farms?.[0]?.id ?? null;
-  
-  const [plantCount, setPlantCount] = useState(1000);
-  const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(150);
+
+  const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
+  const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
+  useEffect(() => {
+    if (defaultPlantCount != null) setPlantCount(defaultPlantCount);
+    if (defaultWeeklyLitres != null) setWeeklyLitresPerPlant(defaultWeeklyLitres);
+  }, [defaultPlantCount, defaultWeeklyLitres]);
   
   const [items, setItems] = useState<Array<{id: number, fertId: string, dose: number}>>([
     { id: Date.now(), fertId: "", dose: 0 }
@@ -51,10 +61,10 @@ export default function Calculadora() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Motor de Cálculo</h1>
-        <p className="text-muted-foreground mt-1">Simulador determinista de aportes nutricionales e incompatibilidades.</p>
+        <h2 className="text-xl font-semibold tracking-tight">Calculadora de abonado</h2>
+        <p className="text-muted-foreground mt-1 text-sm">Simulador determinista de aportes nutricionales e incompatibilidades para esta finca.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -69,28 +79,12 @@ export default function Calculadora() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
-                <Label>Finca</Label>
-                <Select
-                  value={farmId != null ? String(farmId) : ""}
-                  onValueChange={setSelectedFarmId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una finca" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {farms?.map(f => (
-                      <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {farmId != null && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <ImportAnalysisButton farmId={farmId} />
-                    <p className="text-xs text-muted-foreground">
-                      Sube una analítica en PDF y el técnico virtual incorporará sus datos (agua, suelo, foliar) al cálculo.
-                    </p>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <ImportAnalysisButton farmId={farmId} />
+                  <p className="text-xs text-muted-foreground">
+                    Sube una analítica en PDF y el técnico virtual incorporará sus datos (agua, suelo, foliar) al cálculo.
+                  </p>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Número de Plantas</Label>
