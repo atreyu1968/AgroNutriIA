@@ -11,12 +11,15 @@ import {
   AdminListFarmsResponse,
   AdminUpdateEmailSettingsBody,
   AdminGetEmailSettingsResponse,
+  AdminSendTestEmailResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { audit } from "../lib/audit";
+import { logger } from "../lib/logger";
 import {
   getEmailConfig,
   setEmailSetting,
+  sendTestEmail,
   SETTING_RESEND_API_KEY,
   SETTING_EMAIL_FROM,
 } from "../lib/email";
@@ -294,6 +297,31 @@ router.put("/admin/settings/email", async (req, res): Promise<void> => {
     detail: "Resend",
   });
   res.json(AdminGetEmailSettingsResponse.parse(await emailSettingsPayload()));
+});
+
+router.post("/admin/settings/email/test", async (req, res): Promise<void> => {
+  const cfg = await getEmailConfig();
+  if (!cfg.apiKey) {
+    res.status(400).json({ error: "No hay clave de Resend configurada" });
+    return;
+  }
+  const to = req.user!.email;
+  try {
+    await sendTestEmail(to, req.user!.name);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({ err }, "Fallo al enviar el email de prueba");
+    res.status(502).json({ error: `No se pudo enviar el email de prueba: ${message}` });
+    return;
+  }
+  await audit({
+    userId: req.user!.id,
+    action: "admin_test_email_sent",
+    entityType: "settings",
+    entityId: 0,
+    detail: to,
+  });
+  res.json(AdminSendTestEmailResponse.parse({ sentTo: to }));
 });
 
 export default router;

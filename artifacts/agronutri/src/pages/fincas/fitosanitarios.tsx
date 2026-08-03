@@ -30,7 +30,6 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { SprayCan, Plus, Trash2, ExternalLink, Bot, Loader2, FlaskConical, AlertTriangle, BookMarked, FileDown } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { SprayCan, Plus, Trash2, ExternalLink, Bot, Loader2, FlaskConical, AlertTriangle, BookMarked } from "lucide-react";
 
 const PESTS = [
   "Cochinilla",

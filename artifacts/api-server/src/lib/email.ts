@@ -100,6 +100,18 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   }
 }
 
+export async function sendTestEmail(to: string, name: string): Promise<void> {
+  const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a2e1a">
+    <h2 style="color:#166534;margin:0 0 16px">AgroNutri AI</h2>
+    <p>Hola ${escapeHtml(name)},</p>
+    <p>Este es un email de prueba enviado desde Administración → Configuración.</p>
+    <p>Si lo has recibido, la clave de Resend y el remitente están configurados correctamente. ✔️</p>
+  </div>`;
+  await sendEmail(to, "Email de prueba — AgroNutri AI", html);
+  logger.info({ to }, "Test email sent");
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   name: string,

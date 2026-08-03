@@ -13,6 +13,7 @@ import {
   useAdminGetEmailSettings,
   getAdminGetEmailSettingsQueryKey,
   useAdminUpdateEmailSettings,
+  useAdminSendTestEmail,
   type AdminUser,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -472,6 +473,18 @@ function EmailSettingsCard() {
     },
   });
 
+  const testMutation = useAdminSendTestEmail({
+    mutation: {
+      onSuccess: (res) =>
+        toast({
+          title: "Email de prueba enviado",
+          description: `Revisa la bandeja de entrada de ${res.sentTo}.`,
+        }),
+      onError: (err: unknown) =>
+        toast({ title: "No se pudo enviar", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
   const fromValue = emailFrom ?? settings?.emailFrom ?? "";
   const save = () => {
     updateMutation.mutate({
@@ -546,6 +559,18 @@ function EmailSettingsCard() {
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
                 ) : (
                   "Guardar"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!settings?.configured || testMutation.isPending || updateMutation.isPending}
+                onClick={() => testMutation.mutate()}
+                data-testid="button-send-test-email"
+              >
+                {testMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando…</>
+                ) : (
+                  "Enviar email de prueba"
                 )}
               </Button>
               {settings?.apiKeyMasked && (

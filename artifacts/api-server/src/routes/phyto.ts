@@ -77,7 +77,7 @@ router.get("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =>
     .where(eq(phytoTreatmentsTable.farmId, farmId))
     .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
   const sectors = await sectorMap(farmId);
-        let result: unknown;
+  const result = [];
   for (const t of rows) {
     result.push(
       serializeTreatment(
@@ -98,10 +98,10 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     return;
   }
   if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
+    res.status(403).json({ error: "Sin permisos para registrar tratamientos" });
     return;
   }
-  const parsed = PhytoConsultBody.safeParse(req.body);
+  const parsed = CreatePhytoTreatmentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -111,7 +111,10 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     res.status(400).json({ error: "El sector no pertenece a esta finca" });
     return;
   }
-  const [t] = await db.select().from(phytoTreatmentsTable).where(eq(phytoTreatmentsTable.id, treatmentId));
+  const [t] = await db
+    .insert(phytoTreatmentsTable)
+    .values({ ...parsed.data, farmId, createdBy: req.user!.id })
+    .returning();
   await audit({
     userId: req.user!.id,
     farmId,
@@ -325,10 +328,9 @@ async function upsertProduct(
 router.get("/phyto/products", async (_req, res): Promise<void> => {
   const rows = await db
     .select()
-    .from(phytoTreatmentsTable)
-    .where(eq(phytoTreatmentsTable.farmId, farmId))
-    .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
-        let result: unknown;
+    .from(phytoProductsTable)
+    .orderBy(desc(phytoProductsTable.updatedAt));
+  const result = [];
   for (const p of rows) {
     result.push(serializeProduct(p, await userName(p.createdBy)));
   }
@@ -340,7 +342,7 @@ router.post("/phyto/products", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Sin permisos para modificar el catálogo" });
     return;
   }
-  const parsed = PhytoConsultBody.safeParse(req.body);
+  const parsed = CreatePhytoProductBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -359,7 +361,7 @@ router.post("/phyto/products", async (req, res): Promise<void> => {
     }
     throw err;
   }
-              const { product, created } = await upsertProduct(check.data, req.user!, true);
+  const { product, created } = upserted;
   await audit({
     userId: req.user!.id,
     farmId: null,
@@ -478,7 +480,7 @@ router.post("/farms/:farmId/phyto/plan-pdf", async (req, res): Promise<void> => 
     res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
     return;
   }
-  const parsed = PhytoConsultBody.safeParse(req.body);
+  const parsed = PhytoPlanPdfBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;

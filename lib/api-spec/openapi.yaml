@@ -1271,6 +1271,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminEmailSettings"
 
+  /admin/settings/email/test:
+    post:
+      operationId: adminSendTestEmail
+      tags: [admin]
+      summary: Send a test email to the logged-in admin (admin only)
+      responses:
+        "200":
+          description: Test email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTestEmailResult"
+
 components:
   parameters:
     UserId:
@@ -1557,6 +1570,11 @@ components:
           type: ["string", "null"]
           maxLength: 200
           description: Remitente, p. ej. "AgroNutri <no-reply@midominio.com>"; null o vacío lo borra
+    AdminTestEmailResult:
+      type: object
+      required: [sentTo]
+      properties:
+        sentTo: { type: string, description: Dirección a la que se envió el email de prueba }
 
     AdminFarm:
       type: object

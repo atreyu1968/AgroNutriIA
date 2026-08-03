@@ -319,6 +319,11 @@ export interface AdminEmailSettingsInput {
   emailFrom?: string | null;
 }
 
+export interface AdminTestEmailResult {
+  /** Dirección a la que se envió el email de prueba */
+  sentTo: string;
+}
+
 export interface AdminFarm {
   id: number;
   ownerId: number;
@@ -1134,3 +1139,4 @@ export type ListAuditLogParams = {
 farmId?: number;
 limit?: number;
 };
+

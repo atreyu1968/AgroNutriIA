@@ -23,6 +23,7 @@ import type {
   AdminEmailSettings,
   AdminEmailSettingsInput,
   AdminFarm,
+  AdminTestEmailResult,
   AdminUser,
   AdminUserCreate,
   AdminUserUpdate,
@@ -5672,5 +5673,76 @@ export const useAdminUpdateEmailSettings = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAdminUpdateEmailSettingsMutationOptions(options));
+    }
+
+export const getAdminSendTestEmailUrl = () => {
+
+
+
+
+  return `/api/admin/settings/email/test`
+}
+
+/**
+ * @summary Send a test email to the logged-in admin (admin only)
+ */
+export const adminSendTestEmail = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminTestEmailResult> => {
+
+  return customFetch<AdminTestEmailResult>(getAdminSendTestEmailUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminSendTestEmailMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSendTestEmail>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminSendTestEmail>>, TError,void, TContext> => {
+
+const mutationKey = ['adminSendTestEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminSendTestEmail>>, void> = () => {
+
+
+          return  adminSendTestEmail(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminSendTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof adminSendTestEmail>>>
+
+    export type AdminSendTestEmailMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send a test email to the logged-in admin (admin only)
+ */
+export const useAdminSendTestEmail = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSendTestEmail>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminSendTestEmail>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAdminSendTestEmailMutationOptions(options));
     }
 
