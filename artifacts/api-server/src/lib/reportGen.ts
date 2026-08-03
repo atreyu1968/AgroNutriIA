@@ -113,14 +113,118 @@ function buildSections(d: ReportData): Section[] {
   return sections;
 }
 
+const MARGIN = 50;
+const CELL_PAD = 5;
+
+function statusColor(text: string): string | null {
+  const t = text.toLowerCase();
+  if (t === "muy_alto" || t === "muy_bajo") return "#b91c1c";
+  if (t === "alto" || t === "bajo") return "#c2620a";
+  if (t === "normal") return "#15803d";
+  return null;
+}
+
+function drawTable(doc: PDFKit.PDFDocument, table: string[][]): void {
+  const pageWidth = doc.page.width - MARGIN * 2;
+  const nCols = table[0].length;
+  // First column wider (parameter/fertilizer names); last column may hold longer text for 4-col tables
+  const weights =
+    nCols === 5 ? [1.7, 0.8, 0.8, 1.0, 0.9] : nCols === 4 ? [1.4, 0.8, 0.6, 2.2] : Array(nCols).fill(1);
+  const totalW = weights.reduce((a: number, b: number) => a + b, 0);
+  const colWidths = weights.map((w: number) => (w / totalW) * pageWidth);
+  const bottom = doc.page.height - MARGIN;
+
+  const rowHeight = (row: string[], bold: boolean): number => {
+    doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
+    let h = 0;
+    row.forEach((cell, ci) => {
+      const cellH = doc.heightOfString(cell || " ", { width: colWidths[ci] - CELL_PAD * 2 });
+      if (cellH > h) h = cellH;
+    });
+    return h + CELL_PAD * 2;
+  };
+
+  const drawRow = (row: string[], ri: number, y: number, h: number): void => {
+    let x = MARGIN;
+    // Background
+    if (ri === 0) {
+      doc.rect(MARGIN, y, pageWidth, h).fill("#1e4d36");
+    } else if (ri % 2 === 0) {
+      doc.rect(MARGIN, y, pageWidth, h).fill("#f2f6f3");
+    }
+    row.forEach((cell, ci) => {
+      const isStatusCol = ri > 0 && ci === row.length - 1;
+      const color = ri === 0 ? "#ffffff" : (isStatusCol && statusColor(cell)) || "#1f2937";
+      doc
+        .font(ri === 0 ? "Helvetica-Bold" : "Helvetica")
+        .fontSize(9)
+        .fillColor(color)
+        .text(ri > 0 && isStatusCol ? cell.replace(/_/g, " ") : cell, x + CELL_PAD, y + CELL_PAD, {
+          width: colWidths[ci] - CELL_PAD * 2,
+          lineBreak: true,
+        });
+      x += colWidths[ci];
+    });
+    doc.fillColor("black");
+    // Row separator
+    doc
+      .moveTo(MARGIN, y + h)
+      .lineTo(MARGIN + pageWidth, y + h)
+      .lineWidth(0.5)
+      .strokeColor("#d1d5db")
+      .stroke();
+  };
+
+  const header = table[0];
+  const headerH = rowHeight(header, true);
+  let y = doc.y;
+
+  const usable = doc.page.height - MARGIN * 2;
+  const ensureSpace = (needed: number): void => {
+    // A row taller than a full page can never fit; draw it where we are instead of paging forever
+    if (needed > usable - headerH) {
+      if (y + headerH * 2 > bottom) {
+        doc.addPage();
+        y = MARGIN;
+        drawRow(header, 0, y, headerH);
+        y += headerH;
+      }
+      return;
+    }
+    if (y + needed > bottom) {
+      doc.addPage();
+      y = MARGIN;
+      drawRow(header, 0, y, headerH);
+      y += headerH;
+    }
+  };
+
+  ensureSpace(headerH + rowHeight(table[1] ?? header, false));
+  drawRow(header, 0, y, headerH);
+  y += headerH;
+
+  for (let ri = 1; ri < table.length; ri++) {
+    const h = rowHeight(table[ri], false);
+    ensureSpace(h);
+    drawRow(table[ri], ri, y, h);
+    y += h;
+  }
+  doc.x = MARGIN;
+  doc.y = y;
+}
+
 export async function generatePdf(d: ReportData, filePath: string): Promise<void> {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const sections = buildSections(d);
   await new Promise<void>((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50, size: "A4" });
+    const doc = new PDFDocument({ margin: MARGIN, size: "A4" });
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
-    doc.fontSize(18).font("Helvetica-Bold").text(d.title);
+    // Header band
+    doc.rect(0, 0, doc.page.width, 6).fill("#1e4d36");
+    doc.fillColor("black");
+    doc.y = MARGIN;
+    doc.fontSize(18).font("Helvetica-Bold").fillColor("#1e4d36").text(d.title);
     doc.moveDown(0.3);
     doc
       .fontSize(10)
@@ -129,31 +233,17 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
       .text(`AgroNutri AI — Informe técnico de fertirrigación · ${d.date}`);
     doc.fillColor("black").moveDown();
     for (const s of sections) {
+      // Keep heading attached to the following content
+      if (doc.y > doc.page.height - MARGIN - 90) doc.addPage();
       doc.moveDown(0.6);
-      doc.fontSize(13).font("Helvetica-Bold").text(s.heading);
+      doc.fontSize(13).font("Helvetica-Bold").fillColor("#1e4d36").text(s.heading);
+      doc.fillColor("black");
       doc.moveDown(0.3);
       doc.fontSize(10).font("Helvetica");
       for (const p of s.paragraphs) doc.text(p, { lineGap: 2 });
       if (s.table) {
         doc.moveDown(0.3);
-        const colWidth = (doc.page.width - 100) / s.table[0].length;
-        for (let ri = 0; ri < s.table.length; ri++) {
-          const row = s.table[ri];
-          const y = doc.y;
-          if (y > doc.page.height - 80) doc.addPage();
-          row.forEach((cell, ci) => {
-            doc
-              .font(ri === 0 ? "Helvetica-Bold" : "Helvetica")
-              .fontSize(9)
-              .text(cell, 50 + ci * colWidth, doc.y === y ? y : doc.y - doc.currentLineHeight(), {
-                width: colWidth - 6,
-                continued: false,
-              });
-            doc.y = y;
-          });
-          doc.y = y + 14;
-        }
-        doc.x = 50;
+        drawTable(doc, s.table);
       }
     }
     doc.end();
