@@ -1,6 +1,56 @@
+<p align="center">
+  <img src="artifacts/agronutri/public/logo.png" alt="AgroNutri AI" width="360" />
+</p>
+
 # AgroNutri AI
 
-Plataforma de fertirrigación para fincas de platanera (Canarias): analíticas de suelo, foliar y agua, programas de abonado, calculadora de fertirrigación, técnico virtual con IA (chat, adjuntos y fichas de producto) e informes técnicos en PDF/Word.
+Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canarias): analíticas de suelo, foliar y agua, programas de abonado con IA, calculadora de fertirrigación, técnico virtual (chat con adjuntos y fichas de producto), gestión de fitosanitarios e informes técnicos en PDF/Word. Incluye aplicación web (instalable como PWA) y app móvil.
+
+## Funcionalidades
+
+### Fincas y sectores
+- Gestión de fincas con datos agronómicos (cultivo, variedad, superficie, plantas, riego semanal, CE máxima, drenaje, aplicación foliar) y persona de contacto (nombre, teléfono y email).
+- División de la finca en sectores con sus propios datos de plantas, superficie, riego y fase fenológica.
+- Panel de resumen con el estado agronómico de la finca y avisos.
+- Miembros por finca con roles (propietario, técnico, etc.) y permisos según rol.
+
+### Analíticas
+- Registro de analíticas de suelo, foliar y agua, con parámetros, laboratorio y fecha de muestreo.
+- Ámbito global de la finca o por sector, con selección del ámbito al darlas de alta.
+- Importación asistida: sube el PDF del laboratorio y la IA extrae los parámetros.
+
+### Nutrición y calculadora
+- Calculadora de fertirrigación: plan de abonado semanal con dosis por fertilizante, estimación de CE y de nutrientes aportados, y avisos de compatibilidad entre productos.
+- Programas de abonado con estados (borrador, aprobado, activo…) y flujo de aprobación.
+- Borrador de programa generado por IA a partir de las últimas analíticas, para toda la finca o para un sector concreto.
+- Opción de acidificación del agua: si se usa ácido para bajar el pH de riego, la IA calcula los litros de ácido necesarios por semana a partir del pH, los bicarbonatos y el volumen de riego (con validación previa de que existen esos datos).
+
+### Técnico virtual (IA)
+- Chat con un técnico agrónomo virtual con el contexto de la finca (analíticas, sectores, programa vigente).
+- Adjuntos en el chat (fotos y documentos) para consultas sobre síntomas o etiquetas.
+- Clave de OpenAI propia por usuario u organización, selección de modelo, registro de consumo y límite mensual de gasto.
+
+### Fitosanitarios
+- Catálogo de productos fitosanitarios (número de registro, materia activa, plaga objetivo, plazos de seguridad), con actualización de fichas asistida por IA y ordenación por columnas.
+- División automática de fichas que agrupan varios nombres comerciales, individual o en lote.
+- Registro de aplicaciones fitosanitarias por sector: producto, dosis, volumen de caldo, superficie y plazo de seguridad.
+- Aviso de productos con registro caducado.
+
+### Fertilizantes
+- Catálogo de fertilizantes (sólidos y líquidos, fertirrigación y enmiendas) con riqueza y compatibilidades, usado por la calculadora y por la IA.
+
+### Informes
+- Informes técnicos en PDF y Word con los datos de la finca, analíticas y programa de abonado, con resumen redactado por IA y logo personalizable.
+
+### Administración y seguridad
+- Gestión de usuarios por el administrador (alta, cambio de contraseña, desactivación); registro público desactivable.
+- Recuperación de contraseña por email (Resend) con enlaces de un solo uso.
+- Registro de auditoría de las acciones importantes.
+- Panel de consumo de IA por usuario y operación.
+
+### Aplicaciones
+- **Web** (React + Vite): instalable como PWA en el móvil o el escritorio.
+- **Móvil** (Expo): acceso a fincas, sectores y programas, con bloqueo biométrico opcional (huella / Face ID).
 
 ## Estructura del proyecto
 
