@@ -1442,6 +1442,7 @@ components:
             type: string
         createdByName: { type: ["string", "null"] }
         validatedByName: { type: ["string", "null"] }
+        updatedByName: { type: ["string", "null"] }
         createdAt: { type: string }
         updatedAt: { type: ["string", "null"] }
     RecommendationInput:

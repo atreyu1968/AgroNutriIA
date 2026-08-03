@@ -77,6 +77,7 @@ export function serializeRecommendation(
   r: Recommendation,
   createdByName?: string | null,
   validatedByName?: string | null,
+  updatedByName?: string | null,
 ) {
   return {
     id: r.id,
@@ -92,6 +93,7 @@ export function serializeRecommendation(
     warnings: r.warnings ?? [],
     createdByName: createdByName ?? null,
     validatedByName: validatedByName ?? null,
+    updatedByName: updatedByName ?? null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };

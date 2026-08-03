@@ -805,6 +805,7 @@ export function RecommendationsTab({ farmId }: { farmId: number }) {
                     <span>{formatDate(r.createdAt)}</span>
                     <span>{r.items?.length || 0} fertilizantes</span>
                     {r.estimatedEcDsM && <span>CE: {r.estimatedEcDsM} dS/m</span>}
+                    {r.updatedByName && <span>Ajustado por {r.updatedByName}</span>}
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">Ver detalles</Button>

@@ -315,6 +315,8 @@ export interface Recommendation {
   createdByName?: string | null;
   /** @nullable */
   validatedByName?: string | null;
+  /** @nullable */
+  updatedByName?: string | null;
   createdAt: string;
   /** @nullable */
   updatedAt?: string | null;

@@ -113,6 +113,7 @@ const recommendation: Recommendation = {
   warnings: ["No mezclar nitrato cálcico con sulfatos en el mismo tanque."],
   createdBy: 1,
   validatedBy: 2,
+  updatedBy: null,
   reviewComment: null,
   createdAt: now,
   updatedAt: now,

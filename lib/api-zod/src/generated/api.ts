@@ -430,6 +430,7 @@ export const GetFarmSummaryResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 }),zod.null()]).optional(),
@@ -916,6 +917,7 @@ export const ListRecommendationsResponseItem = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -961,6 +963,7 @@ export const CreateRecommendationResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -1002,6 +1005,7 @@ export const GenerateAiDraftRecommendationResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -1033,6 +1037,7 @@ export const GetRecommendationResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -1077,6 +1082,7 @@ export const UpdateRecommendationResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -1113,6 +1119,7 @@ export const ChangeRecommendationStatusResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -1400,6 +1407,7 @@ export const CreateDraftFromMessageResponse = zod.object({
   "warnings": zod.array(zod.string()).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
+  "updatedByName": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })

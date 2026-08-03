@@ -98,6 +98,9 @@ export const recommendationsTable = pgTable("recommendations", {
   validatedBy: integer("validated_by").references(() => usersTable.id, {
     onDelete: "set null",
   }),
+  updatedBy: integer("updated_by").references(() => usersTable.id, {
+    onDelete: "set null",
+  }),
   reviewComment: text("review_comment"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })

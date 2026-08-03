@@ -49,7 +49,12 @@ const router: IRouter = Router();
 router.use(requireAuth);
 
 async function fullSerialize(r: typeof recommendationsTable.$inferSelect) {
-  return serializeRecommendation(r, await userName(r.createdBy), await userName(r.validatedBy));
+  return serializeRecommendation(
+    r,
+    await userName(r.createdBy),
+    await userName(r.validatedBy),
+    await userName(r.updatedBy),
+  );
 }
 
 router.get("/farms/:farmId/recommendations", async (req, res): Promise<void> => {
@@ -368,7 +373,7 @@ router.patch("/farms/:farmId/recommendations/:recommendationId", async (req, res
     res.status(409).json({ error: "Solo se pueden editar recomendaciones en borrador o pendientes de revisión" });
     return;
   }
-  const update: Record<string, unknown> = { ...parsed.data };
+  const update: Record<string, unknown> = { ...parsed.data, updatedBy: req.user!.id };
   if (parsed.data.items) {
     Object.assign(update, await computeEstimates(farmId, access.farm, parsed.data.items));
   }
@@ -377,6 +382,14 @@ router.patch("/farms/:farmId/recommendations/:recommendationId", async (req, res
     .set(update)
     .where(eq(recommendationsTable.id, recId))
     .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "recommendation_updated",
+    entityType: "recommendation",
+    entityId: rec.id,
+    detail: rec.title,
+  });
   res.json(UpdateRecommendationResponse.parse(await fullSerialize(rec)));
 });
 

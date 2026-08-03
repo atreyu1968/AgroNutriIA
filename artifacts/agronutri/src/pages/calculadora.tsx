@@ -4,6 +4,7 @@ import {
   useListFertilizers,
   useGenerateAiDraftRecommendation,
   useCreateRecommendation,
+  useUpdateRecommendation,
   getListRecommendationsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,13 +44,13 @@ export default function CalculadoraTab({
   const calcMutation = useRunCalculation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [aiDraft, setAiDraft] = useState<{ title: string; rationale: string | null } | null>(null);
+  const [aiDraft, setAiDraft] = useState<{ id: number; title: string; rationale: string | null } | null>(null);
   const [edited, setEdited] = useState(false);
 
   const aiMutation = useGenerateAiDraftRecommendation({
     mutation: {
       onSuccess: (rec) => {
-        setAiDraft({ title: rec.title ?? "Programa propuesto por IA", rationale: rec.rationale ?? null });
+        setAiDraft({ id: rec.id, title: rec.title ?? "Programa propuesto por IA", rationale: rec.rationale ?? null });
         setEdited(false);
         setItems(
           rec.items.map((i, idx) => ({
@@ -83,6 +84,23 @@ export default function CalculadoraTab({
     },
   });
 
+  const updateMutation = useUpdateRecommendation({
+    mutation: {
+      onSuccess: () => {
+        setEdited(false);
+        queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        toast({
+          title: "Borrador IA actualizado",
+          description: "Se han guardado tus ajustes sobre el borrador original, sin crear una copia.",
+        });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast({ title: "No se pudo actualizar el borrador", description: msg ?? "Inténtalo de nuevo.", variant: "destructive" });
+      },
+    },
+  });
+
   const buildValidItems = () =>
     items
       .filter(i => i.fertId && i.dose > 0)
@@ -106,6 +124,17 @@ export default function CalculadoraTab({
         rationale: aiDraft?.rationale ?? undefined,
         items: validItems,
       },
+    });
+  };
+
+  const handleUpdateAiDraft = () => {
+    if (!aiDraft) return;
+    const validItems = buildValidItems();
+    if (validItems.length === 0) return;
+    updateMutation.mutate({
+      farmId,
+      recommendationId: aiDraft.id,
+      data: { items: validItems },
     });
   };
 
@@ -202,7 +231,7 @@ export default function CalculadoraTab({
                   </p>
                   {aiDraft.rationale && <p className="text-muted-foreground text-xs">{aiDraft.rationale}</p>}
                   <p className="text-xs text-muted-foreground">
-                    Propuesta basada en las últimas analíticas, guardada como borrador IA en Nutrición. Ajusta las dosis y guarda tu versión si haces cambios.
+                    Propuesta basada en las últimas analíticas, guardada como borrador IA en Nutrición. Si haces cambios, puedes actualizar el propio borrador o guardar una copia como programa del técnico.
                   </p>
                 </div>
               )}
@@ -268,6 +297,17 @@ export default function CalculadoraTab({
                   <>Calcular Aportes <ArrowRight className="w-4 h-4 ml-2" /></>
                 )}
               </Button>
+              {aiDraft && (
+                <Button
+                  variant="secondary"
+                  className="w-full gap-2"
+                  onClick={handleUpdateAiDraft}
+                  disabled={updateMutation.isPending || !edited || !items.some(i => i.fertId && i.dose > 0)}
+                >
+                  <Bot className="w-4 h-4" />
+                  {updateMutation.isPending ? "Actualizando..." : "Actualizar borrador IA con mis ajustes"}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 className="w-full gap-2"
