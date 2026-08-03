@@ -61,6 +61,17 @@ export default function Login() {
 
   return (
     <AuthLayout>
+      {authConfig?.demoMode && (
+        <div
+          className="mb-6 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2 text-center"
+          data-testid="banner-demo-mode"
+        >
+          Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{" "}
+          <Link href="/landing" className="font-medium underline underline-offset-2 hover:text-amber-700">
+            Contrata AgroNutri AI
+          </Link>
+        </div>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField

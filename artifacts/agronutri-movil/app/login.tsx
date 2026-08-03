@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useLogin } from '@workspace/api-client-react';
+import {
+  getGetAuthConfigQueryKey,
+  useGetAuthConfig,
+  useLogin,
+} from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -18,6 +23,11 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const authConfigQuery = useGetAuthConfig({
+    query: { queryKey: getGetAuthConfigQueryKey() },
+  });
+  const demoMode = authConfigQuery.data?.demoMode === true;
 
   const login = useLogin({
     mutation: {
@@ -56,6 +66,23 @@ export default function LoginScreen() {
         <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
           Tu técnico virtual, a pie de finca
         </Text>
+
+        {demoMode && (
+          <Pressable
+            testID="banner-demo-mode"
+            accessibilityRole="link"
+            onPress={() =>
+              Linking.openURL(`https://${process.env.EXPO_PUBLIC_DOMAIN}/landing`)
+            }
+            style={[styles.demoBanner, { backgroundColor: '#fef3c7', borderColor: '#fde68a' }]}
+          >
+            <Feather name="info" size={14} color="#92400e" style={{ marginTop: 2 }} />
+            <Text style={styles.demoBannerText}>
+              Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{' '}
+              <Text style={styles.demoBannerLink}>Contrata AgroNutri AI</Text>
+            </Text>
+          </Pressable>
+        )}
 
         <View style={styles.form}>
           <Text style={[styles.label, { color: c.foreground }]}>Correo electrónico</Text>
@@ -133,6 +160,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     marginTop: 4,
     marginBottom: 28,
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: colors.radius,
+    width: '100%',
+    maxWidth: 420,
+    marginBottom: 16,
+  },
+  demoBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#92400e',
+  },
+  demoBannerLink: {
+    fontFamily: 'Inter_600SemiBold',
+    textDecorationLine: 'underline',
+    color: '#92400e',
   },
   form: {
     width: '100%',
