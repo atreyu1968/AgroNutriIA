@@ -9,9 +9,9 @@ export function FincasRouter() {
   return (
     <AppLayout>
       <Switch>
-        <Route path="/fincas" component={FincasIndex} />
-        <Route path="/fincas/:id" component={FincaDetail} />
-        <Route path="/fincas/:id/tecnico" component={TecnicoVirtual} />
+        <Route path="/" component={FincasIndex} />
+        <Route path="/:id/tecnico" component={TecnicoVirtual} />
+        <Route path="/:id" component={FincaDetail} />
       </Switch>
     </AppLayout>
   );

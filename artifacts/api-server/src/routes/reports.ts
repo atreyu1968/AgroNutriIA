@@ -62,7 +62,11 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
           eq(recommendationsTable.farmId, farmId),
         ),
       );
-    recommendation = r ?? null;
+    if (!r) {
+      res.status(404).json({ error: "El programa de abonado seleccionado no existe en esta finca" });
+      return;
+    }
+    recommendation = r;
   } else {
     recommendation = await activeRecommendation(farmId);
   }

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Route, Switch, Redirect, Router as WouterRouter } from 'wouter';
 import { AppLayout } from '@/components/layout/app-layout';
 
 import Login from '@/pages/login';
@@ -48,6 +48,10 @@ function Router() {
         <FincasRouter />
       </Route>
       
+      <Route path="/calculadora">
+        <Redirect to="/fincas" />
+      </Route>
+
       <Route path="/fertilizantes">
         <AppLayout><Fertilizantes /></AppLayout>
       </Route>

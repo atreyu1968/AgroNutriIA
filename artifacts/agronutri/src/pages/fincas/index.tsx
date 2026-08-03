@@ -164,7 +164,7 @@ export default function FincasIndex() {
       ) : farms && farms.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {farms.map(farm => (
-            <Link key={farm.id} href={`/fincas/${farm.id}`}>
+            <Link key={farm.id} href={`/${farm.id}`}>
               <Card className="h-full hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group flex flex-col">
                 <CardHeader className="pb-4">
                   <div className="flex justify-between items-start">

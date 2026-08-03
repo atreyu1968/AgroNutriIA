@@ -49,7 +49,7 @@ export default function CalculadoraTab({
   const aiMutation = useGenerateAiDraftRecommendation({
     mutation: {
       onSuccess: (rec) => {
-        setAiDraft({ title: rec.title, rationale: rec.rationale ?? null });
+        setAiDraft({ title: rec.title ?? "Programa propuesto por IA", rationale: rec.rationale ?? null });
         setEdited(false);
         setItems(
           rec.items.map((i, idx) => ({

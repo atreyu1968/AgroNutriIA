@@ -262,13 +262,30 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
   }
 
   const byName = new Map(fertilizers.map((f) => [f.name.toLowerCase(), f]));
-  const items: RecommendationItem[] = extracted.items.map((i) => ({
-    fertilizerId: byName.get(i.fertilizerName.toLowerCase())?.id ?? null,
-    fertilizerName: i.fertilizerName,
-    weeklyDose: i.weeklyDose,
-    unit: i.unit === "L" ? "L" : "kg",
-    reason: i.reason ?? null,
-  }));
+  const items: RecommendationItem[] = [];
+  const discarded: string[] = [];
+  for (const i of extracted.items) {
+    const fert = byName.get(i.fertilizerName.toLowerCase());
+    const doseOk = Number.isFinite(i.weeklyDose) && i.weeklyDose > 0 && i.weeklyDose <= 10000;
+    if (!fert || fert.isActive === false || !doseOk) {
+      discarded.push(i.fertilizerName);
+      continue;
+    }
+    items.push({
+      fertilizerId: fert.id,
+      fertilizerName: fert.name,
+      weeklyDose: i.weeklyDose,
+      unit: i.unit === "L" ? "L" : "kg",
+      reason: i.reason ?? null,
+    });
+  }
+  if (items.length === 0) {
+    res.status(422).json({
+      error:
+        "La IA ha propuesto productos o dosis no válidos y se ha descartado la propuesta. Vuelve a intentarlo.",
+    });
+    return;
+  }
   const out = runEngine({ farm: access.farm, waterAnalysis: water, fertilizers, items });
 
   const [rec] = await db
@@ -283,7 +300,13 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
       createdBy: req.user!.id,
       estimatedEcDsM: out.estimatedEcDsM,
       estimatedWeeklyNKg: out.nutrients.n ?? null,
-      warnings: [...out.warnings, ...out.compatibilityIssues],
+      warnings: [
+        ...out.warnings,
+        ...out.compatibilityIssues,
+        ...(discarded.length
+          ? [`Se descartaron productos propuestos por la IA fuera del catálogo o con dosis no válidas: ${discarded.join(", ")}`]
+          : []),
+      ],
     })
     .returning();
   await audit({

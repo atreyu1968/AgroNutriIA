@@ -13,7 +13,7 @@ import { SectorsTab, AnalysesTab, RecommendationsTab, ReportsTab, MembersTab, Co
 import CalculadoraTab from "@/pages/calculadora";
 
 export default function FincaDetail() {
-  const [match, params] = useRoute("/fincas/:id");
+  const [match, params] = useRoute("/:id");
   const farmId = match && params.id ? parseInt(params.id, 10) : null;
 
   const { data: summary, isLoading, error } = useGetFarmSummary(farmId as number, { 
@@ -61,7 +61,7 @@ export default function FincaDetail() {
         </div>
         
         <Button className="gap-2 shrink-0 shadow-md" asChild>
-          <Link href={`/fincas/${farmId}/tecnico`}>
+          <Link href={`/${farmId}/tecnico`}>
             <Sprout className="w-4 h-4" />
             Consultar al Técnico Virtual
             <ArrowRight className="w-4 h-4 ml-1 opacity-70" />

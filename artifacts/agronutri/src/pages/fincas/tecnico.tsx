@@ -28,7 +28,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn, formatDateTime } from "@/lib/utils";
 
 export default function TecnicoVirtual() {
-  const [match, params] = useRoute("/fincas/:id/tecnico");
+  const [match, params] = useRoute("/:id/tecnico");
   const farmId = match && params.id ? parseInt(params.id, 10) : null;
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
 
@@ -63,7 +63,7 @@ export default function TecnicoVirtual() {
         </p>
         <div className="flex gap-4">
           <Button variant="outline" asChild>
-            <Link href={`/fincas/${farmId}`}><ArrowLeft className="w-4 h-4 mr-2" /> Volver a la finca</Link>
+            <Link href={`/${farmId}`}><ArrowLeft className="w-4 h-4 mr-2" /> Volver a la finca</Link>
           </Button>
           <Button asChild>
             <Link href="/ajustes"><Settings className="w-4 h-4 mr-2" /> Ir a Ajustes</Link>
@@ -77,7 +77,7 @@ export default function TecnicoVirtual() {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="flex items-center gap-4 mb-4">
         <Button variant="ghost" size="icon" className="shrink-0" asChild>
-          <Link href={`/fincas/${farmId}`}>
+          <Link href={`/${farmId}`}>
             <ArrowLeft className="w-5 h-5" />
           </Link>
         </Button>
