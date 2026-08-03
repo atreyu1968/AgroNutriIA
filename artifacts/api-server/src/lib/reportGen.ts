@@ -16,10 +16,17 @@ import {
   PageNumber,
   TabStopType,
   TabStopPosition,
+  ImageRun,
 } from "docx";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
 
 export const REPORTS_DIR = path.resolve(process.cwd(), "storage", "reports");
+
+// Logo AgroNutri (color). El bundle esbuild vive en dist/, así que se resuelve
+// por ruta absoluta desde el cwd del artefacto (igual que storage/).
+const LOGO_PATH = path.resolve(process.cwd(), "assets", "logo.png");
+// Original 1745x435 px (≈ 4:1)
+const LOGO_RATIO = 435 / 1745;
 
 export type ReportData = {
   title: string;
@@ -268,6 +275,11 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
     doc.rect(0, 0, doc.page.width, 6).fill("#1e4d36");
     doc.fillColor("black");
     doc.y = MARGIN;
+    // Logo en la cabecera de la primera página
+    const logoW = 140;
+    doc.image(LOGO_PATH, MARGIN, MARGIN, { width: logoW });
+    doc.y = MARGIN + logoW * LOGO_RATIO + 14;
+    doc.x = MARGIN;
     doc.fontSize(18).font("Helvetica-Bold").fillColor("#1e4d36").text(pdfSafe(d.title));
     doc.moveDown(0.3);
     doc
@@ -327,7 +339,17 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<void
 export async function generateDocx(d: ReportData, filePath: string): Promise<void> {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const sections = buildSections(d);
+  const logoW = 140;
   const children: (Paragraph | Table)[] = [
+    new Paragraph({
+      children: [
+        new ImageRun({
+          type: "png",
+          data: fs.readFileSync(LOGO_PATH),
+          transformation: { width: logoW, height: Math.round(logoW * LOGO_RATIO) },
+        }),
+      ],
+    }),
     new Paragraph({ text: d.title, heading: HeadingLevel.TITLE }),
     new Paragraph({
       children: [
