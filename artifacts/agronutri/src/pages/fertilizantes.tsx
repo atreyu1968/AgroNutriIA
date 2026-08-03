@@ -54,6 +54,7 @@ export default function Fertilizantes() {
               <TableRow>
                 <TableHead className="w-[250px]">Nombre</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Uso</TableHead>
                 <TableHead className="text-center bg-blue-500/10">N</TableHead>
                 <TableHead className="text-center bg-amber-500/10">P₂O₅</TableHead>
                 <TableHead className="text-center bg-red-500/10">K₂O</TableHead>
@@ -70,6 +71,7 @@ export default function Fertilizantes() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     {Array.from({ length: 7 }).map((_, j) => (
                       <TableCell key={j} className={j > 4 ? "hidden md:table-cell" : ""}><Skeleton className="h-5 w-8 mx-auto" /></TableCell>
                     ))}
@@ -90,6 +92,11 @@ export default function Fertilizantes() {
                         {fert.formulaType === 'liquid' ? 'Líquido' : 'Sólido'}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={fert.usage === 'enmienda' ? "bg-amber-500/10 text-amber-800" : "bg-emerald-500/10 text-emerald-700"}>
+                        {fert.usage === 'enmienda' ? 'Enmienda' : 'Fertirrigación'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-center font-mono">{fert.nPct || '-'}</TableCell>
                     <TableCell className="text-center font-mono">{fert.p2o5Pct || '-'}</TableCell>
                     <TableCell className="text-center font-mono">{fert.k2oPct || '-'}</TableCell>
@@ -104,7 +111,7 @@ export default function Fertilizantes() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                     No se encontraron fertilizantes
                   </TableCell>
                 </TableRow>
@@ -120,6 +127,7 @@ export default function Fertilizantes() {
 const fertilizerSchema = z.object({
   name: z.string().min(1, "Requerido"),
   formulaType: z.enum(["solid", "liquid"]).default("solid"),
+  usage: z.enum(["fertirrigacion", "enmienda"]).default("fertirrigacion"),
   nPct: z.coerce.number().optional(),
   p2o5Pct: z.coerce.number().optional(),
   k2oPct: z.coerce.number().optional(),
@@ -134,7 +142,7 @@ function CreateFertilizerDialog({ open, onOpenChange }: { open: boolean, onOpenC
   
   const form = useForm<z.infer<typeof fertilizerSchema>>({
     resolver: zodResolver(fertilizerSchema),
-    defaultValues: { name: "", formulaType: "solid" }
+    defaultValues: { name: "", formulaType: "solid", usage: "fertirrigacion" }
   });
 
   const mutation = useCreateFertilizer({
@@ -186,6 +194,22 @@ function CreateFertilizerDialog({ open, onOpenChange }: { open: boolean, onOpenC
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control} name="usage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Uso</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="fertirrigacion">Fertirrigación (se disuelve en el riego)</SelectItem>
+                      <SelectItem value="enmienda">Enmienda (se aplica al suelo)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-5 gap-3 pt-4 border-t">
               <FormField control={form.control} name="nPct" render={({ field }) => (

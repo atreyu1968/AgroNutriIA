@@ -47,6 +47,7 @@ export const fertilizersTable = pgTable("fertilizers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   formulaType: text("formula_type").default("solid"), // solid | liquid
+  usage: text("usage").default("fertirrigacion"), // fertirrigacion | enmienda
   nPct: real("n_pct").default(0),
   nNitricPct: real("n_nitric_pct").default(0),
   nAmmoniacalPct: real("n_ammoniacal_pct").default(0),

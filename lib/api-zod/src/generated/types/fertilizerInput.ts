@@ -5,11 +5,13 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { FertilizerInputUsage } from './fertilizerInputUsage';
 
 export interface FertilizerInput {
   /** @minLength 1 */
   name: string;
   formulaType?: string;
+  usage?: FertilizerInputUsage;
   nPct?: number;
   nNitricPct?: number;
   nAmmoniacalPct?: number;

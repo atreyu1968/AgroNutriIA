@@ -81,6 +81,7 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
 const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
   const result = { queryKey } as T & { queryKey: K };
   for (const key of Object.keys(query)) {
@@ -97,6 +98,8 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 export const getHealthCheckUrl = () => {
+
+
 
 
   return `/api/healthz`
@@ -117,6 +120,9 @@ export const healthCheck = async ( options?: Parameters<typeof customFetch>[1]):
 );}
 
 
+
+
+
 export const getHealthCheckQueryKey = () => {
     return [
     `/api/healthz`
@@ -132,7 +138,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({ signal }) => healthCheck({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
@@ -159,7 +169,14 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 }
 
 
+
+
+
+
+
 export const getRegisterUrl = () => {
+
+
 
 
   return `/api/auth/register`
@@ -177,6 +194,9 @@ export const register = async (registerInput: RegisterInput, options?: Parameter
 );}
 
 
+
+
+
 export const getRegisterMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof register>>, TError,{data: BodyType<RegisterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof register>>, TError,{data: BodyType<RegisterInput>}, TContext> => {
@@ -189,11 +209,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof register>>, {data: BodyType<RegisterInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  register(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -216,6 +242,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getLoginUrl = () => {
 
 
+
+
   return `/api/auth/login`
 }
 
@@ -231,6 +259,9 @@ export const login = async (loginInput: LoginInput, options?: Parameters<typeof 
 );}
 
 
+
+
+
 export const getLoginMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,{data: BodyType<LoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,{data: BodyType<LoginInput>}, TContext> => {
@@ -243,11 +274,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof login>>, {data: BodyType<LoginInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  login(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -270,6 +307,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getLogoutUrl = () => {
 
 
+
+
   return `/api/auth/logout`
 }
 
@@ -285,6 +324,9 @@ export const logout = async ( options?: Parameters<typeof customFetch>[1]): Prom
 );}
 
 
+
+
+
 export const getLogoutMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext> => {
@@ -297,11 +339,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof logout>>, void> = () => {
 
 
           return  logout(requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -324,6 +372,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getGetMeUrl = () => {
 
 
+
+
   return `/api/auth/me`
 }
 
@@ -337,6 +387,9 @@ export const getMe = async ( options?: Parameters<typeof customFetch>[1]): Promi
 
   }
 );}
+
+
+
 
 
 export const getGetMeQueryKey = () => {
@@ -354,7 +407,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetMeQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getMe>>> = ({ signal }) => getMe({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData> & { queryKey: QueryKey }
@@ -362,6 +419,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>
 export type GetMeQueryError = ErrorType<unknown>
+
 
 
 export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<unknown>>(
@@ -377,7 +435,14 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Err
 }
 
 
+
+
+
+
+
 export const getUpdateMeUrl = () => {
+
+
 
 
   return `/api/auth/me`
@@ -395,6 +460,9 @@ export const updateMe = async (userProfileUpdate: UserProfileUpdate, options?: P
 );}
 
 
+
+
+
 export const getUpdateMeMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMe>>, TError,{data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateMe>>, TError,{data: BodyType<UserProfileUpdate>}, TContext> => {
@@ -407,11 +475,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMe>>, {data: BodyType<UserProfileUpdate>}> = (props) => {
           const {data} = props ?? {};
 
           return  updateMe(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -434,6 +508,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getListFarmsUrl = () => {
 
 
+
+
   return `/api/farms`
 }
 
@@ -447,6 +523,9 @@ export const listFarms = async ( options?: Parameters<typeof customFetch>[1]): P
 
   }
 );}
+
+
+
 
 
 export const getListFarmsQueryKey = () => {
@@ -464,7 +543,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListFarmsQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listFarms>>> = ({ signal }) => listFarms({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFarms>>, TError, TData> & { queryKey: QueryKey }
@@ -472,6 +555,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListFarmsQueryResult = NonNullable<Awaited<ReturnType<typeof listFarms>>>
 export type ListFarmsQueryError = ErrorType<unknown>
+
 
 
 export function useListFarms<TData = Awaited<ReturnType<typeof listFarms>>, TError = ErrorType<unknown>>(
@@ -487,7 +571,14 @@ export function useListFarms<TData = Awaited<ReturnType<typeof listFarms>>, TErr
 }
 
 
+
+
+
+
+
 export const getCreateFarmUrl = () => {
+
+
 
 
   return `/api/farms`
@@ -505,6 +596,9 @@ export const createFarm = async (farmInput: FarmInput, options?: Parameters<type
 );}
 
 
+
+
+
 export const getCreateFarmMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFarm>>, TError,{data: BodyType<FarmInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createFarm>>, TError,{data: BodyType<FarmInput>}, TContext> => {
@@ -517,11 +611,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFarm>>, {data: BodyType<FarmInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createFarm(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -544,6 +644,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getGetFarmUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}`
 }
 
@@ -557,6 +659,9 @@ export const getFarm = async (farmId: number, options?: Parameters<typeof custom
 
   }
 );}
+
+
+
 
 
 export const getGetFarmQueryKey = (farmId: number,) => {
@@ -574,7 +679,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetFarmQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getFarm>>> = ({ signal }) => getFarm(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFarm>>, TError, TData> & { queryKey: QueryKey }
@@ -582,6 +691,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetFarmQueryResult = NonNullable<Awaited<ReturnType<typeof getFarm>>>
 export type GetFarmQueryError = ErrorType<unknown>
+
 
 
 export function useGetFarm<TData = Awaited<ReturnType<typeof getFarm>>, TError = ErrorType<unknown>>(
@@ -597,7 +707,14 @@ export function useGetFarm<TData = Awaited<ReturnType<typeof getFarm>>, TError =
 }
 
 
+
+
+
+
+
 export const getUpdateFarmUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}`
@@ -616,6 +733,9 @@ export const updateFarm = async (farmId: number,
 );}
 
 
+
+
+
 export const getUpdateFarmMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFarm>>, TError,{farmId: number;data: BodyType<FarmUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateFarm>>, TError,{farmId: number;data: BodyType<FarmUpdate>}, TContext> => {
@@ -628,11 +748,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFarm>>, {farmId: number;data: BodyType<FarmUpdate>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  updateFarm(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -655,6 +781,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getDeleteFarmUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}`
 }
 
@@ -670,6 +798,9 @@ export const deleteFarm = async (farmId: number, options?: Parameters<typeof cus
 );}
 
 
+
+
+
 export const getDeleteFarmMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFarm>>, TError,{farmId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteFarm>>, TError,{farmId: number}, TContext> => {
@@ -682,11 +813,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFarm>>, {farmId: number}> = (props) => {
           const {farmId} = props ?? {};
 
           return  deleteFarm(farmId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -709,6 +846,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getGetFarmSummaryUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/summary`
 }
 
@@ -722,6 +861,9 @@ export const getFarmSummary = async (farmId: number, options?: Parameters<typeof
 
   }
 );}
+
+
+
 
 
 export const getGetFarmSummaryQueryKey = (farmId: number,) => {
@@ -739,7 +881,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetFarmSummaryQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getFarmSummary>>> = ({ signal }) => getFarmSummary(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFarmSummary>>, TError, TData> & { queryKey: QueryKey }
@@ -747,6 +893,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetFarmSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getFarmSummary>>>
 export type GetFarmSummaryQueryError = ErrorType<unknown>
+
 
 
 export function useGetFarmSummary<TData = Awaited<ReturnType<typeof getFarmSummary>>, TError = ErrorType<unknown>>(
@@ -762,7 +909,14 @@ export function useGetFarmSummary<TData = Awaited<ReturnType<typeof getFarmSumma
 }
 
 
+
+
+
+
+
 export const getListSectorsUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/sectors`
@@ -780,6 +934,9 @@ export const listSectors = async (farmId: number, options?: Parameters<typeof cu
 );}
 
 
+
+
+
 export const getListSectorsQueryKey = (farmId: number,) => {
     return [
     `/api/farms/${farmId}/sectors`
@@ -795,7 +952,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListSectorsQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listSectors>>> = ({ signal }) => listSectors(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSectors>>, TError, TData> & { queryKey: QueryKey }
@@ -803,6 +964,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListSectorsQueryResult = NonNullable<Awaited<ReturnType<typeof listSectors>>>
 export type ListSectorsQueryError = ErrorType<unknown>
+
 
 
 export function useListSectors<TData = Awaited<ReturnType<typeof listSectors>>, TError = ErrorType<unknown>>(
@@ -818,7 +980,14 @@ export function useListSectors<TData = Awaited<ReturnType<typeof listSectors>>, 
 }
 
 
+
+
+
+
+
 export const getCreateSectorUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/sectors`
@@ -837,6 +1006,9 @@ export const createSector = async (farmId: number,
 );}
 
 
+
+
+
 export const getCreateSectorMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSector>>, TError,{farmId: number;data: BodyType<SectorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createSector>>, TError,{farmId: number;data: BodyType<SectorInput>}, TContext> => {
@@ -849,11 +1021,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSector>>, {farmId: number;data: BodyType<SectorInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  createSector(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -877,6 +1055,8 @@ export const getUpdateSectorUrl = (farmId: number,
     sectorId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/sectors/${sectorId}`
 }
 
@@ -894,6 +1074,9 @@ export const updateSector = async (farmId: number,
 );}
 
 
+
+
+
 export const getUpdateSectorMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSector>>, TError,{farmId: number;sectorId: number;data: BodyType<SectorUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateSector>>, TError,{farmId: number;sectorId: number;data: BodyType<SectorUpdate>}, TContext> => {
@@ -906,11 +1089,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSector>>, {farmId: number;sectorId: number;data: BodyType<SectorUpdate>}> = (props) => {
           const {farmId,sectorId,data} = props ?? {};
 
           return  updateSector(farmId,sectorId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -934,6 +1123,8 @@ export const getDeleteSectorUrl = (farmId: number,
     sectorId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/sectors/${sectorId}`
 }
 
@@ -950,6 +1141,9 @@ export const deleteSector = async (farmId: number,
 );}
 
 
+
+
+
 export const getDeleteSectorMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSector>>, TError,{farmId: number;sectorId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteSector>>, TError,{farmId: number;sectorId: number}, TContext> => {
@@ -962,11 +1156,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSector>>, {farmId: number;sectorId: number}> = (props) => {
           const {farmId,sectorId} = props ?? {};
 
           return  deleteSector(farmId,sectorId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -989,6 +1189,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getListMembersUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/members`
 }
 
@@ -1002,6 +1204,9 @@ export const listMembers = async (farmId: number, options?: Parameters<typeof cu
 
   }
 );}
+
+
+
 
 
 export const getListMembersQueryKey = (farmId: number,) => {
@@ -1019,7 +1224,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListMembersQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listMembers>>> = ({ signal }) => listMembers(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMembers>>, TError, TData> & { queryKey: QueryKey }
@@ -1027,6 +1236,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listMembers>>>
 export type ListMembersQueryError = ErrorType<unknown>
+
 
 
 export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, TError = ErrorType<unknown>>(
@@ -1042,7 +1252,14 @@ export function useListMembers<TData = Awaited<ReturnType<typeof listMembers>>, 
 }
 
 
+
+
+
+
+
 export const getAddMemberUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/members`
@@ -1061,6 +1278,9 @@ export const addMember = async (farmId: number,
 );}
 
 
+
+
+
 export const getAddMemberMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMember>>, TError,{farmId: number;data: BodyType<FarmMemberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof addMember>>, TError,{farmId: number;data: BodyType<FarmMemberInput>}, TContext> => {
@@ -1073,11 +1293,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMember>>, {farmId: number;data: BodyType<FarmMemberInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  addMember(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1101,6 +1327,8 @@ export const getUpdateMemberUrl = (farmId: number,
     memberId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/members/${memberId}`
 }
 
@@ -1118,6 +1346,9 @@ export const updateMember = async (farmId: number,
 );}
 
 
+
+
+
 export const getUpdateMemberMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,{farmId: number;memberId: number;data: BodyType<FarmMemberUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,{farmId: number;memberId: number;data: BodyType<FarmMemberUpdate>}, TContext> => {
@@ -1130,11 +1361,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMember>>, {farmId: number;memberId: number;data: BodyType<FarmMemberUpdate>}> = (props) => {
           const {farmId,memberId,data} = props ?? {};
 
           return  updateMember(farmId,memberId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1158,6 +1395,8 @@ export const getRemoveMemberUrl = (farmId: number,
     memberId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/members/${memberId}`
 }
 
@@ -1174,6 +1413,9 @@ export const removeMember = async (farmId: number,
 );}
 
 
+
+
+
 export const getRemoveMemberMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMember>>, TError,{farmId: number;memberId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof removeMember>>, TError,{farmId: number;memberId: number}, TContext> => {
@@ -1186,11 +1428,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMember>>, {farmId: number;memberId: number}> = (props) => {
           const {farmId,memberId} = props ?? {};
 
           return  removeMember(farmId,memberId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1213,6 +1461,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getListAnalysesUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/analyses`
 }
 
@@ -1226,6 +1476,9 @@ export const listAnalyses = async (farmId: number, options?: Parameters<typeof c
 
   }
 );}
+
+
+
 
 
 export const getListAnalysesQueryKey = (farmId: number,) => {
@@ -1243,7 +1496,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListAnalysesQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listAnalyses>>> = ({ signal }) => listAnalyses(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAnalyses>>, TError, TData> & { queryKey: QueryKey }
@@ -1251,6 +1508,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListAnalysesQueryResult = NonNullable<Awaited<ReturnType<typeof listAnalyses>>>
 export type ListAnalysesQueryError = ErrorType<unknown>
+
 
 
 export function useListAnalyses<TData = Awaited<ReturnType<typeof listAnalyses>>, TError = ErrorType<unknown>>(
@@ -1266,7 +1524,14 @@ export function useListAnalyses<TData = Awaited<ReturnType<typeof listAnalyses>>
 }
 
 
+
+
+
+
+
 export const getCreateAnalysisUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/analyses`
@@ -1285,6 +1550,9 @@ export const createAnalysis = async (farmId: number,
 );}
 
 
+
+
+
 export const getCreateAnalysisMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAnalysis>>, TError,{farmId: number;data: BodyType<AnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createAnalysis>>, TError,{farmId: number;data: BodyType<AnalysisInput>}, TContext> => {
@@ -1297,11 +1565,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAnalysis>>, {farmId: number;data: BodyType<AnalysisInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  createAnalysis(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1322,6 +1596,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getImportAnalysisPdfUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/analyses/import`
@@ -1345,6 +1621,9 @@ formData.append(`file`, importAnalysisPdfBody.file);
 );}
 
 
+
+
+
 export const getImportAnalysisPdfMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAnalysisPdf>>, TError,{farmId: number;data: BodyType<ImportAnalysisPdfBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof importAnalysisPdf>>, TError,{farmId: number;data: BodyType<ImportAnalysisPdfBody>}, TContext> => {
@@ -1357,11 +1636,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof importAnalysisPdf>>, {farmId: number;data: BodyType<ImportAnalysisPdfBody>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  importAnalysisPdf(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1388,6 +1673,8 @@ export const getGetAnalysisUrl = (farmId: number,
     analysisId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/analyses/${analysisId}`
 }
 
@@ -1402,6 +1689,9 @@ export const getAnalysis = async (farmId: number,
 
   }
 );}
+
+
+
 
 
 export const getGetAnalysisQueryKey = (farmId: number,
@@ -1421,7 +1711,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetAnalysisQueryKey(farmId,analysisId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalysis>>> = ({ signal }) => getAnalysis(farmId,analysisId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined && analysisId !== null && analysisId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalysis>>, TError, TData> & { queryKey: QueryKey }
@@ -1429,6 +1723,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetAnalysisQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalysis>>>
 export type GetAnalysisQueryError = ErrorType<unknown>
+
 
 
 export function useGetAnalysis<TData = Awaited<ReturnType<typeof getAnalysis>>, TError = ErrorType<unknown>>(
@@ -1445,8 +1740,15 @@ export function useGetAnalysis<TData = Awaited<ReturnType<typeof getAnalysis>>, 
 }
 
 
+
+
+
+
+
 export const getDeleteAnalysisUrl = (farmId: number,
     analysisId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/analyses/${analysisId}`
@@ -1465,6 +1767,9 @@ export const deleteAnalysis = async (farmId: number,
 );}
 
 
+
+
+
 export const getDeleteAnalysisMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAnalysis>>, TError,{farmId: number;analysisId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteAnalysis>>, TError,{farmId: number;analysisId: number}, TContext> => {
@@ -1477,11 +1782,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAnalysis>>, {farmId: number;analysisId: number}> = (props) => {
           const {farmId,analysisId} = props ?? {};
 
           return  deleteAnalysis(farmId,analysisId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1504,6 +1815,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getListFertilizersUrl = () => {
 
 
+
+
   return `/api/fertilizers`
 }
 
@@ -1517,6 +1830,9 @@ export const listFertilizers = async ( options?: Parameters<typeof customFetch>[
 
   }
 );}
+
+
+
 
 
 export const getListFertilizersQueryKey = () => {
@@ -1534,7 +1850,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListFertilizersQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listFertilizers>>> = ({ signal }) => listFertilizers({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFertilizers>>, TError, TData> & { queryKey: QueryKey }
@@ -1542,6 +1862,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListFertilizersQueryResult = NonNullable<Awaited<ReturnType<typeof listFertilizers>>>
 export type ListFertilizersQueryError = ErrorType<unknown>
+
 
 
 export function useListFertilizers<TData = Awaited<ReturnType<typeof listFertilizers>>, TError = ErrorType<unknown>>(
@@ -1557,7 +1878,14 @@ export function useListFertilizers<TData = Awaited<ReturnType<typeof listFertili
 }
 
 
+
+
+
+
+
 export const getCreateFertilizerUrl = () => {
+
+
 
 
   return `/api/fertilizers`
@@ -1575,6 +1903,9 @@ export const createFertilizer = async (fertilizerInput: FertilizerInput, options
 );}
 
 
+
+
+
 export const getCreateFertilizerMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFertilizer>>, TError,{data: BodyType<FertilizerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createFertilizer>>, TError,{data: BodyType<FertilizerInput>}, TContext> => {
@@ -1587,11 +1918,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFertilizer>>, {data: BodyType<FertilizerInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createFertilizer(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1614,6 +1951,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getUpdateFertilizerUrl = (fertilizerId: number,) => {
 
 
+
+
   return `/api/fertilizers/${fertilizerId}`
 }
 
@@ -1630,6 +1969,9 @@ export const updateFertilizer = async (fertilizerId: number,
 );}
 
 
+
+
+
 export const getUpdateFertilizerMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFertilizer>>, TError,{fertilizerId: number;data: BodyType<FertilizerUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateFertilizer>>, TError,{fertilizerId: number;data: BodyType<FertilizerUpdate>}, TContext> => {
@@ -1642,11 +1984,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFertilizer>>, {fertilizerId: number;data: BodyType<FertilizerUpdate>}> = (props) => {
           const {fertilizerId,data} = props ?? {};
 
           return  updateFertilizer(fertilizerId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1669,6 +2017,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getDeleteFertilizerUrl = (fertilizerId: number,) => {
 
 
+
+
   return `/api/fertilizers/${fertilizerId}`
 }
 
@@ -1684,6 +2034,9 @@ export const deleteFertilizer = async (fertilizerId: number, options?: Parameter
 );}
 
 
+
+
+
 export const getDeleteFertilizerMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFertilizer>>, TError,{fertilizerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteFertilizer>>, TError,{fertilizerId: number}, TContext> => {
@@ -1696,11 +2049,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFertilizer>>, {fertilizerId: number}> = (props) => {
           const {fertilizerId} = props ?? {};
 
           return  deleteFertilizer(fertilizerId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1723,6 +2082,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getListRecommendationsUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/recommendations`
 }
 
@@ -1736,6 +2097,9 @@ export const listRecommendations = async (farmId: number, options?: Parameters<t
 
   }
 );}
+
+
+
 
 
 export const getListRecommendationsQueryKey = (farmId: number,) => {
@@ -1753,7 +2117,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListRecommendationsQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listRecommendations>>> = ({ signal }) => listRecommendations(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRecommendations>>, TError, TData> & { queryKey: QueryKey }
@@ -1761,6 +2129,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListRecommendationsQueryResult = NonNullable<Awaited<ReturnType<typeof listRecommendations>>>
 export type ListRecommendationsQueryError = ErrorType<unknown>
+
 
 
 export function useListRecommendations<TData = Awaited<ReturnType<typeof listRecommendations>>, TError = ErrorType<unknown>>(
@@ -1776,7 +2145,14 @@ export function useListRecommendations<TData = Awaited<ReturnType<typeof listRec
 }
 
 
+
+
+
+
+
 export const getCreateRecommendationUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/recommendations`
@@ -1795,6 +2171,9 @@ export const createRecommendation = async (farmId: number,
 );}
 
 
+
+
+
 export const getCreateRecommendationMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRecommendation>>, TError,{farmId: number;data: BodyType<RecommendationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createRecommendation>>, TError,{farmId: number;data: BodyType<RecommendationInput>}, TContext> => {
@@ -1807,11 +2186,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRecommendation>>, {farmId: number;data: BodyType<RecommendationInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  createRecommendation(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1835,6 +2220,8 @@ export const getGetRecommendationUrl = (farmId: number,
     recommendationId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/recommendations/${recommendationId}`
 }
 
@@ -1849,6 +2236,9 @@ export const getRecommendation = async (farmId: number,
 
   }
 );}
+
+
+
 
 
 export const getGetRecommendationQueryKey = (farmId: number,
@@ -1868,7 +2258,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetRecommendationQueryKey(farmId,recommendationId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecommendation>>> = ({ signal }) => getRecommendation(farmId,recommendationId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined && recommendationId !== null && recommendationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecommendation>>, TError, TData> & { queryKey: QueryKey }
@@ -1876,6 +2270,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetRecommendationQueryResult = NonNullable<Awaited<ReturnType<typeof getRecommendation>>>
 export type GetRecommendationQueryError = ErrorType<unknown>
+
 
 
 export function useGetRecommendation<TData = Awaited<ReturnType<typeof getRecommendation>>, TError = ErrorType<unknown>>(
@@ -1892,8 +2287,15 @@ export function useGetRecommendation<TData = Awaited<ReturnType<typeof getRecomm
 }
 
 
+
+
+
+
+
 export const getUpdateRecommendationUrl = (farmId: number,
     recommendationId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/recommendations/${recommendationId}`
@@ -1913,6 +2315,9 @@ export const updateRecommendation = async (farmId: number,
 );}
 
 
+
+
+
 export const getUpdateRecommendationMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRecommendation>>, TError,{farmId: number;recommendationId: number;data: BodyType<RecommendationUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateRecommendation>>, TError,{farmId: number;recommendationId: number;data: BodyType<RecommendationUpdate>}, TContext> => {
@@ -1925,11 +2330,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRecommendation>>, {farmId: number;recommendationId: number;data: BodyType<RecommendationUpdate>}> = (props) => {
           const {farmId,recommendationId,data} = props ?? {};
 
           return  updateRecommendation(farmId,recommendationId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -1953,6 +2364,8 @@ export const getChangeRecommendationStatusUrl = (farmId: number,
     recommendationId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/recommendations/${recommendationId}/status`
 }
 
@@ -1970,6 +2383,9 @@ export const changeRecommendationStatus = async (farmId: number,
 );}
 
 
+
+
+
 export const getChangeRecommendationStatusMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeRecommendationStatus>>, TError,{farmId: number;recommendationId: number;data: BodyType<RecommendationStatusChange>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof changeRecommendationStatus>>, TError,{farmId: number;recommendationId: number;data: BodyType<RecommendationStatusChange>}, TContext> => {
@@ -1982,11 +2398,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeRecommendationStatus>>, {farmId: number;recommendationId: number;data: BodyType<RecommendationStatusChange>}> = (props) => {
           const {farmId,recommendationId,data} = props ?? {};
 
           return  changeRecommendationStatus(farmId,recommendationId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2009,6 +2431,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getRunCalculationUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/calculations`
 }
 
@@ -2028,6 +2452,9 @@ export const runCalculation = async (farmId: number,
 );}
 
 
+
+
+
 export const getRunCalculationMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runCalculation>>, TError,{farmId: number;data: BodyType<CalculationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof runCalculation>>, TError,{farmId: number;data: BodyType<CalculationRequest>}, TContext> => {
@@ -2040,11 +2467,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof runCalculation>>, {farmId: number;data: BodyType<CalculationRequest>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  runCalculation(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2070,6 +2503,8 @@ export const useRunCalculation = <TError = ErrorType<unknown>,
 export const getListCredentialsUrl = () => {
 
 
+
+
   return `/api/settings/openai`
 }
 
@@ -2083,6 +2518,9 @@ export const listCredentials = async ( options?: Parameters<typeof customFetch>[
 
   }
 );}
+
+
+
 
 
 export const getListCredentialsQueryKey = () => {
@@ -2100,7 +2538,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListCredentialsQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listCredentials>>> = ({ signal }) => listCredentials({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCredentials>>, TError, TData> & { queryKey: QueryKey }
@@ -2108,6 +2550,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListCredentialsQueryResult = NonNullable<Awaited<ReturnType<typeof listCredentials>>>
 export type ListCredentialsQueryError = ErrorType<unknown>
+
 
 
 export function useListCredentials<TData = Awaited<ReturnType<typeof listCredentials>>, TError = ErrorType<unknown>>(
@@ -2123,7 +2566,14 @@ export function useListCredentials<TData = Awaited<ReturnType<typeof listCredent
 }
 
 
+
+
+
+
+
 export const getCreateCredentialUrl = () => {
+
+
 
 
   return `/api/settings/openai`
@@ -2141,6 +2591,9 @@ export const createCredential = async (credentialInput: CredentialInput, options
 );}
 
 
+
+
+
 export const getCreateCredentialMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCredential>>, TError,{data: BodyType<CredentialInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createCredential>>, TError,{data: BodyType<CredentialInput>}, TContext> => {
@@ -2153,11 +2606,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCredential>>, {data: BodyType<CredentialInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createCredential(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2180,6 +2639,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getUpdateCredentialUrl = (credentialId: number,) => {
 
 
+
+
   return `/api/settings/openai/${credentialId}`
 }
 
@@ -2196,6 +2657,9 @@ export const updateCredential = async (credentialId: number,
 );}
 
 
+
+
+
 export const getUpdateCredentialMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCredential>>, TError,{credentialId: number;data: BodyType<CredentialUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateCredential>>, TError,{credentialId: number;data: BodyType<CredentialUpdate>}, TContext> => {
@@ -2208,11 +2672,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCredential>>, {credentialId: number;data: BodyType<CredentialUpdate>}> = (props) => {
           const {credentialId,data} = props ?? {};
 
           return  updateCredential(credentialId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2235,6 +2705,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getDeleteCredentialUrl = (credentialId: number,) => {
 
 
+
+
   return `/api/settings/openai/${credentialId}`
 }
 
@@ -2250,6 +2722,9 @@ export const deleteCredential = async (credentialId: number, options?: Parameter
 );}
 
 
+
+
+
 export const getDeleteCredentialMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCredential>>, TError,{credentialId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteCredential>>, TError,{credentialId: number}, TContext> => {
@@ -2262,11 +2737,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCredential>>, {credentialId: number}> = (props) => {
           const {credentialId} = props ?? {};
 
           return  deleteCredential(credentialId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2289,6 +2770,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getTestCredentialUrl = (credentialId: number,) => {
 
 
+
+
   return `/api/settings/openai/${credentialId}/test`
 }
 
@@ -2304,6 +2787,9 @@ export const testCredential = async (credentialId: number, options?: Parameters<
 );}
 
 
+
+
+
 export const getTestCredentialMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testCredential>>, TError,{credentialId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof testCredential>>, TError,{credentialId: number}, TContext> => {
@@ -2316,11 +2802,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof testCredential>>, {credentialId: number}> = (props) => {
           const {credentialId} = props ?? {};
 
           return  testCredential(credentialId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2343,6 +2835,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getGetFarmApiConfigUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/api-config`
 }
 
@@ -2356,6 +2850,9 @@ export const getFarmApiConfig = async (farmId: number, options?: Parameters<type
 
   }
 );}
+
+
+
 
 
 export const getGetFarmApiConfigQueryKey = (farmId: number,) => {
@@ -2373,7 +2870,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetFarmApiConfigQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getFarmApiConfig>>> = ({ signal }) => getFarmApiConfig(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFarmApiConfig>>, TError, TData> & { queryKey: QueryKey }
@@ -2381,6 +2882,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetFarmApiConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getFarmApiConfig>>>
 export type GetFarmApiConfigQueryError = ErrorType<unknown>
+
 
 
 export function useGetFarmApiConfig<TData = Awaited<ReturnType<typeof getFarmApiConfig>>, TError = ErrorType<unknown>>(
@@ -2396,7 +2898,14 @@ export function useGetFarmApiConfig<TData = Awaited<ReturnType<typeof getFarmApi
 }
 
 
+
+
+
+
+
 export const getSetFarmApiConfigUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/api-config`
@@ -2415,6 +2924,9 @@ export const setFarmApiConfig = async (farmId: number,
 );}
 
 
+
+
+
 export const getSetFarmApiConfigMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFarmApiConfig>>, TError,{farmId: number;data: BodyType<FarmApiConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof setFarmApiConfig>>, TError,{farmId: number;data: BodyType<FarmApiConfigInput>}, TContext> => {
@@ -2427,11 +2939,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof setFarmApiConfig>>, {farmId: number;data: BodyType<FarmApiConfigInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  setFarmApiConfig(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2454,6 +2972,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 export const getListConversationsUrl = (farmId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/conversations`
 }
 
@@ -2467,6 +2987,9 @@ export const listConversations = async (farmId: number, options?: Parameters<typ
 
   }
 );}
+
+
+
 
 
 export const getListConversationsQueryKey = (farmId: number,) => {
@@ -2484,7 +3007,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListConversationsQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listConversations>>> = ({ signal }) => listConversations(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConversations>>, TError, TData> & { queryKey: QueryKey }
@@ -2492,6 +3019,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listConversations>>>
 export type ListConversationsQueryError = ErrorType<unknown>
+
 
 
 export function useListConversations<TData = Awaited<ReturnType<typeof listConversations>>, TError = ErrorType<unknown>>(
@@ -2507,7 +3035,14 @@ export function useListConversations<TData = Awaited<ReturnType<typeof listConve
 }
 
 
+
+
+
+
+
 export const getCreateConversationUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/conversations`
@@ -2526,6 +3061,9 @@ export const createConversation = async (farmId: number,
 );}
 
 
+
+
+
 export const getCreateConversationMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createConversation>>, TError,{farmId: number;data: BodyType<ConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createConversation>>, TError,{farmId: number;data: BodyType<ConversationInput>}, TContext> => {
@@ -2538,11 +3076,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createConversation>>, {farmId: number;data: BodyType<ConversationInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  createConversation(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2566,6 +3110,8 @@ export const getGetConversationUrl = (farmId: number,
     conversationId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/conversations/${conversationId}`
 }
 
@@ -2580,6 +3126,9 @@ export const getConversation = async (farmId: number,
 
   }
 );}
+
+
+
 
 
 export const getGetConversationQueryKey = (farmId: number,
@@ -2599,7 +3148,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetConversationQueryKey(farmId,conversationId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversation>>> = ({ signal }) => getConversation(farmId,conversationId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined && conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConversation>>, TError, TData> & { queryKey: QueryKey }
@@ -2607,6 +3160,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getConversation>>>
 export type GetConversationQueryError = ErrorType<unknown>
+
 
 
 export function useGetConversation<TData = Awaited<ReturnType<typeof getConversation>>, TError = ErrorType<unknown>>(
@@ -2623,8 +3177,15 @@ export function useGetConversation<TData = Awaited<ReturnType<typeof getConversa
 }
 
 
+
+
+
+
+
 export const getDeleteConversationUrl = (farmId: number,
     conversationId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/conversations/${conversationId}`
@@ -2643,6 +3204,9 @@ export const deleteConversation = async (farmId: number,
 );}
 
 
+
+
+
 export const getDeleteConversationMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteConversation>>, TError,{farmId: number;conversationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteConversation>>, TError,{farmId: number;conversationId: number}, TContext> => {
@@ -2655,11 +3219,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteConversation>>, {farmId: number;conversationId: number}> = (props) => {
           const {farmId,conversationId} = props ?? {};
 
           return  deleteConversation(farmId,conversationId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2683,6 +3253,8 @@ export const getSendMessageUrl = (farmId: number,
     conversationId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/conversations/${conversationId}/messages`
 }
 
@@ -2703,6 +3275,9 @@ export const sendMessage = async (farmId: number,
 );}
 
 
+
+
+
 export const getSendMessageMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendMessage>>, TError,{farmId: number;conversationId: number;data: BodyType<MessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof sendMessage>>, TError,{farmId: number;conversationId: number;data: BodyType<MessageInput>}, TContext> => {
@@ -2715,11 +3290,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendMessage>>, {farmId: number;conversationId: number;data: BodyType<MessageInput>}> = (props) => {
           const {farmId,conversationId,data} = props ?? {};
 
           return  sendMessage(farmId,conversationId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2747,9 +3328,79 @@ export const getCreateDraftFromMessageUrl = (farmId: number,
     messageId: number,) => {
 
 
+
+
   return `/api/farms/${farmId}/conversations/${conversationId}/messages/${messageId}/draft-recommendation`
 }
+
+/**
+ * @summary Turn an assistant reply into a draft fertilization program (source ai)
+ */
+export const createDraftFromMessage = async (farmId: number,
+    conversationId: number,
+    messageId: number, options?: Parameters<typeof customFetch>[1]): Promise<Recommendation> => {
+
+  return customFetch<Recommendation>(getCreateDraftFromMessageUrl(farmId,conversationId,messageId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateDraftFromMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDraftFromMessage>>, TError,{farmId: number;conversationId: number;messageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDraftFromMessage>>, TError,{farmId: number;conversationId: number;messageId: number}, TContext> => {
+
+const mutationKey = ['createDraftFromMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDraftFromMessage>>, {farmId: number;conversationId: number;messageId: number}> = (props) => {
+          const {farmId,conversationId,messageId} = props ?? {};
+
+          return  createDraftFromMessage(farmId,conversationId,messageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDraftFromMessageMutationResult = NonNullable<Awaited<ReturnType<typeof createDraftFromMessage>>>
+
+    export type CreateDraftFromMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Turn an assistant reply into a draft fertilization program (source ai)
+ */
+export const useCreateDraftFromMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDraftFromMessage>>, TError,{farmId: number;conversationId: number;messageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDraftFromMessage>>,
+        TError,
+        {farmId: number;conversationId: number;messageId: number},
+        TContext
+      > => {
+      return useMutation(getCreateDraftFromMessageMutationOptions(options));
+    }
+
 export const getListReportsUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/reports`
@@ -2767,6 +3418,9 @@ export const listReports = async (farmId: number, options?: Parameters<typeof cu
 );}
 
 
+
+
+
 export const getListReportsQueryKey = (farmId: number,) => {
     return [
     `/api/farms/${farmId}/reports`
@@ -2782,7 +3436,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListReportsQueryKey(farmId);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listReports>>> = ({ signal }) => listReports(farmId, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReports>>, TError, TData> & { queryKey: QueryKey }
@@ -2790,6 +3448,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListReportsQueryResult = NonNullable<Awaited<ReturnType<typeof listReports>>>
 export type ListReportsQueryError = ErrorType<unknown>
+
 
 
 export function useListReports<TData = Awaited<ReturnType<typeof listReports>>, TError = ErrorType<unknown>>(
@@ -2805,7 +3464,14 @@ export function useListReports<TData = Awaited<ReturnType<typeof listReports>>, 
 }
 
 
+
+
+
+
+
 export const getCreateReportUrl = (farmId: number,) => {
+
+
 
 
   return `/api/farms/${farmId}/reports`
@@ -2824,6 +3490,9 @@ export const createReport = async (farmId: number,
 );}
 
 
+
+
+
 export const getCreateReportMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReport>>, TError,{farmId: number;data: BodyType<ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createReport>>, TError,{farmId: number;data: BodyType<ReportInput>}, TContext> => {
@@ -2836,11 +3505,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReport>>, {farmId: number;data: BodyType<ReportInput>}> = (props) => {
           const {farmId,data} = props ?? {};
 
           return  createReport(farmId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -2887,6 +3562,9 @@ export const getUsage = async (params?: GetUsageParams, options?: Parameters<typ
 );}
 
 
+
+
+
 export const getGetUsageQueryKey = (params?: GetUsageParams,) => {
     return [
     `/api/usage`, ...(params ? [params] : [])
@@ -2902,7 +3580,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetUsageQueryKey(params);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getUsage>>> = ({ signal }) => getUsage(params, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUsage>>, TError, TData> & { queryKey: QueryKey }
@@ -2910,6 +3592,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getUsage>>>
 export type GetUsageQueryError = ErrorType<unknown>
+
 
 
 export function useGetUsage<TData = Awaited<ReturnType<typeof getUsage>>, TError = ErrorType<unknown>>(
@@ -2923,6 +3606,11 @@ export function useGetUsage<TData = Awaited<ReturnType<typeof getUsage>>, TError
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
 
 
 export const getListAuditLogUrl = (params?: ListAuditLogParams,) => {
@@ -2952,6 +3640,9 @@ export const listAuditLog = async (params?: ListAuditLogParams, options?: Parame
 );}
 
 
+
+
+
 export const getListAuditLogQueryKey = (params?: ListAuditLogParams,) => {
     return [
     `/api/audit`, ...(params ? [params] : [])
@@ -2967,7 +3658,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListAuditLogQueryKey(params);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditLog>>> = ({ signal }) => listAuditLog(params, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditLog>>, TError, TData> & { queryKey: QueryKey }
@@ -2975,6 +3670,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type ListAuditLogQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditLog>>>
 export type ListAuditLogQueryError = ErrorType<unknown>
+
 
 
 export function useListAuditLog<TData = Awaited<ReturnType<typeof listAuditLog>>, TError = ErrorType<unknown>>(
@@ -2990,7 +3686,14 @@ export function useListAuditLog<TData = Awaited<ReturnType<typeof listAuditLog>>
 }
 
 
+
+
+
+
+
 export const getGetDashboardUrl = () => {
+
+
 
 
   return `/api/dashboard`
@@ -3008,6 +3711,9 @@ export const getDashboard = async ( options?: Parameters<typeof customFetch>[1])
 );}
 
 
+
+
+
 export const getGetDashboardQueryKey = () => {
     return [
     `/api/dashboard`
@@ -3023,7 +3729,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetDashboardQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboard>>> = ({ signal }) => getDashboard({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData> & { queryKey: QueryKey }
@@ -3031,6 +3741,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 export type GetDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getDashboard>>>
 export type GetDashboardQueryError = ErrorType<unknown>
+
 
 
 export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>, TError = ErrorType<unknown>>(
@@ -3046,7 +3757,14 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
 }
 
 
+
+
+
+
+
 export const getAdminListUsersUrl = () => {
+
+
 
 
   return `/api/admin/users`
@@ -3067,6 +3785,9 @@ export const adminListUsers = async ( options?: Parameters<typeof customFetch>[1
 );}
 
 
+
+
+
 export const getAdminListUsersQueryKey = () => {
     return [
     `/api/admin/users`
@@ -3082,7 +3803,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getAdminListUsersQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListUsers>>> = ({ signal }) => adminListUsers({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListUsers>>, TError, TData> & { queryKey: QueryKey }
@@ -3109,7 +3834,14 @@ export function useAdminListUsers<TData = Awaited<ReturnType<typeof adminListUse
 }
 
 
+
+
+
+
+
 export const getAdminUpdateUserUrl = (userId: number,) => {
+
+
 
 
   return `/api/admin/users/${userId}`
@@ -3131,6 +3863,9 @@ export const adminUpdateUser = async (userId: number,
 );}
 
 
+
+
+
 export const getAdminUpdateUserMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateUser>>, TError,{userId: number;data: BodyType<AdminUserUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateUser>>, TError,{userId: number;data: BodyType<AdminUserUpdate>}, TContext> => {
@@ -3143,11 +3878,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateUser>>, {userId: number;data: BodyType<AdminUserUpdate>}> = (props) => {
           const {userId,data} = props ?? {};
 
           return  adminUpdateUser(userId,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -3173,6 +3914,8 @@ export const useAdminUpdateUser = <TError = ErrorType<unknown>,
 export const getAdminDeleteUserUrl = (userId: number,) => {
 
 
+
+
   return `/api/admin/users/${userId}`
 }
 
@@ -3191,6 +3934,9 @@ export const adminDeleteUser = async (userId: number, options?: Parameters<typeo
 );}
 
 
+
+
+
 export const getAdminDeleteUserMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteUser>>, TError,{userId: number}, TContext> => {
@@ -3203,11 +3949,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteUser>>, {userId: number}> = (props) => {
           const {userId} = props ?? {};
 
           return  adminDeleteUser(userId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -3233,6 +3985,8 @@ export const useAdminDeleteUser = <TError = ErrorType<unknown>,
 export const getAdminListFarmsUrl = () => {
 
 
+
+
   return `/api/admin/farms`
 }
 
@@ -3251,6 +4005,9 @@ export const adminListFarms = async ( options?: Parameters<typeof customFetch>[1
 );}
 
 
+
+
+
 export const getAdminListFarmsQueryKey = () => {
     return [
     `/api/admin/farms`
@@ -3266,7 +4023,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getAdminListFarmsQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListFarms>>> = ({ signal }) => adminListFarms({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListFarms>>, TError, TData> & { queryKey: QueryKey }
@@ -3293,7 +4054,14 @@ export function useAdminListFarms<TData = Awaited<ReturnType<typeof adminListFar
 }
 
 
+
+
+
+
+
 export const getAdminDeleteFarmUrl = (farmId: number,) => {
+
+
 
 
   return `/api/admin/farms/${farmId}`
@@ -3314,6 +4082,9 @@ export const adminDeleteFarm = async (farmId: number, options?: Parameters<typeo
 );}
 
 
+
+
+
 export const getAdminDeleteFarmMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteFarm>>, TError,{farmId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteFarm>>, TError,{farmId: number}, TContext> => {
@@ -3326,11 +4097,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteFarm>>, {farmId: number}> = (props) => {
           const {farmId} = props ?? {};
 
           return  adminDeleteFarm(farmId,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -3353,58 +4130,3 @@ export const useAdminDeleteFarm = <TError = ErrorType<unknown>,
       return useMutation(getAdminDeleteFarmMutationOptions(options));
     }
 
-
-/**
- * @summary Turn an assistant reply into a draft fertilization program (source ai)
- */
-export const createDraftFromMessage = async (farmId: number,
-    conversationId: number,
-    messageId: number, options?: Parameters<typeof customFetch>[1]): Promise<Recommendation> => {
-
-  return customFetch<Recommendation>(getCreateDraftFromMessageUrl(farmId,conversationId,messageId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-    export type CreateDraftFromMessageMutationResult = NonNullable<Awaited<ReturnType<typeof createDraftFromMessage>>>
-
-    export type CreateDraftFromMessageMutationError = ErrorType<unknown>
-
-    /**
- * @summary Turn an assistant reply into a draft fertilization program (source ai)
- */
-export const useCreateDraftFromMessage = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDraftFromMessage>>, TError,{farmId: number;conversationId: number;messageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createDraftFromMessage>>,
-        TError,
-        {farmId: number;conversationId: number;messageId: number},
-        TContext
-      > => {
-      return useMutation(getCreateDraftFromMessageMutationOptions(options));
-    }
-
-export const getCreateDraftFromMessageMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDraftFromMessage>>, TError,{farmId: number;conversationId: number;messageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createDraftFromMessage>>, TError,{farmId: number;conversationId: number;messageId: number}, TContext> => {
-
-const mutationKey = ['createDraftFromMessage'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDraftFromMessage>>, {farmId: number;conversationId: number;messageId: number}> = (props) => {
-          const {farmId,conversationId,messageId} = props ?? {};
-
-          return  createDraftFromMessage(farmId,conversationId,messageId,requestOptions)
-        }
-
-
-  return  { mutationFn, ...mutationOptions }}

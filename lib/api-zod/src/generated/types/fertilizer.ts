@@ -14,6 +14,11 @@ export interface Fertilizer {
      * @nullable
      */
   formulaType?: string | null;
+  /**
+     * fertirrigacion | enmienda
+     * @nullable
+     */
+  usage?: string | null;
   /** @nullable */
   nPct?: number | null;
   /** @nullable */

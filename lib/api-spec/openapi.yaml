@@ -1289,6 +1289,7 @@ components:
         id: { type: integer }
         name: { type: string }
         formulaType: { type: ["string", "null"], description: "solid | liquid" }
+        usage: { type: ["string", "null"], description: "fertirrigacion | enmienda" }
         nPct: { type: ["number", "null"] }
         nNitricPct: { type: ["number", "null"] }
         nAmmoniacalPct: { type: ["number", "null"] }
@@ -1313,6 +1314,7 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         formulaType: { type: string }
+        usage: { type: string, enum: [fertirrigacion, enmienda] }
         nPct: { type: number }
         nNitricPct: { type: number }
         nAmmoniacalPct: { type: number }
@@ -1336,6 +1338,7 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         formulaType: { type: string }
+        usage: { type: string, enum: [fertirrigacion, enmienda] }
         nPct: { type: number }
         nNitricPct: { type: number }
         nAmmoniacalPct: { type: number }

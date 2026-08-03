@@ -428,6 +428,11 @@ export interface Fertilizer {
      * @nullable
      */
   formulaType?: string | null;
+  /**
+     * fertirrigacion | enmienda
+     * @nullable
+     */
+  usage?: string | null;
   /** @nullable */
   nPct?: number | null;
   /** @nullable */
@@ -462,10 +467,19 @@ export interface Fertilizer {
   isActive?: boolean | null;
 }
 
+export type FertilizerInputUsage = typeof FertilizerInputUsage[keyof typeof FertilizerInputUsage];
+
+
+export const FertilizerInputUsage = {
+  fertirrigacion: 'fertirrigacion',
+  enmienda: 'enmienda',
+} as const;
+
 export interface FertilizerInput {
   /** @minLength 1 */
   name: string;
   formulaType?: string;
+  usage?: FertilizerInputUsage;
   nPct?: number;
   nNitricPct?: number;
   nAmmoniacalPct?: number;
@@ -483,10 +497,19 @@ export interface FertilizerInput {
   isActive?: boolean;
 }
 
+export type FertilizerUpdateUsage = typeof FertilizerUpdateUsage[keyof typeof FertilizerUpdateUsage];
+
+
+export const FertilizerUpdateUsage = {
+  fertirrigacion: 'fertirrigacion',
+  enmienda: 'enmienda',
+} as const;
+
 export interface FertilizerUpdate {
   /** @minLength 1 */
   name?: string;
   formulaType?: string;
+  usage?: FertilizerUpdateUsage;
   nPct?: number;
   nNitricPct?: number;
   nAmmoniacalPct?: number;
