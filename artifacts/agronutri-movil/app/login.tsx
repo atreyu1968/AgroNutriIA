@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useLogin } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -47,9 +47,12 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         bottomOffset={24}
       >
-        <View style={[styles.logoCircle, { backgroundColor: c.primary }]}>
-          <Feather name="feather" size={30} color={c.primaryForeground} />
-        </View>
+        <Image
+          source={require('../assets/images/icon.png')}
+          style={styles.logoCircle}
+          contentFit="contain"
+          accessibilityLabel="Logo de AgroNutri"
+        />
         <Text style={[styles.title, { color: c.foreground }]}>AgroNutri</Text>
         <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
           Tu técnico virtual, a pie de finca

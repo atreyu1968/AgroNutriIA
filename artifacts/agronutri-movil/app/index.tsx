@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Redirect, useRouter } from 'expo-router';
 import {
   getListFarmsQueryKey,
@@ -54,6 +55,12 @@ export default function FarmsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <View style={[styles.header, { paddingTop: topInset + 12, borderBottomColor: c.border }]}>
+        <Image
+          source={require('../assets/images/icon.png')}
+          style={styles.headerLogo}
+          contentFit="contain"
+          accessibilityLabel="Logo de AgroNutri"
+        />
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerKicker, { color: c.mutedForeground }]}>
             {user?.name ? `Hola, ${user.name.split(' ')[0]}` : 'AgroNutri'}
@@ -154,6 +161,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    marginRight: 12,
   },
   headerKicker: {
     fontSize: 13,
