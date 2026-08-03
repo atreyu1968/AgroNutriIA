@@ -237,7 +237,7 @@ export default function Calculadora() {
                         <h4 className="font-semibold text-destructive flex items-center gap-2 text-sm mb-1">
                           <AlertTriangle className="w-4 h-4" /> Incompatibilidades Detectadas
                         </h4>
-                        <ul className="text-sm list-disc list-inside text-destructive-foreground/80 pl-2">
+                        <ul className="text-sm list-disc list-inside text-destructive/90 pl-2">
                           {calcMutation.data.compatibilityIssues.map((w, i) => <li key={i}>{w}</li>)}
                         </ul>
                       </div>

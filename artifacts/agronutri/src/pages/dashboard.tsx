@@ -126,7 +126,7 @@ export default function Dashboard() {
             {dashboard.alerts && dashboard.alerts.length > 0 ? (
               <ul className="space-y-3">
                 {dashboard.alerts.map((alert, i) => (
-                  <li key={i} className="flex gap-3 text-sm p-3 bg-destructive/10 text-destructive-foreground/90 rounded-md border border-destructive/20">
+                  <li key={i} className="flex gap-3 text-sm p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-destructive" />
                     <span>{alert}</span>
                   </li>

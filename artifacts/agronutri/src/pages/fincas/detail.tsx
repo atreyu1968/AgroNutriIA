@@ -90,7 +90,7 @@ export default function FincaDetail() {
               <h3 className="font-semibold text-destructive flex items-center gap-2 mb-2">
                 <AlertTriangle className="w-5 h-5" /> Alertas Activas
               </h3>
-              <ul className="space-y-1 list-disc list-inside pl-5 text-sm text-destructive-foreground/90">
+              <ul className="space-y-1 list-disc list-inside pl-5 text-sm text-destructive">
                 {summary.alerts.map((alert, i) => <li key={i}>{alert}</li>)}
               </ul>
             </div>
