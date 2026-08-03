@@ -13,6 +13,8 @@ Plataforma de gestión de fertirrigación para fincas de platanera en Canarias.
 - **Admin**: rutas `/api/admin/*` (solo `isAdmin`); página `/administracion`. Credenciales admin: `admin@agronutri.es` / `AdminAgro2026!`. Usuario de ejemplo: `tecnico@agronutri.es` / `tecnico2026`.
 - **Seed data**: `artifacts/api-server/src/seed.ts` (run with `npx tsx`). Demo user `demo@agronutri.es` / `agronutri2026` (AGROSABINA SL, finca Bajo Cuadras with real analyses and validated program).
 
+- **Contratación online**: `/contratar` (público) da de alta cooperativas con suscripción PayPal (100 €/mes base; variable 2,50 €/finca activa facturado en `billing_charges`) y aprovisionamiento automático (`src/lib/provisioner.ts`; simulado sin `PROVISION_SCRIPT`/`BASE_DOMAIN`; script real `deploy/provision-coop.sh`). Webhooks en `/api/paypal/webhook` (alta, suspensión por impago, baja con exportación). Panel en Administración → Instalaciones, con configuración de PayPal (app_settings, secret cifrado). Cada instalación reporta uso vía `POST /api/billing/usage` con su `apiToken`.
+
 ## User preferences
 - Communicate with the user in Spanish, non-technical register. No emojis.
 - Application UI entirely in Spanish (es-ES).

@@ -23,6 +23,10 @@ import type {
   AdminEmailSettings,
   AdminEmailSettingsInput,
   AdminFarm,
+  AdminInstallation,
+  AdminPaypalSettings,
+  AdminPaypalSettingsInput,
+  AdminProvisionResult,
   AdminReassignTechnicianInput,
   AdminTestEmailResult,
   AdminUser,
@@ -34,6 +38,8 @@ import type {
   AuthConfig,
   CalculationRequest,
   CalculationResult,
+  CheckSubdomain,
+  CheckSubdomainParams,
   Conversation,
   ConversationDetail,
   ConversationInput,
@@ -76,6 +82,7 @@ import type {
   PhytoTreatment,
   PhytoTreatmentCreate,
   ProductSheet,
+  ProvisioningEvent,
   Recommendation,
   RecommendationInput,
   RecommendationStatusChange,
@@ -89,6 +96,9 @@ import type {
   Sector,
   SectorInput,
   SectorUpdate,
+  SignupInput,
+  SignupResult,
+  SignupStatus,
   UploadConversationAttachmentBody,
   UsageSummary,
   UserProfile,
@@ -6108,5 +6118,681 @@ export const useAdminSendTestEmail = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAdminSendTestEmailMutationOptions(options));
+    }
+
+export const getCheckSubdomainUrl = (params: CheckSubdomainParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/signup/subdomain?${stringifiedParams}` : `/api/signup/subdomain`
+}
+
+/**
+ * @summary Check if a subdomain is available (public)
+ */
+export const checkSubdomain = async (params: CheckSubdomainParams, options?: Parameters<typeof customFetch>[1]): Promise<CheckSubdomain> => {
+
+  return customFetch<CheckSubdomain>(getCheckSubdomainUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckSubdomainQueryKey = (params?: CheckSubdomainParams,) => {
+    return [
+    `/api/signup/subdomain`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCheckSubdomainQueryOptions = <TData = Awaited<ReturnType<typeof checkSubdomain>>, TError = ErrorType<unknown>>(params: CheckSubdomainParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkSubdomain>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckSubdomainQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkSubdomain>>> = ({ signal }) => checkSubdomain(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkSubdomain>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CheckSubdomainQueryResult = NonNullable<Awaited<ReturnType<typeof checkSubdomain>>>
+export type CheckSubdomainQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check if a subdomain is available (public)
+ */
+
+export function useCheckSubdomain<TData = Awaited<ReturnType<typeof checkSubdomain>>, TError = ErrorType<unknown>>(
+ params: CheckSubdomainParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkSubdomain>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCheckSubdomainQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSignupUrl = () => {
+
+
+
+
+  return `/api/signup`
+}
+
+/**
+ * @summary Start online contracting (public); returns PayPal approval URL
+ */
+export const signup = async (signupInput: SignupInput, options?: Parameters<typeof customFetch>[1]): Promise<SignupResult> => {
+
+  return customFetch<SignupResult>(getSignupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(signupInput)
+  }
+);}
+
+
+
+
+
+export const getSignupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signup>>, TError,{data: BodyType<SignupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof signup>>, TError,{data: BodyType<SignupInput>}, TContext> => {
+
+const mutationKey = ['signup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signup>>, {data: BodyType<SignupInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  signup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignupMutationResult = NonNullable<Awaited<ReturnType<typeof signup>>>
+    export type SignupMutationBody = BodyType<SignupInput>
+    export type SignupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Start online contracting (public); returns PayPal approval URL
+ */
+export const useSignup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signup>>, TError,{data: BodyType<SignupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof signup>>,
+        TError,
+        {data: BodyType<SignupInput>},
+        TContext
+      > => {
+      return useMutation(getSignupMutationOptions(options));
+    }
+
+export const getGetSignupStatusUrl = (publicToken: string,) => {
+
+
+
+
+  return `/api/signup/status/${publicToken}`
+}
+
+/**
+ * @summary Installation status by public token (public)
+ */
+export const getSignupStatus = async (publicToken: string, options?: Parameters<typeof customFetch>[1]): Promise<SignupStatus> => {
+
+  return customFetch<SignupStatus>(getGetSignupStatusUrl(publicToken),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSignupStatusQueryKey = (publicToken: string,) => {
+    return [
+    `/api/signup/status/${publicToken}`
+    ] as const;
+    }
+
+
+export const getGetSignupStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSignupStatus>>, TError = ErrorType<unknown>>(publicToken: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignupStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSignupStatusQueryKey(publicToken);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignupStatus>>> = ({ signal }) => getSignupStatus(publicToken, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: publicToken !== null && publicToken !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignupStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSignupStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSignupStatus>>>
+export type GetSignupStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Installation status by public token (public)
+ */
+
+export function useGetSignupStatus<TData = Awaited<ReturnType<typeof getSignupStatus>>, TError = ErrorType<unknown>>(
+ publicToken: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignupStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSignupStatusQueryOptions(publicToken,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfirmSignupUrl = (publicToken: string,) => {
+
+
+
+
+  return `/api/signup/confirm/${publicToken}`
+}
+
+/**
+ * @summary Confirm after returning from PayPal and start provisioning (public)
+ */
+export const confirmSignup = async (publicToken: string, options?: Parameters<typeof customFetch>[1]): Promise<SignupStatus> => {
+
+  return customFetch<SignupStatus>(getConfirmSignupUrl(publicToken),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmSignupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmSignup>>, TError,{publicToken: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmSignup>>, TError,{publicToken: string}, TContext> => {
+
+const mutationKey = ['confirmSignup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmSignup>>, {publicToken: string}> = (props) => {
+          const {publicToken} = props ?? {};
+
+          return  confirmSignup(publicToken,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmSignupMutationResult = NonNullable<Awaited<ReturnType<typeof confirmSignup>>>
+
+    export type ConfirmSignupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Confirm after returning from PayPal and start provisioning (public)
+ */
+export const useConfirmSignup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmSignup>>, TError,{publicToken: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmSignup>>,
+        TError,
+        {publicToken: string},
+        TContext
+      > => {
+      return useMutation(getConfirmSignupMutationOptions(options));
+    }
+
+export const getAdminListInstallationsUrl = () => {
+
+
+
+
+  return `/api/admin/installations`
+}
+
+/**
+ * @summary List cooperative installations with billing (admin only)
+ */
+export const adminListInstallations = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminInstallation[]> => {
+
+  return customFetch<AdminInstallation[]>(getAdminListInstallationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListInstallationsQueryKey = () => {
+    return [
+    `/api/admin/installations`
+    ] as const;
+    }
+
+
+export const getAdminListInstallationsQueryOptions = <TData = Awaited<ReturnType<typeof adminListInstallations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListInstallations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListInstallationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListInstallations>>> = ({ signal }) => adminListInstallations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListInstallations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListInstallationsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListInstallations>>>
+export type AdminListInstallationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List cooperative installations with billing (admin only)
+ */
+
+export function useAdminListInstallations<TData = Awaited<ReturnType<typeof adminListInstallations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListInstallations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListInstallationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminListInstallationEventsUrl = (installationId: number,) => {
+
+
+
+
+  return `/api/admin/installations/${installationId}/events`
+}
+
+/**
+ * @summary Provisioning events of an installation (admin only)
+ */
+export const adminListInstallationEvents = async (installationId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProvisioningEvent[]> => {
+
+  return customFetch<ProvisioningEvent[]>(getAdminListInstallationEventsUrl(installationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListInstallationEventsQueryKey = (installationId: number,) => {
+    return [
+    `/api/admin/installations/${installationId}/events`
+    ] as const;
+    }
+
+
+export const getAdminListInstallationEventsQueryOptions = <TData = Awaited<ReturnType<typeof adminListInstallationEvents>>, TError = ErrorType<unknown>>(installationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListInstallationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListInstallationEventsQueryKey(installationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListInstallationEvents>>> = ({ signal }) => adminListInstallationEvents(installationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: installationId !== null && installationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListInstallationEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListInstallationEventsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListInstallationEvents>>>
+export type AdminListInstallationEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Provisioning events of an installation (admin only)
+ */
+
+export function useAdminListInstallationEvents<TData = Awaited<ReturnType<typeof adminListInstallationEvents>>, TError = ErrorType<unknown>>(
+ installationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListInstallationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListInstallationEventsQueryOptions(installationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminProvisionInstallationUrl = (installationId: number,) => {
+
+
+
+
+  return `/api/admin/installations/${installationId}/provision`
+}
+
+/**
+ * @summary Retry/force provisioning of an installation (admin only)
+ */
+export const adminProvisionInstallation = async (installationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AdminProvisionResult> => {
+
+  return customFetch<AdminProvisionResult>(getAdminProvisionInstallationUrl(installationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminProvisionInstallationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminProvisionInstallation>>, TError,{installationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminProvisionInstallation>>, TError,{installationId: number}, TContext> => {
+
+const mutationKey = ['adminProvisionInstallation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminProvisionInstallation>>, {installationId: number}> = (props) => {
+          const {installationId} = props ?? {};
+
+          return  adminProvisionInstallation(installationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminProvisionInstallationMutationResult = NonNullable<Awaited<ReturnType<typeof adminProvisionInstallation>>>
+
+    export type AdminProvisionInstallationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Retry/force provisioning of an installation (admin only)
+ */
+export const useAdminProvisionInstallation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminProvisionInstallation>>, TError,{installationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminProvisionInstallation>>,
+        TError,
+        {installationId: number},
+        TContext
+      > => {
+      return useMutation(getAdminProvisionInstallationMutationOptions(options));
+    }
+
+export const getAdminGetPaypalSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/paypal`
+}
+
+/**
+ * @summary Get PayPal settings (admin only)
+ */
+export const adminGetPaypalSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminPaypalSettings> => {
+
+  return customFetch<AdminPaypalSettings>(getAdminGetPaypalSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetPaypalSettingsQueryKey = () => {
+    return [
+    `/api/admin/settings/paypal`
+    ] as const;
+    }
+
+
+export const getAdminGetPaypalSettingsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetPaypalSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetPaypalSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetPaypalSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetPaypalSettings>>> = ({ signal }) => adminGetPaypalSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetPaypalSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetPaypalSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetPaypalSettings>>>
+export type AdminGetPaypalSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get PayPal settings (admin only)
+ */
+
+export function useAdminGetPaypalSettings<TData = Awaited<ReturnType<typeof adminGetPaypalSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetPaypalSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetPaypalSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminUpdatePaypalSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/paypal`
+}
+
+/**
+ * @summary Update PayPal settings (admin only)
+ */
+export const adminUpdatePaypalSettings = async (adminPaypalSettingsInput: AdminPaypalSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminPaypalSettings> => {
+
+  return customFetch<AdminPaypalSettings>(getAdminUpdatePaypalSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminPaypalSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getAdminUpdatePaypalSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdatePaypalSettings>>, TError,{data: BodyType<AdminPaypalSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdatePaypalSettings>>, TError,{data: BodyType<AdminPaypalSettingsInput>}, TContext> => {
+
+const mutationKey = ['adminUpdatePaypalSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdatePaypalSettings>>, {data: BodyType<AdminPaypalSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminUpdatePaypalSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdatePaypalSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdatePaypalSettings>>>
+    export type AdminUpdatePaypalSettingsMutationBody = BodyType<AdminPaypalSettingsInput>
+    export type AdminUpdatePaypalSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update PayPal settings (admin only)
+ */
+export const useAdminUpdatePaypalSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdatePaypalSettings>>, TError,{data: BodyType<AdminPaypalSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdatePaypalSettings>>,
+        TError,
+        {data: BodyType<AdminPaypalSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdatePaypalSettingsMutationOptions(options));
     }
 

@@ -524,15 +524,18 @@ export default function Landing() {
                 ))}
               </ul>
               <div className="mt-10 text-center">
-                <Link href="/login">
+                <Link href="/contratar">
                   <Button
                     size="lg"
                     className="bg-[#e39322] hover:bg-[#c97e17] text-[#0c1f16] font-semibold h-13 px-9 shadow-[0_10px_30px_-8px_rgba(227,147,34,0.5)] hover:-translate-y-0.5 transition-all"
                     data-testid="button-landing-cta-pricing"
                   >
-                    Solicitar instalación <ArrowRight className="w-4 h-4 ml-2" />
+                    Contratar online <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
+                <p className="mt-3 text-sm text-[#f4ead9]/60 text-center">
+                  Alta automática: pago por PayPal y tu instalación lista en tu propio subdominio.
+                </p>
               </div>
               <p className="mt-7 text-xs text-[#f4ead9]/45 text-center leading-relaxed">
                 Precios sin impuestos. Revisión de precios como máximo una vez al año, comunicada con

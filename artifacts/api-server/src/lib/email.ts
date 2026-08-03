@@ -112,6 +112,39 @@ export async function sendTestEmail(to: string, name: string): Promise<void> {
   logger.info({ to }, "Test email sent");
 }
 
+export async function sendInstallationReadyEmail(opts: {
+  to: string;
+  contactName: string;
+  coopName: string;
+  url: string;
+  adminEmail: string;
+  adminPassword: string;
+}): Promise<void> {
+  const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a2e1a">
+    <h2 style="color:#166534;margin:0 0 16px">AgroNutri AI</h2>
+    <p>Hola ${escapeHtml(opts.contactName)},</p>
+    <p>La instalación de <strong>${escapeHtml(opts.coopName)}</strong> ya está lista.</p>
+    <p style="text-align:center;margin:28px 0">
+      <a href="${opts.url}"
+         style="background:#166534;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block">
+        Entrar en tu instalación
+      </a>
+    </p>
+    <p>Cuenta de administrador inicial:</p>
+    <ul>
+      <li>Dirección: <a href="${opts.url}">${opts.url}</a></li>
+      <li>Email: <strong>${escapeHtml(opts.adminEmail)}</strong></li>
+      <li>Contraseña temporal: <strong>${escapeHtml(opts.adminPassword)}</strong></li>
+    </ul>
+    <p style="font-size:13px;color:#555">Por seguridad, cambia la contraseña en tu primer acceso
+       (Ajustes → Cuenta). Recuerda configurar la clave de OpenAI de tu cooperativa para activar
+       las funciones de IA.</p>
+  </div>`;
+  await sendEmail(opts.to, "Tu instalación de AgroNutri AI está lista", html);
+  logger.info({ to: opts.to }, "Installation ready email sent");
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   name: string,

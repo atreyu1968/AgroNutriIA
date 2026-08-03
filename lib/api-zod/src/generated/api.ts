@@ -2244,3 +2244,194 @@ export const AdminSendTestEmailResponse = zod.object({
 })
 
 
+/**
+ * @summary Check if a subdomain is available (public)
+ */
+export const CheckSubdomainQueryParams = zod.object({
+  "subdomain": zod.coerce.string()
+})
+
+export const CheckSubdomainResponse = zod.object({
+  "available": zod.boolean(),
+  "reason": zod.string().nullish().describe('Motivo si no está disponible')
+})
+
+
+/**
+ * @summary Start online contracting (public); returns PayPal approval URL
+ */
+export const signupBodyNameMin = 2;
+export const signupBodyNameMax = 200;
+
+export const signupBodyContactNameMin = 2;
+export const signupBodyContactNameMax = 200;
+
+export const signupBodyPhoneMax = 40;
+
+export const signupBodySubdomainMin = 3;
+export const signupBodySubdomainMax = 40;
+
+
+
+export const SignupBody = zod.object({
+  "name": zod.string().min(signupBodyNameMin).max(signupBodyNameMax).describe('Nombre de la cooperativa u OPP'),
+  "contactName": zod.string().min(signupBodyContactNameMin).max(signupBodyContactNameMax),
+  "contactEmail": zod.string().email(),
+  "phone": zod.string().max(signupBodyPhoneMax).nullish(),
+  "subdomain": zod.string().min(signupBodySubdomainMin).max(signupBodySubdomainMax),
+  "acceptTerms": zod.boolean().describe('Aceptación de los términos y condiciones'),
+  "returnUrl": zod.string().describe('URL a la que vuelve el usuario tras aprobar en PayPal'),
+  "cancelUrl": zod.string().describe('URL a la que vuelve el usuario si cancela en PayPal')
+})
+
+export const SignupResponse = zod.object({
+  "publicToken": zod.string(),
+  "approvalUrl": zod.string()
+})
+
+
+/**
+ * @summary Installation status by public token (public)
+ */
+export const GetSignupStatusParams = zod.object({
+  "publicToken": zod.coerce.string()
+})
+
+export const GetSignupStatusResponse = zod.object({
+  "status": zod.enum(['pending_payment', 'provisioning', 'active', 'suspended', 'cancelled', 'error']),
+  "name": zod.string(),
+  "subdomain": zod.string(),
+  "url": zod.string().nullish().describe('URL de la instalación cuando está activa'),
+  "events": zod.array(zod.object({
+  "step": zod.string(),
+  "status": zod.enum(['ok', 'error', 'info']),
+  "detail": zod.string().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Confirm after returning from PayPal and start provisioning (public)
+ */
+export const ConfirmSignupParams = zod.object({
+  "publicToken": zod.coerce.string()
+})
+
+export const ConfirmSignupResponse = zod.object({
+  "status": zod.enum(['pending_payment', 'provisioning', 'active', 'suspended', 'cancelled', 'error']),
+  "name": zod.string(),
+  "subdomain": zod.string(),
+  "url": zod.string().nullish().describe('URL de la instalación cuando está activa'),
+  "events": zod.array(zod.object({
+  "step": zod.string(),
+  "status": zod.enum(['ok', 'error', 'info']),
+  "detail": zod.string().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary List cooperative installations with billing (admin only)
+ */
+export const AdminListInstallationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "contactName": zod.string(),
+  "contactEmail": zod.string(),
+  "phone": zod.string().nullish(),
+  "subdomain": zod.string(),
+  "url": zod.string(),
+  "status": zod.enum(['pending_payment', 'provisioning', 'active', 'suspended', 'cancelled', 'error']),
+  "paypalSubscriptionId": zod.string().nullish(),
+  "activeFarmCount": zod.number().int(),
+  "usageReportedAt": zod.string().nullish(),
+  "provisionedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "currentPeriod": zod.string(),
+  "currentMonthCents": zod.number().int().nullish(),
+  "totalBilledCents": zod.number().int(),
+  "charges": zod.array(zod.object({
+  "period": zod.string().describe('YYYY-MM'),
+  "baseCents": zod.number().int(),
+  "farmCount": zod.number().int(),
+  "variableCents": zod.number().int(),
+  "totalCents": zod.number().int(),
+  "status": zod.enum(['pending', 'invoiced', 'paid'])
+}))
+})
+export const AdminListInstallationsResponse = zod.array(AdminListInstallationsResponseItem)
+
+
+/**
+ * @summary Provisioning events of an installation (admin only)
+ */
+export const AdminListInstallationEventsParams = zod.object({
+  "installationId": zod.coerce.number().int()
+})
+
+export const AdminListInstallationEventsResponseItem = zod.object({
+  "step": zod.string(),
+  "status": zod.enum(['ok', 'error', 'info']),
+  "detail": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const AdminListInstallationEventsResponse = zod.array(AdminListInstallationEventsResponseItem)
+
+
+/**
+ * @summary Retry/force provisioning of an installation (admin only)
+ */
+export const AdminProvisionInstallationParams = zod.object({
+  "installationId": zod.coerce.number().int()
+})
+
+export const AdminProvisionInstallationResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Get PayPal settings (admin only)
+ */
+export const AdminGetPaypalSettingsResponse = zod.object({
+  "configured": zod.boolean(),
+  "source": zod.enum(['db', 'env', 'none']),
+  "clientId": zod.string().nullish().describe('Client ID guardado en BD'),
+  "clientSecretMasked": zod.string().nullish(),
+  "mode": zod.enum(['sandbox', 'live']),
+  "webhookId": zod.string().nullish(),
+  "planId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update PayPal settings (admin only)
+ */
+export const adminUpdatePaypalSettingsBodyClientIdMax = 200;
+
+export const adminUpdatePaypalSettingsBodyClientSecretMax = 200;
+
+export const adminUpdatePaypalSettingsBodyWebhookIdMax = 100;
+
+
+
+export const AdminUpdatePaypalSettingsBody = zod.object({
+  "clientId": zod.string().max(adminUpdatePaypalSettingsBodyClientIdMax).nullish(),
+  "clientSecret": zod.string().max(adminUpdatePaypalSettingsBodyClientSecretMax).nullish(),
+  "mode": zod.union([zod.literal('sandbox'),zod.literal('live'),zod.literal(null)]).nullish(),
+  "webhookId": zod.string().max(adminUpdatePaypalSettingsBodyWebhookIdMax).nullish()
+})
+
+export const AdminUpdatePaypalSettingsResponse = zod.object({
+  "configured": zod.boolean(),
+  "source": zod.enum(['db', 'env', 'none']),
+  "clientId": zod.string().nullish().describe('Client ID guardado en BD'),
+  "clientSecretMasked": zod.string().nullish(),
+  "mode": zod.enum(['sandbox', 'live']),
+  "webhookId": zod.string().nullish(),
+  "planId": zod.string().nullish()
+})
+
+

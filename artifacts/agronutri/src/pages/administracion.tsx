@@ -40,7 +40,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus, Mail, Loader2, ArrowRightLeft } from "lucide-react";
+import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus, Mail, Loader2, ArrowRightLeft, Server } from "lucide-react";
+import { InstalacionesTab } from "@/components/admin/instalaciones-tab";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propietario",
@@ -190,7 +191,12 @@ export default function Administracion() {
           <TabsTrigger value="usuarios" className="gap-2"><Users className="w-4 h-4" /> Usuarios</TabsTrigger>
           <TabsTrigger value="fincas" className="gap-2"><MapPin className="w-4 h-4" /> Fincas</TabsTrigger>
           <TabsTrigger value="configuracion" className="gap-2"><Mail className="w-4 h-4" /> Configuración</TabsTrigger>
+          <TabsTrigger value="instalaciones" className="gap-2"><Server className="w-4 h-4" /> Instalaciones</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="instalaciones" className="mt-6">
+          <InstalacionesTab />
+        </TabsContent>
 
         <TabsContent value="usuarios" className="mt-6">
           <Card>

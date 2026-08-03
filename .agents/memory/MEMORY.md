@@ -7,4 +7,5 @@
 - [Dev DB schema drift](db-schema-drift.md) — pg error 42703 "column does not exist" in dev: run drizzle push in lib/db before debugging code.
 - [Task-merge breakage](task-merge-breakage.md) — platform merges can commit mangled code; after merges, restart workflows, check build, repair by diffing gitsafe-backup/main.
 - [Shared app_settings in tests](api-test-shared-settings.md) — node --test files run concurrently on one DB; tests mutating the same global rows must live in the same file.
+- [Public route ordering](public-route-ordering.md) — public routers (webhooks/signup) must be mounted before routers with root-level requireAuth, or they 401.
 - [pdfkit footers](pdfkit-footer.md) — zero out `margins.bottom` before writing footer text in the bottom margin, or pdfkit silently appends blank pages.

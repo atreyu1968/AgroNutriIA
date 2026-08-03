@@ -19,6 +19,8 @@ import FitosanitariosCatalogo from '@/pages/fitosanitarios-catalogo';
 import ConsumoIA from '@/pages/consumo';
 import Auditoria from '@/pages/auditoria';
 import Administracion from '@/pages/administracion';
+import Contratar from '@/pages/contratar';
+import ContratarGracias from '@/pages/contratar-gracias';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +45,8 @@ function Router() {
     <Switch>
       <Route path="/landing" component={Landing} />
       <Route path="/terminos" component={Terminos} />
+      <Route path="/contratar/gracias" component={ContratarGracias} />
+      <Route path="/contratar" component={Contratar} />
       <Route path="/login" component={Login} />
       <Route path="/registro" component={Register} />
       <Route path="/recuperar" component={Recuperar} />

@@ -11,11 +11,16 @@ import reportsRouter from "./reports";
 import phytoRouter from "./phyto";
 import miscRouter from "./misc";
 import adminRouter from "./admin";
+import signupRouter from "./signup";
+import adminInstallationsRouter from "./adminInstallations";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+// Público (sin sesión): contratación online y webhooks de PayPal — debe ir
+// antes de los routers que aplican requireAuth a nivel global.
+router.use(signupRouter);
 router.use(farmsRouter);
 router.use(analysesRouter);
 router.use(fertilizersRouter);
@@ -26,5 +31,6 @@ router.use(reportsRouter);
 router.use(phytoRouter);
 router.use(miscRouter);
 router.use(adminRouter);
+router.use(adminInstallationsRouter);
 
 export default router;

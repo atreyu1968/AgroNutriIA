@@ -24,6 +24,7 @@ tags:
   - name: audit
   - name: dashboard
   - name: admin
+  - name: signup
 paths:
   /healthz:
     get:
@@ -1403,6 +1404,171 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminTestEmailResult"
 
+  /signup/subdomain:
+    get:
+      operationId: checkSubdomain
+      tags: [signup]
+      summary: Check if a subdomain is available (public)
+      security: []
+      parameters:
+        - name: subdomain
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckSubdomain"
+
+  /signup:
+    post:
+      operationId: signup
+      tags: [signup]
+      summary: Start online contracting (public); returns PayPal approval URL
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupInput"
+      responses:
+        "201":
+          description: Subscription created; redirect the user to approvalUrl
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupResult"
+
+  /signup/status/{publicToken}:
+    get:
+      operationId: getSignupStatus
+      tags: [signup]
+      summary: Installation status by public token (public)
+      security: []
+      parameters:
+        - name: publicToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Installation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupStatus"
+
+  /signup/confirm/{publicToken}:
+    post:
+      operationId: confirmSignup
+      tags: [signup]
+      summary: Confirm after returning from PayPal and start provisioning (public)
+      security: []
+      parameters:
+        - name: publicToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Installation status after confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupStatus"
+
+  /admin/installations:
+    get:
+      operationId: adminListInstallations
+      tags: [admin]
+      summary: List cooperative installations with billing (admin only)
+      responses:
+        "200":
+          description: Installations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminInstallation"
+
+  /admin/installations/{installationId}/events:
+    get:
+      operationId: adminListInstallationEvents
+      tags: [admin]
+      summary: Provisioning events of an installation (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProvisioningEvent"
+
+  /admin/installations/{installationId}/provision:
+    post:
+      operationId: adminProvisionInstallation
+      tags: [admin]
+      summary: Retry/force provisioning of an installation (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Provisioning started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProvisionResult"
+
+  /admin/settings/paypal:
+    get:
+      operationId: adminGetPaypalSettings
+      tags: [admin]
+      summary: Get PayPal settings (admin only)
+      responses:
+        "200":
+          description: PayPal settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaypalSettings"
+    put:
+      operationId: adminUpdatePaypalSettings
+      tags: [admin]
+      summary: Update PayPal settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPaypalSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaypalSettings"
+
 components:
   parameters:
     UserId:
@@ -1758,6 +1924,113 @@ components:
       required: [sentTo]
       properties:
         sentTo: { type: string, description: Dirección a la que se envió el email de prueba }
+
+    CheckSubdomain:
+      type: object
+      required: [available]
+      properties:
+        available: { type: boolean }
+        reason: { type: ["string", "null"], description: Motivo si no está disponible }
+    SignupInput:
+      type: object
+      required: [name, contactName, contactEmail, subdomain, acceptTerms, returnUrl, cancelUrl]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200, description: Nombre de la cooperativa u OPP }
+        contactName: { type: string, minLength: 2, maxLength: 200 }
+        contactEmail: { type: string, format: email }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        subdomain: { type: string, minLength: 3, maxLength: 40 }
+        acceptTerms: { type: boolean, description: Aceptación de los términos y condiciones }
+        returnUrl: { type: string, description: URL a la que vuelve el usuario tras aprobar en PayPal }
+        cancelUrl: { type: string, description: URL a la que vuelve el usuario si cancela en PayPal }
+    SignupResult:
+      type: object
+      required: [publicToken, approvalUrl]
+      properties:
+        publicToken: { type: string }
+        approvalUrl: { type: string }
+    ProvisioningEvent:
+      type: object
+      required: [step, status, createdAt]
+      properties:
+        step: { type: string }
+        status: { type: string, enum: [ok, error, info] }
+        detail: { type: ["string", "null"] }
+        createdAt: { type: string }
+    SignupStatus:
+      type: object
+      required: [status, name, subdomain, events]
+      properties:
+        status:
+          type: string
+          enum: [pending_payment, provisioning, active, suspended, cancelled, error]
+        name: { type: string }
+        subdomain: { type: string }
+        url: { type: ["string", "null"], description: URL de la instalación cuando está activa }
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProvisioningEvent"
+    BillingCharge:
+      type: object
+      required: [period, baseCents, farmCount, variableCents, totalCents, status]
+      properties:
+        period: { type: string, description: YYYY-MM }
+        baseCents: { type: integer }
+        farmCount: { type: integer }
+        variableCents: { type: integer }
+        totalCents: { type: integer }
+        status: { type: string, enum: [pending, invoiced, paid] }
+    AdminInstallation:
+      type: object
+      required:
+        [id, name, contactName, contactEmail, subdomain, url, status, activeFarmCount, createdAt, currentPeriod, totalBilledCents, charges]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        contactName: { type: string }
+        contactEmail: { type: string }
+        phone: { type: ["string", "null"] }
+        subdomain: { type: string }
+        url: { type: string }
+        status:
+          type: string
+          enum: [pending_payment, provisioning, active, suspended, cancelled, error]
+        paypalSubscriptionId: { type: ["string", "null"] }
+        activeFarmCount: { type: integer }
+        usageReportedAt: { type: ["string", "null"] }
+        provisionedAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+        currentPeriod: { type: string }
+        currentMonthCents: { type: ["integer", "null"] }
+        totalBilledCents: { type: integer }
+        charges:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillingCharge"
+    AdminProvisionResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+    AdminPaypalSettings:
+      type: object
+      required: [configured, source, mode]
+      properties:
+        configured: { type: boolean }
+        source: { type: string, enum: [db, env, none] }
+        clientId: { type: ["string", "null"], description: Client ID guardado en BD }
+        clientSecretMasked: { type: ["string", "null"] }
+        mode: { type: string, enum: [sandbox, live] }
+        webhookId: { type: ["string", "null"] }
+        planId: { type: ["string", "null"] }
+    AdminPaypalSettingsInput:
+      type: object
+      properties:
+        clientId: { type: ["string", "null"], maxLength: 200 }
+        clientSecret: { type: ["string", "null"], maxLength: 200 }
+        mode: { type: ["string", "null"], enum: [sandbox, live, null] }
+        webhookId: { type: ["string", "null"], maxLength: 100 }
 
     AdminFarm:
       type: object

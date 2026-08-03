@@ -378,6 +378,217 @@ export interface AdminTestEmailResult {
   sentTo: string;
 }
 
+export interface CheckSubdomain {
+  available: boolean;
+  /**
+     * Motivo si no está disponible
+     * @nullable
+     */
+  reason?: string | null;
+}
+
+export interface SignupInput {
+  /**
+     * Nombre de la cooperativa u OPP
+     * @minLength 2
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  contactName: string;
+  contactEmail: string;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @minLength 3
+     * @maxLength 40
+     */
+  subdomain: string;
+  /** Aceptación de los términos y condiciones */
+  acceptTerms: boolean;
+  /** URL a la que vuelve el usuario tras aprobar en PayPal */
+  returnUrl: string;
+  /** URL a la que vuelve el usuario si cancela en PayPal */
+  cancelUrl: string;
+}
+
+export interface SignupResult {
+  publicToken: string;
+  approvalUrl: string;
+}
+
+export type ProvisioningEventStatus = typeof ProvisioningEventStatus[keyof typeof ProvisioningEventStatus];
+
+
+export const ProvisioningEventStatus = {
+  ok: 'ok',
+  error: 'error',
+  info: 'info',
+} as const;
+
+export interface ProvisioningEvent {
+  step: string;
+  status: ProvisioningEventStatus;
+  /** @nullable */
+  detail?: string | null;
+  createdAt: string;
+}
+
+export type SignupStatusStatus = typeof SignupStatusStatus[keyof typeof SignupStatusStatus];
+
+
+export const SignupStatusStatus = {
+  pending_payment: 'pending_payment',
+  provisioning: 'provisioning',
+  active: 'active',
+  suspended: 'suspended',
+  cancelled: 'cancelled',
+  error: 'error',
+} as const;
+
+export interface SignupStatus {
+  status: SignupStatusStatus;
+  name: string;
+  subdomain: string;
+  /**
+     * URL de la instalación cuando está activa
+     * @nullable
+     */
+  url?: string | null;
+  events: ProvisioningEvent[];
+}
+
+export type BillingChargeStatus = typeof BillingChargeStatus[keyof typeof BillingChargeStatus];
+
+
+export const BillingChargeStatus = {
+  pending: 'pending',
+  invoiced: 'invoiced',
+  paid: 'paid',
+} as const;
+
+export interface BillingCharge {
+  /** YYYY-MM */
+  period: string;
+  baseCents: number;
+  farmCount: number;
+  variableCents: number;
+  totalCents: number;
+  status: BillingChargeStatus;
+}
+
+export type AdminInstallationStatus = typeof AdminInstallationStatus[keyof typeof AdminInstallationStatus];
+
+
+export const AdminInstallationStatus = {
+  pending_payment: 'pending_payment',
+  provisioning: 'provisioning',
+  active: 'active',
+  suspended: 'suspended',
+  cancelled: 'cancelled',
+  error: 'error',
+} as const;
+
+export interface AdminInstallation {
+  id: number;
+  name: string;
+  contactName: string;
+  contactEmail: string;
+  /** @nullable */
+  phone?: string | null;
+  subdomain: string;
+  url: string;
+  status: AdminInstallationStatus;
+  /** @nullable */
+  paypalSubscriptionId?: string | null;
+  activeFarmCount: number;
+  /** @nullable */
+  usageReportedAt?: string | null;
+  /** @nullable */
+  provisionedAt?: string | null;
+  createdAt: string;
+  currentPeriod: string;
+  /** @nullable */
+  currentMonthCents?: number | null;
+  totalBilledCents: number;
+  charges: BillingCharge[];
+}
+
+export interface AdminProvisionResult {
+  status: string;
+}
+
+export type AdminPaypalSettingsSource = typeof AdminPaypalSettingsSource[keyof typeof AdminPaypalSettingsSource];
+
+
+export const AdminPaypalSettingsSource = {
+  db: 'db',
+  env: 'env',
+  none: 'none',
+} as const;
+
+export type AdminPaypalSettingsMode = typeof AdminPaypalSettingsMode[keyof typeof AdminPaypalSettingsMode];
+
+
+export const AdminPaypalSettingsMode = {
+  sandbox: 'sandbox',
+  live: 'live',
+} as const;
+
+export interface AdminPaypalSettings {
+  configured: boolean;
+  source: AdminPaypalSettingsSource;
+  /**
+     * Client ID guardado en BD
+     * @nullable
+     */
+  clientId?: string | null;
+  /** @nullable */
+  clientSecretMasked?: string | null;
+  mode: AdminPaypalSettingsMode;
+  /** @nullable */
+  webhookId?: string | null;
+  /** @nullable */
+  planId?: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type AdminPaypalSettingsInputMode = typeof AdminPaypalSettingsInputMode[keyof typeof AdminPaypalSettingsInputMode] | null;
+
+
+export const AdminPaypalSettingsInputMode = {
+  sandbox: 'sandbox',
+  live: 'live',
+} as const;
+
+export interface AdminPaypalSettingsInput {
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  clientId?: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  clientSecret?: string | null;
+  /** @nullable */
+  mode?: AdminPaypalSettingsInputMode;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  webhookId?: string | null;
+}
+
 export interface AdminFarm {
   id: number;
   ownerId: number;
@@ -1228,5 +1439,9 @@ month?: string;
 export type ListAuditLogParams = {
 farmId?: number;
 limit?: number;
+};
+
+export type CheckSubdomainParams = {
+subdomain: string;
 };
 
