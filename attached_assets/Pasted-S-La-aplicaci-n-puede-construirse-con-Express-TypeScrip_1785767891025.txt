@@ -1,0 +1,709 @@
+Sí. La aplicación puede construirse con **Express, TypeScript y SQLite**, incorporando un **técnico agrícola virtual vinculado a cada finca**. Cada usuario registrará sus propias explotaciones, analíticas, productos disponibles, límites de conductividad y su propia clave de la API de OpenAI.
+
+La arquitectura quedaría así:
+
+## 1. Tecnologías
+
+| Componente         | Tecnología                                  |
+| ------------------ | ------------------------------------------- |
+| Frontend           | React + TypeScript + Vite                   |
+| Backend            | Node.js + Express + TypeScript              |
+| Base de datos      | SQLite                                      |
+| ORM                | Prisma                                      |
+| Autenticación      | Sesiones seguras mediante cookies HTTP-only |
+| Validación         | Zod                                         |
+| API de IA          | SDK oficial de OpenAI para Node.js          |
+| Interacción con IA | Responses API + llamadas a funciones        |
+| Informes           | DOCX y PDF                                  |
+| Despliegue         | Docker Compose                              |
+| Pruebas            | Vitest + Supertest + Playwright             |
+
+El SDK oficial de OpenAI admite JavaScript y TypeScript en entornos de servidor, y la Responses API es la interfaz recomendada para generar respuestas e integrar herramientas propias. ([GitHub][1])
+
+# 2. Organización general
+
+```text
+agronutri-ai/
+├── apps/
+│   ├── api/
+│   │   ├── src/
+│   │   │   ├── auth/
+│   │   │   ├── users/
+│   │   │   ├── farms/
+│   │   │   ├── plots/
+│   │   │   ├── crops/
+│   │   │   ├── analyses/
+│   │   │   ├── irrigation/
+│   │   │   ├── fertilizers/
+│   │   │   ├── calculations/
+│   │   │   ├── recommendations/
+│   │   │   ├── agronomist-ai/
+│   │   │   ├── reports/
+│   │   │   └── audit/
+│   │   └── prisma/
+│   └── web/
+│       └── src/
+├── storage/
+│   ├── database/
+│   ├── analyses/
+│   ├── reports/
+│   └── backups/
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+# 3. Usuarios y fincas
+
+Cada usuario podrá crear y configurar sus propias fincas.
+
+## Datos del usuario
+
+* Nombre y apellidos.
+* Correo electrónico.
+* Contraseña.
+* Empresa.
+* Teléfono.
+* Rol.
+* Preferencias de unidades.
+* Configuración de la API de OpenAI.
+* Límite mensual de uso de IA.
+* Modelo autorizado.
+* Idioma de los informes.
+
+## Datos de cada finca
+
+* Nombre.
+* Empresa propietaria.
+* CIF.
+* Isla y municipio.
+* Coordenadas.
+* Altitud.
+* Superficie.
+* Cultivo principal.
+* Variedad.
+* Número de plantas.
+* Sectores de riego.
+* Sistema de cultivo.
+* Tipo de suelo.
+* Disponibilidad de drenaje.
+* Posibilidad de vía foliar.
+* Disponibilidad de agua desalada.
+* Restricciones de manejo.
+* Técnico responsable.
+
+Cada finca podrá dividirse en sectores o parcelas. Un mismo usuario podría tener, por ejemplo:
+
+```text
+AGROSABINA SL
+├── Bajo Cuadras
+│   ├── Sector norte: 2.100 plantas
+│   ├── Sector central: 1.800 plantas
+│   └── Sector sur: 1.600 plantas
+└── Finca Los Llanos
+    ├── Sector A
+    └── Sector B
+```
+
+Cada sector tendrá sus propios datos de riego, analíticas, estado fenológico y abonada semanal.
+
+# 4. Permisos
+
+## Administrador
+
+* Gestiona usuarios.
+* Mantiene el catálogo de fertilizantes.
+* Configura rangos analíticos.
+* Revisa reglas agronómicas.
+* Consulta registros de auditoría.
+* Gestiona copias de seguridad.
+
+## Propietario
+
+* Crea y administra sus fincas.
+* Invita técnicos o encargados.
+* Configura su clave de OpenAI.
+* Introduce analíticas.
+* Genera recomendaciones e informes.
+* Consulta costes y consumos.
+
+## Técnico agrícola
+
+* Accede únicamente a las fincas que tenga asignadas.
+* Revisa analíticas.
+* Modifica recomendaciones.
+* Valida informes.
+* Mantiene conversaciones con el técnico virtual.
+* Firma o aprueba programas de abonado.
+
+## Encargado
+
+* Consulta la abonada semanal.
+* Registra las cantidades realmente aplicadas.
+* Introduce datos de riego.
+* Añade observaciones y fotografías.
+* No modifica las reglas agronómicas.
+
+## Consulta
+
+* Acceso de solo lectura.
+
+La autorización se comprobará en cada operación de la API. No bastará con ocultar botones en el frontend.
+
+# 5. Configuración individual de la API de OpenAI
+
+Cada usuario podrá introducir su propia clave en:
+
+```text
+Mi cuenta
+└── Integraciones
+    └── OpenAI
+        ├── Clave API
+        ├── Modelo preferido
+        ├── Límite mensual
+        ├── Máximo por conversación
+        └── Prueba de conexión
+```
+
+## Seguridad de las claves
+
+La clave:
+
+* Solo se enviará desde el navegador al servidor mediante HTTPS.
+* Nunca se utilizará directamente desde React.
+* Se cifrará antes de guardarse en SQLite.
+* No se devolverá posteriormente al navegador.
+* Se mostrará únicamente enmascarada, por ejemplo: `sk-proj-••••••82KQ`.
+* Podrá reemplazarse o eliminarse.
+* Se descifrará en memoria únicamente cuando se realice una petición.
+* No aparecerá en registros, errores ni informes.
+
+El cifrado se realizaría con **AES-256-GCM**, empleando una clave maestra almacenada fuera de SQLite:
+
+```env
+API_CREDENTIALS_MASTER_KEY=<clave_maestra_de_32_bytes>
+```
+
+Cada credencial tendrá:
+
+* Texto cifrado.
+* Vector de inicialización.
+* Etiqueta de autenticación.
+* Fecha de creación.
+* Fecha de última validación.
+* Estado.
+* Propietario.
+
+No se guardará la clave en texto plano.
+
+Las claves deben mantenerse en un entorno seguro y utilizarse únicamente desde el servidor. La documentación oficial recomienda proteger las claves, rotarlas cuando proceda y asignar los permisos adecuados. ([Plataforma OpenAI][2])
+
+## Configuración por usuario y por finca
+
+La configuración normal será una API por usuario. Además, se podrá establecer una configuración específica para una finca:
+
+```text
+Usuario: Francisco Javier
+API predeterminada: OpenAI principal
+
+Finca Bajo Cuadras
+└── Usar API predeterminada
+
+Finca Los Llanos
+└── Usar otra credencial de OpenAI
+```
+
+La prioridad será:
+
+1. Configuración específica de la finca.
+2. Configuración predeterminada del usuario.
+3. Sin IA, si no existe ninguna credencial válida.
+
+El motor de cálculo seguirá funcionando sin OpenAI. Solo se desactivarán el chat y la redacción inteligente.
+
+# 6. Técnico agrícola virtual
+
+Cada finca tendrá un espacio denominado, por ejemplo:
+
+## Técnico agrícola virtual
+
+El asistente conocerá exclusivamente la información autorizada de esa finca:
+
+* Cultivo.
+* Variedad.
+* Fase fenológica.
+* Número de plantas.
+* Superficie.
+* Riego semanal.
+* Fuentes y mezclas de agua.
+* Analíticas de suelo.
+* Analíticas foliares.
+* Analíticas de agua.
+* Histórico de abonadas.
+* Fertilizantes disponibles.
+* Límites de conductividad.
+* Restricciones de aplicación.
+* Informes anteriores.
+* Observaciones del agricultor.
+* Respuesta del cultivo.
+
+La conversación podría desarrollarse así:
+
+> **Usuario:** Estoy en pre-parición y las hojas jóvenes siguen presentando síntomas. ¿Mantengo el sulfato amónico?
+
+> **Técnico virtual:** La última analítica foliar muestra calcio bajo y magnesio alto. Antes de modificar la dosis necesito confirmar la fecha de inicio del programa, la CE medida en gotero y el ritmo de emisión foliar durante las dos últimas semanas.
+
+El asistente no recibiría un volcado indiscriminado de toda la base de datos. El backend seleccionaría únicamente la información relevante para la consulta.
+
+# 7. Herramientas internas del técnico virtual
+
+La IA no efectuaría directamente los cálculos críticos. Utilizaría funciones internas de Express con parámetros validados.
+
+La Responses API permite definir herramientas propias con esquemas JSON y validación estricta, lo que resulta apropiado para conectar el asistente con cálculos y registros internos.
+
+Las herramientas iniciales serían:
+
+```text
+get_farm_summary
+get_current_crop_cycle
+get_latest_soil_analysis
+get_latest_leaf_analysis
+get_latest_water_analysis
+get_water_blend
+get_current_fertilization
+get_available_fertilizers
+calculate_weekly_water_volume
+calculate_water_nutrient_load
+calculate_cation_balance
+calculate_sar
+calculate_residual_sodium_carbonate
+calculate_fertilizer_nutrients
+estimate_final_ec
+check_fertilizer_compatibility
+build_weekly_program
+compare_with_previous_program
+generate_technical_report
+save_draft_recommendation
+```
+
+## Ejemplo de llamada interna
+
+La IA podría solicitar:
+
+```json
+{
+  "farmId": "farm_123",
+  "weeklyLitresPerPlant": 125,
+  "numberOfPlants": 5500
+}
+```
+
+El motor devolvería:
+
+```json
+{
+  "weeklyWaterLitres": 687500,
+  "weeklyWaterM3": 687.5
+}
+```
+
+La IA explicaría el resultado, pero no lo recalcularía libremente.
+
+# 8. Separación entre cálculo agronómico e inteligencia artificial
+
+Este será uno de los principios principales de la aplicación.
+
+## Motor determinista
+
+Responsable de:
+
+* Conversión de unidades.
+* Volumen de riego.
+* Mezclas de aguas.
+* Carga de sodio.
+* Carga de cloruros.
+* Aporte de boro.
+* RAS.
+* Carbonato sódico residual.
+* Relaciones catiónicas.
+* Balance de nutrientes.
+* Nitrógeno nítrico, amoniacal y ureico.
+* Aportes de Ca, Mg, K, P y S.
+* Estimación de conductividad.
+* Límites máximos.
+* Compatibilidades.
+* Fraccionamiento de dosis.
+* Alertas.
+
+## Técnico virtual
+
+Responsable de:
+
+* Conversar con el usuario.
+* Pedir información ausente.
+* Interpretar resultados.
+* Comparar campañas.
+* Explicar antagonismos.
+* Proponer alternativas.
+* Justificar recomendaciones.
+* Redactar el informe.
+* Facilitar la discusión entre agricultor y técnico humano.
+
+La IA no podrá:
+
+* Modificar una analítica sin confirmación.
+* Cambiar una abonada validada.
+* Aplicar una recomendación automáticamente.
+* Superar límites de seguridad.
+* Inventar valores que faltan.
+* Ocultar que un cálculo es estimado.
+* Validar mezclas incompatibles.
+
+# 9. Estado de las recomendaciones
+
+Cada programa de abonado tendrá un flujo de aprobación:
+
+```text
+Borrador automático
+        ↓
+Pendiente de revisión
+        ↓
+Validado por el usuario o técnico
+        ↓
+En aplicación
+        ↓
+Finalizado
+```
+
+La IA únicamente generará **borradores**.
+
+Cuando el técnico virtual proponga una modificación, aparecerá:
+
+```text
+Propuesta no aplicada
+
+Sulfato amónico:
+Actual: 30 kg/semana
+Propuesto: 25 kg/semana
+
+Motivo:
+La CE medida supera el límite configurado y el nitrógeno foliar
+continúa dentro del intervalo normal.
+
+[Rechazar] [Editar] [Aprobar]
+```
+
+# 10. Conversaciones vinculadas a fincas
+
+Las conversaciones se almacenarán localmente en SQLite:
+
+```text
+FarmConversation
+├── usuario
+├── finca
+├── sector
+├── campaña
+├── título
+├── fecha
+└── estado
+
+FarmMessage
+├── conversación
+├── rol
+├── contenido
+├── herramientas utilizadas
+├── datos consultados
+├── coste estimado
+└── fecha
+```
+
+Para controlar mejor la privacidad y conservar la trazabilidad, la aplicación mantendrá el historial canónico localmente y enviará a OpenAI solo el contexto necesario para cada turno. La Responses API también dispone de mecanismos para mantener estado conversacional, pero en esta aplicación interesa que la finca conserve su propio registro independiente.
+
+Las peticiones se realizarían normalmente con:
+
+```typescript
+store: false
+```
+
+La conservación y tratamiento final de los datos seguirá dependiendo de las condiciones y controles aplicables a la cuenta de OpenAI del propio usuario. La documentación oficial describe políticas de retención diferentes según el endpoint y la configuración de la organización.
+
+# 11. Instrucciones del técnico virtual
+
+El asistente utilizará unas instrucciones base similares a estas:
+
+```text
+Eres un técnico agrícola virtual especializado en fertirrigación.
+
+Debes basar todas tus respuestas en:
+1. Los datos registrados en la finca.
+2. Los cálculos devueltos por las herramientas internas.
+3. Los rangos agronómicos configurados.
+4. El estado fenológico indicado.
+
+No inventes datos ausentes.
+
+Antes de emitir una recomendación:
+- Comprueba cultivo, fase, número de plantas y volumen de agua.
+- Consulta las analíticas vigentes.
+- Comprueba la fecha y representatividad de cada muestra.
+- Calcula los aportes del agua.
+- Revisa la abonada actual.
+- Verifica la CE máxima.
+- Comprueba incompatibilidades.
+- Expresa las incertidumbres.
+
+Nunca consideres definitiva una recomendación no validada.
+Distingue claramente entre cálculo, interpretación e hipótesis.
+```
+
+A estas instrucciones se añadiría el contexto particular de la finca.
+
+# 12. Configuración del comportamiento de la IA
+
+Cada usuario podrá elegir:
+
+* Modelo autorizado.
+* Profundidad de análisis.
+* Respuestas breves o detalladas.
+* Idioma.
+* Límite de gasto mensual.
+* Máximo de mensajes diarios.
+* Permitir o no generación de informes.
+* Permitir o no análisis de documentos.
+* Guardar o no conversaciones.
+* Exigir siempre aprobación técnica.
+
+No permitiría que el usuario introdujese libremente cualquier URL como servidor de API. Para la primera versión se configuraría únicamente OpenAI mediante una integración controlada. Esto evita usos inseguros y simplifica la validación.
+
+# 13. Control de consumo y costes
+
+Cada petición registrará:
+
+* Usuario.
+* Finca.
+* Modelo.
+* Fecha.
+* Tokens de entrada.
+* Tokens de salida.
+* Coste estimado.
+* Tipo de operación.
+* Duración.
+* Resultado o error.
+
+El panel mostrará:
+
+```text
+Consumo OpenAI — agosto de 2026
+
+Consultas:                    47
+Informes generados:            3
+Tokens de entrada:       186.400
+Tokens de salida:         42.600
+Coste estimado:              ...
+Límite mensual:              ...
+```
+
+El usuario podrá establecer:
+
+* Límite económico mensual.
+* Aviso al 70 %.
+* Aviso al 90 %.
+* Bloqueo al 100 %.
+* Máximo de tokens por consulta.
+* Modelos permitidos.
+
+Al utilizar cada usuario su propia clave, el consumo se facturará en su propio proyecto o cuenta de OpenAI.
+
+# 14. Modelo principal de SQLite
+
+```prisma
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  passwordHash       String
+  name               String
+  isActive           Boolean             @default(true)
+  apiCredentials     ApiCredential[]
+  memberships        FarmMembership[]
+  ownedFarms         Farm[]              @relation("FarmOwner")
+  conversations      FarmConversation[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model ApiCredential {
+  id                 String    @id @default(cuid())
+  userId             String
+  provider           String    @default("openai")
+  name               String
+  encryptedSecret    String
+  initializationVector String
+  authTag            String
+  selectedModel      String
+  monthlyLimit       Decimal?
+  isDefault          Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  lastValidatedAt    DateTime?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farmOverrides      FarmApiConfiguration[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Farm {
+  id                 String              @id @default(cuid())
+  ownerId            String
+  companyName        String?
+  name               String
+  island             String?
+  municipality       String?
+  surfaceHa          Decimal?
+  owner              User                @relation("FarmOwner", fields: [ownerId], references: [id])
+  memberships        FarmMembership[]
+  plots              Plot[]
+  apiConfiguration   FarmApiConfiguration?
+  conversations      FarmConversation[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model FarmMembership {
+  id                 String   @id @default(cuid())
+  farmId             String
+  userId             String
+  role               String
+  farm               Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+}
+
+model FarmApiConfiguration {
+  id                 String        @id @default(cuid())
+  farmId             String        @unique
+  credentialId       String
+  farm               Farm          @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  credential         ApiCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+}
+```
+
+El esquema completo incorporará además analíticas, riegos, mezclas de agua, cultivos, fertilizantes, recomendaciones, informes y auditoría.
+
+# 15. Endpoints principales
+
+```text
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/logout
+GET    /api/auth/me
+
+GET    /api/farms
+POST   /api/farms
+GET    /api/farms/:farmId
+PATCH  /api/farms/:farmId
+DELETE /api/farms/:farmId
+
+POST   /api/farms/:farmId/members
+PATCH  /api/farms/:farmId/members/:memberId
+
+GET    /api/farms/:farmId/analyses
+POST   /api/farms/:farmId/analyses/soil
+POST   /api/farms/:farmId/analyses/leaf
+POST   /api/farms/:farmId/analyses/water
+
+POST   /api/farms/:farmId/recommendations/calculate
+POST   /api/farms/:farmId/recommendations/:id/approve
+
+GET    /api/settings/openai
+POST   /api/settings/openai
+POST   /api/settings/openai/test
+DELETE /api/settings/openai/:credentialId
+
+GET    /api/farms/:farmId/conversations
+POST   /api/farms/:farmId/conversations
+POST   /api/farms/:farmId/conversations/:id/messages
+
+POST   /api/farms/:farmId/reports
+GET    /api/farms/:farmId/reports/:reportId/download
+```
+
+# 16. Interfaz del técnico virtual
+
+La pantalla se dividiría en dos zonas.
+
+## Panel de contexto
+
+* Finca seleccionada.
+* Campaña.
+* Estado fenológico.
+* Plantas.
+* Riego semanal.
+* Última analítica.
+* CE máxima.
+* Abonada vigente.
+* Alertas activas.
+
+## Conversación
+
+El usuario podrá preguntar:
+
+* «¿Por qué sigue bajo el calcio foliar?»
+* «¿Qué pasaría si elimino la urea?»
+* «¿Puedo subir el sulfato amónico sin superar la CE?»
+* «Compara esta analítica con la del año pasado».
+* «Prepara la abonada de la próxima semana».
+* «Genera un informe para la empresa».
+* «¿Qué datos faltan para calcular el yeso de invierno?»
+
+Las respuestas incluirán referencias internas:
+
+```text
+Basado en:
+- Análisis foliar de 25/09/2025.
+- Análisis de suelo de 25/09/2025.
+- Agua Balten de 28/07/2025.
+- Riego registrado: 125 L/planta/semana.
+- Abonada vigente desde 03/08/2026.
+```
+
+# 17. Informes automáticos
+
+El informe seguirá una estructura similar al emitido para AGROSABINA SL:
+
+1. Portada.
+2. Datos de empresa y finca.
+3. Resumen ejecutivo.
+4. Analítica de suelo.
+5. Analítica foliar.
+6. Analítica de agua.
+7. Lógica conjunta.
+8. Estado fenológico.
+9. Programa semanal.
+10. Balance de nutrientes.
+11. CE prevista.
+12. Distribución entre riegos.
+13. Compatibilidades.
+14. Riesgos y limitaciones.
+15. Seguimiento.
+16. Estrategia estacional.
+17. Firma y validación.
+
+Cada afirmación del informe se vinculará con:
+
+* Valor analítico.
+* Cálculo interno.
+* Regla agronómica.
+* Inferencia del asistente.
+
+# 18. Arquitectura definitiva
+
+La aplicación queda definida como:
+
+> **React + TypeScript + Express + Prisma + SQLite + Docker + OpenAI Responses API**, con usuarios, roles, fincas privadas, sectores, analíticas, motor determinista de fertirrigación, control de CE, generación de informes y un técnico agrícola virtual contextualizado para cada finca.
+
+El técnico virtual no sustituirá al motor agronómico ni al técnico humano. Funcionará como una interfaz inteligente que consulta datos, ejecuta cálculos controlados, detecta información ausente, explica resultados y elabora borradores para aprobación.
+
+El siguiente paso lógico es generar el repositorio inicial con autenticación, SQLite, gestión de fincas, configuración cifrada de la API de OpenAI y el caso de prueba de AGROSABINA SL.
+
+[1]: https://github.com/openai/openai-node "https://github.com/openai/openai-node"
+[2]: https://platform.openai.com/docs/quickstart/make-your-first-api-request "https://platform.openai.com/docs/quickstart/make-your-first-api-request"
