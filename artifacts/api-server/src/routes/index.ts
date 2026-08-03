@@ -13,6 +13,7 @@ import miscRouter from "./misc";
 import adminRouter from "./admin";
 import signupRouter from "./signup";
 import adminInstallationsRouter from "./adminInstallations";
+import adminBillingRouter from "./adminBilling";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(phytoRouter);
 router.use(miscRouter);
 router.use(adminRouter);
 router.use(adminInstallationsRouter);
+router.use(adminBillingRouter);
 
 export default router;

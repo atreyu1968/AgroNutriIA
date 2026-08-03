@@ -81,7 +81,14 @@ export async function emailConfigured(): Promise<boolean> {
   return Boolean((await getEmailConfig()).apiKey);
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+type EmailAttachment = { filename: string; content: Buffer };
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: EmailAttachment[],
+): Promise<void> {
   const { apiKey, from } = await getEmailConfig();
   if (!apiKey) {
     throw new Error("Clave de Resend no configurada");
@@ -92,7 +99,20 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      ...(attachments?.length
+        ? {
+            attachments: attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content.toString("base64"),
+            })),
+          }
+        : {}),
+    }),
   });
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
@@ -143,6 +163,31 @@ export async function sendInstallationReadyEmail(opts: {
   </div>`;
   await sendEmail(opts.to, "Tu instalación de AgroNutri AI está lista", html);
   logger.info({ to: opts.to }, "Installation ready email sent");
+}
+
+export async function sendInvoiceEmail(opts: {
+  to: string;
+  contactName: string;
+  coopName: string;
+  fullNumber: string;
+  period: string;
+  totalEuros: string;
+  pdf: Buffer;
+}): Promise<void> {
+  const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a2e1a">
+    <h2 style="color:#166534;margin:0 0 16px">AgroNutri AI</h2>
+    <p>Hola ${escapeHtml(opts.contactName)},</p>
+    <p>Adjuntamos la factura <strong>${escapeHtml(opts.fullNumber)}</strong> de
+       <strong>${escapeHtml(opts.coopName)}</strong>, correspondiente al periodo
+       ${escapeHtml(opts.period)}, por un total de <strong>${escapeHtml(opts.totalEuros)} €</strong>.</p>
+    <p style="font-size:13px;color:#555">Si tienes cualquier duda sobre esta factura,
+       responde a este mensaje.</p>
+  </div>`;
+  await sendEmail(opts.to, `Factura ${opts.fullNumber} — AgroNutri AI`, html, [
+    { filename: `${opts.fullNumber}.pdf`, content: opts.pdf },
+  ]);
+  logger.info({ to: opts.to, invoice: opts.fullNumber }, "Invoice email sent");
 }
 
 export async function sendPasswordResetEmail(

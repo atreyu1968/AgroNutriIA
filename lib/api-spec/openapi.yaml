@@ -1569,6 +1569,141 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminPaypalSettings"
 
+  /admin/settings/billing:
+    get:
+      operationId: adminGetBillingSettings
+      tags: [admin]
+      summary: Get invoicing issuer settings (admin only)
+      responses:
+        "200":
+          description: Billing settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingSettings"
+    put:
+      operationId: adminUpdateBillingSettings
+      tags: [admin]
+      summary: Update invoicing issuer settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBillingSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingSettings"
+
+  /admin/installations/{installationId}/billing-info:
+    put:
+      operationId: adminUpdateInstallationBillingInfo
+      tags: [admin]
+      summary: Update tax id and billing address of an installation (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminInstallationBillingInfoInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+
+  /admin/invoices:
+    get:
+      operationId: adminListInvoices
+      tags: [admin]
+      summary: List issued invoices (admin only)
+      responses:
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminInvoice"
+
+  /admin/installations/{installationId}/charges/{period}/invoice:
+    post:
+      operationId: adminIssueInvoice
+      tags: [admin]
+      summary: Issue an invoice for a monthly charge (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInvoice"
+
+  /admin/invoices/{invoiceId}/send:
+    post:
+      operationId: adminSendInvoice
+      tags: [admin]
+      summary: Email the invoice PDF to the cooperative (admin only)
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInvoice"
+
+  /admin/invoices/{invoiceId}/paid:
+    post:
+      operationId: adminMarkInvoicePaid
+      tags: [admin]
+      summary: Mark an invoice as paid (admin only)
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice marked as paid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInvoice"
+
 components:
   parameters:
     UserId:
@@ -2031,6 +2166,55 @@ components:
         clientSecret: { type: ["string", "null"], maxLength: 200 }
         mode: { type: ["string", "null"], enum: [sandbox, live, null] }
         webhookId: { type: ["string", "null"], maxLength: 100 }
+    AdminInstallationBillingInfoInput:
+      type: object
+      properties:
+        taxId: { type: ["string", "null"], maxLength: 20 }
+        billingAddress: { type: ["string", "null"], maxLength: 300 }
+    AdminBillingSettings:
+      type: object
+      required: [configured, series, taxRateBps, taxName]
+      properties:
+        configured: { type: boolean, description: True si hay emisor con nombre y NIF }
+        issuerName: { type: ["string", "null"] }
+        issuerTaxId: { type: ["string", "null"] }
+        issuerAddress: { type: ["string", "null"] }
+        series: { type: string, description: Serie de facturación }
+        taxRateBps: { type: integer, description: Tipo impositivo en centésimas de punto (700 = 7,00 %) }
+        taxName: { type: string, description: IGIC, IVA… }
+    AdminBillingSettingsInput:
+      type: object
+      properties:
+        issuerName: { type: ["string", "null"], maxLength: 200 }
+        issuerTaxId: { type: ["string", "null"], maxLength: 20 }
+        issuerAddress: { type: ["string", "null"], maxLength: 300 }
+        series: { type: ["string", "null"], maxLength: 10 }
+        taxRateBps: { type: ["integer", "null"], minimum: 0, maximum: 3000 }
+        taxName: { type: ["string", "null"], maxLength: 20 }
+    AdminInvoice:
+      type: object
+      required:
+        [id, installationId, installationName, fullNumber, issueDate, period, subtotalCents, taxRateBps, taxName, taxCents, totalCents, status, hash]
+      properties:
+        id: { type: integer }
+        installationId: { type: integer }
+        installationName: { type: string }
+        customerTaxId: { type: string }
+        fullNumber: { type: string }
+        issueDate: { type: string }
+        period: { type: string }
+        baseCents: { type: integer }
+        farmCount: { type: integer }
+        variableCents: { type: integer }
+        subtotalCents: { type: integer }
+        taxRateBps: { type: integer }
+        taxName: { type: string }
+        taxCents: { type: integer }
+        totalCents: { type: integer }
+        status: { type: string, enum: [issued, sent, paid] }
+        sentAt: { type: ["string", "null"] }
+        paidAt: { type: ["string", "null"] }
+        hash: { type: string }
 
     AdminFarm:
       type: object

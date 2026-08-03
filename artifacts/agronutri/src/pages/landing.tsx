@@ -114,37 +114,37 @@ function NavBar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled ? "bg-[#0c1f16]/90 backdrop-blur-md shadow-lg" : "bg-transparent"
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-[#eaf4ec] ${
+        scrolled ? "bg-[#eaf4ec]/95 backdrop-blur-md shadow-md" : ""
       }`}
     >
       <div className="max-w-6xl mx-auto px-5 h-[68px] flex items-center justify-between">
-        <img src={`${BASE}logo.png`} alt="AgroNutri AI" className="h-8 brightness-0 invert" />
+        <img src={`${BASE}logo.png`} alt="AgroNutri AI" className="h-8" />
         <nav className="hidden md:flex items-center gap-8">
-          <a href="#funciones" className="text-sm font-medium text-[#f4ead9]/80 hover:text-[#f4ead9] transition-colors">
+          <a href="#funciones" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
             Funcionalidades
           </a>
-          <a href="#precios" className="text-sm font-medium text-[#f4ead9]/80 hover:text-[#f4ead9] transition-colors">
+          <a href="#precios" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
             Precios
           </a>
-          <Link href="/terminos" className="text-sm font-medium text-[#f4ead9]/80 hover:text-[#f4ead9] transition-colors">
+          <Link href="/terminos" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
             Términos
           </Link>
         </nav>
         <div className="hidden md:flex items-center gap-2">
           <Link href="/login">
-            <Button variant="ghost" className="text-[#f4ead9] hover:text-[#f4ead9] hover:bg-white/10" data-testid="button-landing-login">
+            <Button variant="ghost" className="text-[#12402d] hover:text-[#12402d] hover:bg-[#12402d]/5" data-testid="button-landing-login">
               Entrar
             </Button>
           </Link>
           <Link href="/login">
-            <Button className="bg-[#e39322] hover:bg-[#c97e17] text-[#0c1f16] font-semibold" data-testid="button-landing-cta-top">
+            <Button className="bg-[#2f9e68] hover:bg-[#258355] text-white font-semibold" data-testid="button-landing-cta-top">
               Empezar ahora <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
         </div>
         <button
-          className="md:hidden text-[#f4ead9] p-2"
+          className="md:hidden text-[#12402d] p-2"
           onClick={() => setOpen((v) => !v)}
           data-testid="button-mobile-menu-toggle"
           aria-label="Abrir menú"
@@ -153,24 +153,24 @@ function NavBar() {
         </button>
       </div>
       {open && (
-        <div className="md:hidden bg-[#0c1f16] border-t border-white/10 px-5 py-6 flex flex-col gap-4">
-          <a href="#funciones" onClick={() => setOpen(false)} className="text-[#f4ead9]/90 font-medium">
+        <div className="md:hidden bg-[#eaf4ec] border-t border-[#12402d]/10 px-5 py-6 flex flex-col gap-4">
+          <a href="#funciones" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
             Funcionalidades
           </a>
-          <a href="#precios" onClick={() => setOpen(false)} className="text-[#f4ead9]/90 font-medium">
+          <a href="#precios" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
             Precios
           </a>
-          <Link href="/terminos" onClick={() => setOpen(false)} className="text-[#f4ead9]/90 font-medium">
+          <Link href="/terminos" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
             Términos
           </Link>
           <div className="flex flex-col gap-2 pt-2">
             <Link href="/login">
-              <Button variant="outline" className="w-full border-white/30 text-[#f4ead9] bg-transparent hover:bg-white/10" data-testid="button-landing-login-mobile">
+              <Button variant="outline" className="w-full border-[#12402d]/30 text-[#12402d] bg-transparent hover:bg-[#12402d]/5" data-testid="button-landing-login-mobile">
                 Entrar
               </Button>
             </Link>
             <Link href="/login">
-              <Button className="w-full bg-[#e39322] hover:bg-[#c97e17] text-[#0c1f16] font-semibold" data-testid="button-landing-cta-top-mobile">
+              <Button className="w-full bg-[#2f9e68] hover:bg-[#258355] text-white font-semibold" data-testid="button-landing-cta-top-mobile">
                 Empezar ahora
               </Button>
             </Link>
@@ -212,22 +212,22 @@ function Hero() {
           <img
             src={heroImage}
             alt="Plantación de plátanos en Canarias al atardecer"
-            className="w-full h-full object-cover opacity-45"
+            className="w-full h-full object-cover opacity-85 saturate-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0c1f16]/70 via-[#0c1f16]/60 to-[#0c1f16]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0c1f16]/45 via-[#0c1f16]/30 to-[#0c1f16]" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0c1f16] via-transparent to-transparent" />
         </div>
 
         <div className="relative max-w-6xl mx-auto px-5 pt-28 pb-16 text-center w-full">
           <span
-            className="reveal inline-flex items-center gap-2 text-xs font-mono-label tracking-[0.18em] uppercase text-[#e39322] bg-[#e39322]/10 ring-1 ring-[#e39322]/30 rounded-full px-4 py-2 mb-8"
+            className="reveal inline-flex items-center gap-2 text-xs font-mono-label tracking-[0.18em] uppercase text-[#6fd39f] bg-[#6fd39f]/10 ring-1 ring-[#6fd39f]/30 rounded-full px-4 py-2 mb-8"
           >
             <Leaf className="w-3.5 h-3.5" /> Fertirrigación inteligente para platanera
           </span>
           <h1 className="reveal font-display text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight leading-[1.02] text-[#f4ead9]" data-reveal-delay="80">
             Tu técnico virtual,
             <br />
-            <span className="italic text-[#e39322]">a pie de finca.</span>
+            <span className="italic text-[#6fd39f]">a pie de finca.</span>
           </h1>
           <p className="reveal mt-8 text-lg md:text-xl text-[#f4ead9]/75 max-w-2xl mx-auto leading-relaxed" data-reveal-delay="160">
             AgroNutri AI convierte tus analíticas de suelo, foliar y agua en programas de abonado
@@ -238,7 +238,7 @@ function Hero() {
             <Link href="/login">
               <Button
                 size="lg"
-                className="bg-[#e39322] hover:bg-[#c97e17] text-[#0c1f16] font-semibold text-base h-13 px-8 shadow-[0_10px_30px_-8px_rgba(227,147,34,0.6)] hover:shadow-[0_15px_40px_-8px_rgba(227,147,34,0.7)] transition-all hover:-translate-y-0.5"
+                className="bg-[#2f9e68] hover:bg-[#258355] text-white font-semibold text-base h-13 px-8 shadow-[0_10px_30px_-8px_rgba(47,158,104,0.6)] hover:shadow-[0_15px_40px_-8px_rgba(47,158,104,0.7)] transition-all hover:-translate-y-0.5"
                 data-testid="button-landing-cta-hero"
               >
                 Probar AgroNutri AI <ArrowRight className="w-4 h-4 ml-2" />
@@ -255,9 +255,9 @@ function Hero() {
             </a>
           </div>
           <div className="reveal mt-10 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-[#f4ead9]/60" data-reveal-delay="320">
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#e39322]" /> Instalación en tu propio servidor</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#e39322]" /> Web + app móvil</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#e39322]" /> IA con tu propia clave</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#6fd39f]" /> Instalación en tu propio servidor</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#6fd39f]" /> Web + app móvil</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#6fd39f]" /> IA con tu propia clave</span>
           </div>
         </div>
 
@@ -292,7 +292,7 @@ export default function Landing() {
 
       {/* Value strip */}
       <Section className="bg-[#0c1f16] text-[#f4ead9] relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,#e39322,transparent_45%)]" />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,#2f9e68,transparent_45%)]" />
         <div className="relative max-w-6xl mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
             ["Analíticas", "suelo · foliar · agua"],
@@ -301,7 +301,7 @@ export default function Landing() {
             ["Informes", "PDF y Word con tu logo"],
           ].map(([t, s], i) => (
             <div key={t} className="reveal" data-reveal-delay={i * 90}>
-              <div className="font-display text-2xl font-semibold text-[#e39322]">{t}</div>
+              <div className="font-display text-2xl font-semibold text-[#6fd39f]">{t}</div>
               <div className="text-sm text-[#f4ead9]/55 mt-1 font-mono-label tracking-wide">{s}</div>
             </div>
           ))}
@@ -419,7 +419,7 @@ export default function Landing() {
         <img src={technicianImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0c1f16] via-[#0c1f16]/85 to-[#0c1f16]/40" />
         <div className="relative max-w-4xl mx-auto px-5 py-28 reveal-scale">
-          <Quote className="w-10 h-10 text-[#e39322] mb-6" />
+          <Quote className="w-10 h-10 text-[#6fd39f] mb-6" />
           <p className="font-display text-2xl md:text-4xl font-medium leading-snug">
             "Antes tardábamos días en cruzar analíticas de veinte fincas. Ahora el técnico virtual
             nos entrega el programa el mismo día que sale el laboratorio."
@@ -486,18 +486,18 @@ export default function Landing() {
 
       {/* Pricing */}
       <Section id="precios" className="bg-[#0c1f16] text-[#f4ead9] relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_80%_10%,#e39322,transparent_50%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_80%_10%,#2f9e68,transparent_50%)]" />
         <div className="relative max-w-6xl mx-auto px-5 py-28">
           <div className="text-center reveal">
-            <span className="text-xs font-mono-label tracking-[0.2em] uppercase text-[#e39322]">Precios</span>
+            <span className="text-xs font-mono-label tracking-[0.2em] uppercase text-[#6fd39f]">Precios</span>
             <h2 className="mt-3 font-display text-3xl md:text-5xl font-semibold tracking-tight">Un precio simple, pensado para cooperativas</h2>
             <p className="mt-5 text-[#f4ead9]/70 max-w-2xl mx-auto text-lg">
               Cada cooperativa u OPP dispone de su propia instalación independiente, con sus datos en
               su propio servidor.
             </p>
           </div>
-          <div className="reveal-scale mt-16 max-w-3xl mx-auto rounded-3xl bg-[#132a1e] border border-[#e39322]/25 shadow-[0_40px_100px_-30px_rgba(0,0,0,0.6)] overflow-hidden">
-            <div className="bg-[#e39322] text-[#0c1f16] px-8 py-5 text-center">
+          <div className="reveal-scale mt-16 max-w-3xl mx-auto rounded-3xl bg-[#132a1e] border border-[#6fd39f]/25 shadow-[0_40px_100px_-30px_rgba(0,0,0,0.6)] overflow-hidden">
+            <div className="bg-[#2f9e68] text-white px-8 py-5 text-center">
               <span className="font-semibold tracking-wide uppercase text-sm font-mono-label">Plan cooperativa / OPP</span>
             </div>
             <div className="px-8 py-12 grid sm:grid-cols-2 gap-10 items-center">
@@ -520,14 +520,14 @@ export default function Landing() {
                   "Actualizaciones y mejoras continuas",
                   "Consumo de OpenAI aparte, con la clave de la cooperativa y límite de gasto configurable",
                 ].map((t) => (
-                  <li key={t} className="flex items-start gap-2.5 text-sm"><CheckCircle2 className="w-4 h-4 text-[#e39322] shrink-0 mt-0.5" /> {t}</li>
+                  <li key={t} className="flex items-start gap-2.5 text-sm"><CheckCircle2 className="w-4 h-4 text-[#6fd39f] shrink-0 mt-0.5" /> {t}</li>
                 ))}
               </ul>
               <div className="mt-10 text-center">
                 <Link href="/contratar">
                   <Button
                     size="lg"
-                    className="bg-[#e39322] hover:bg-[#c97e17] text-[#0c1f16] font-semibold h-13 px-9 shadow-[0_10px_30px_-8px_rgba(227,147,34,0.5)] hover:-translate-y-0.5 transition-all"
+                    className="bg-[#2f9e68] hover:bg-[#258355] text-white font-semibold h-13 px-9 shadow-[0_10px_30px_-8px_rgba(47,158,104,0.5)] hover:-translate-y-0.5 transition-all"
                     data-testid="button-landing-cta-pricing"
                   >
                     Contratar online <ArrowRight className="w-4 h-4 ml-2" />
@@ -541,7 +541,7 @@ export default function Landing() {
                 Precios sin impuestos. Revisión de precios como máximo una vez al año, comunicada con
                 60 días de antelación y limitada a IPC + 2 puntos, con derecho a resolver el contrato
                 sin penalización si no se acepta. Consulta los{" "}
-                <Link href="/terminos" className="text-[#e39322] underline underline-offset-2">términos y condiciones</Link>.
+                <Link href="/terminos" className="text-[#6fd39f] underline underline-offset-2">términos y condiciones</Link>.
               </p>
             </div>
           </div>
@@ -565,7 +565,7 @@ export default function Landing() {
               <Link href="/login">
                 <Button
                   size="lg"
-                  className="bg-[#e39322] hover:bg-[#c97e17] text-[#0c1f16] font-semibold text-base h-13 px-9 shadow-[0_10px_30px_-8px_rgba(227,147,34,0.6)] hover:-translate-y-0.5 transition-all"
+                  className="bg-[#2f9e68] hover:bg-[#258355] text-white font-semibold text-base h-13 px-9 shadow-[0_10px_30px_-8px_rgba(47,158,104,0.6)] hover:-translate-y-0.5 transition-all"
                   data-testid="button-landing-cta-bottom"
                 >
                   Entrar en la plataforma <ArrowRight className="w-4 h-4 ml-2" />

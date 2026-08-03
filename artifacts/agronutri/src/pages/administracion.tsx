@@ -42,6 +42,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus, Mail, Loader2, ArrowRightLeft, Server } from "lucide-react";
 import { InstalacionesTab } from "@/components/admin/instalaciones-tab";
+import { FacturacionTab } from "@/components/admin/facturacion-tab";
+import { ReceiptText } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propietario",
@@ -192,7 +194,12 @@ export default function Administracion() {
           <TabsTrigger value="fincas" className="gap-2"><MapPin className="w-4 h-4" /> Fincas</TabsTrigger>
           <TabsTrigger value="configuracion" className="gap-2"><Mail className="w-4 h-4" /> Configuración</TabsTrigger>
           <TabsTrigger value="instalaciones" className="gap-2"><Server className="w-4 h-4" /> Instalaciones</TabsTrigger>
+          <TabsTrigger value="facturacion" className="gap-2" data-testid="tab-facturacion"><ReceiptText className="w-4 h-4" /> Facturación</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="facturacion" className="mt-6">
+          <FacturacionTab />
+        </TabsContent>
 
         <TabsContent value="instalaciones" className="mt-6">
           <InstalacionesTab />

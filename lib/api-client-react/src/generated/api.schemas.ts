@@ -589,6 +589,103 @@ export interface AdminPaypalSettingsInput {
   webhookId?: string | null;
 }
 
+export interface AdminInstallationBillingInfoInput {
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  taxId?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  billingAddress?: string | null;
+}
+
+export interface AdminBillingSettings {
+  /** True si hay emisor con nombre y NIF */
+  configured: boolean;
+  /** @nullable */
+  issuerName?: string | null;
+  /** @nullable */
+  issuerTaxId?: string | null;
+  /** @nullable */
+  issuerAddress?: string | null;
+  /** Serie de facturación */
+  series: string;
+  /** Tipo impositivo en centésimas de punto (700 = 7 */
+  taxRateBps: number;
+  /** IGIC */
+  taxName: string;
+}
+
+export interface AdminBillingSettingsInput {
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  issuerName?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  issuerTaxId?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  issuerAddress?: string | null;
+  /**
+     * @maxLength 10
+     * @nullable
+     */
+  series?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 3000
+     * @nullable
+     */
+  taxRateBps?: number | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  taxName?: string | null;
+}
+
+export type AdminInvoiceStatus = typeof AdminInvoiceStatus[keyof typeof AdminInvoiceStatus];
+
+
+export const AdminInvoiceStatus = {
+  issued: 'issued',
+  sent: 'sent',
+  paid: 'paid',
+} as const;
+
+export interface AdminInvoice {
+  id: number;
+  installationId: number;
+  installationName: string;
+  customerTaxId?: string;
+  fullNumber: string;
+  issueDate: string;
+  period: string;
+  baseCents?: number;
+  farmCount?: number;
+  variableCents?: number;
+  subtotalCents: number;
+  taxRateBps: number;
+  taxName: string;
+  taxCents: number;
+  totalCents: number;
+  status: AdminInvoiceStatus;
+  /** @nullable */
+  sentAt?: string | null;
+  /** @nullable */
+  paidAt?: string | null;
+  hash: string;
+}
+
 export interface AdminFarm {
   id: number;
   ownerId: number;
@@ -1443,5 +1540,9 @@ limit?: number;
 
 export type CheckSubdomainParams = {
 subdomain: string;
+};
+
+export type AdminUpdateInstallationBillingInfo200 = {
+  ok: boolean;
 };
 

@@ -2435,3 +2435,196 @@ export const AdminUpdatePaypalSettingsResponse = zod.object({
 })
 
 
+/**
+ * @summary Get invoicing issuer settings (admin only)
+ */
+export const AdminGetBillingSettingsResponse = zod.object({
+  "configured": zod.boolean().describe('True si hay emisor con nombre y NIF'),
+  "issuerName": zod.string().nullish(),
+  "issuerTaxId": zod.string().nullish(),
+  "issuerAddress": zod.string().nullish(),
+  "series": zod.string().describe('Serie de facturación'),
+  "taxRateBps": zod.number().int().describe('Tipo impositivo en centésimas de punto (700 = 7'),
+  "taxName": zod.string().describe('IGIC')
+})
+
+
+/**
+ * @summary Update invoicing issuer settings (admin only)
+ */
+export const adminUpdateBillingSettingsBodyIssuerNameMax = 200;
+
+export const adminUpdateBillingSettingsBodyIssuerTaxIdMax = 20;
+
+export const adminUpdateBillingSettingsBodyIssuerAddressMax = 300;
+
+export const adminUpdateBillingSettingsBodySeriesMax = 10;
+
+export const adminUpdateBillingSettingsBodyTaxRateBpsMin = 0;
+export const adminUpdateBillingSettingsBodyTaxRateBpsMax = 3000;
+
+export const adminUpdateBillingSettingsBodyTaxNameMax = 20;
+
+
+
+export const AdminUpdateBillingSettingsBody = zod.object({
+  "issuerName": zod.string().max(adminUpdateBillingSettingsBodyIssuerNameMax).nullish(),
+  "issuerTaxId": zod.string().max(adminUpdateBillingSettingsBodyIssuerTaxIdMax).nullish(),
+  "issuerAddress": zod.string().max(adminUpdateBillingSettingsBodyIssuerAddressMax).nullish(),
+  "series": zod.string().max(adminUpdateBillingSettingsBodySeriesMax).nullish(),
+  "taxRateBps": zod.number().int().min(adminUpdateBillingSettingsBodyTaxRateBpsMin).max(adminUpdateBillingSettingsBodyTaxRateBpsMax).nullish(),
+  "taxName": zod.string().max(adminUpdateBillingSettingsBodyTaxNameMax).nullish()
+})
+
+export const AdminUpdateBillingSettingsResponse = zod.object({
+  "configured": zod.boolean().describe('True si hay emisor con nombre y NIF'),
+  "issuerName": zod.string().nullish(),
+  "issuerTaxId": zod.string().nullish(),
+  "issuerAddress": zod.string().nullish(),
+  "series": zod.string().describe('Serie de facturación'),
+  "taxRateBps": zod.number().int().describe('Tipo impositivo en centésimas de punto (700 = 7'),
+  "taxName": zod.string().describe('IGIC')
+})
+
+
+/**
+ * @summary Update tax id and billing address of an installation (admin only)
+ */
+export const AdminUpdateInstallationBillingInfoParams = zod.object({
+  "installationId": zod.coerce.number().int()
+})
+
+export const adminUpdateInstallationBillingInfoBodyTaxIdMax = 20;
+
+export const adminUpdateInstallationBillingInfoBodyBillingAddressMax = 300;
+
+
+
+export const AdminUpdateInstallationBillingInfoBody = zod.object({
+  "taxId": zod.string().max(adminUpdateInstallationBillingInfoBodyTaxIdMax).nullish(),
+  "billingAddress": zod.string().max(adminUpdateInstallationBillingInfoBodyBillingAddressMax).nullish()
+})
+
+export const AdminUpdateInstallationBillingInfoResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List issued invoices (admin only)
+ */
+export const AdminListInvoicesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "installationId": zod.number().int(),
+  "installationName": zod.string(),
+  "customerTaxId": zod.string().optional(),
+  "fullNumber": zod.string(),
+  "issueDate": zod.string(),
+  "period": zod.string(),
+  "baseCents": zod.number().int().optional(),
+  "farmCount": zod.number().int().optional(),
+  "variableCents": zod.number().int().optional(),
+  "subtotalCents": zod.number().int(),
+  "taxRateBps": zod.number().int(),
+  "taxName": zod.string(),
+  "taxCents": zod.number().int(),
+  "totalCents": zod.number().int(),
+  "status": zod.enum(['issued', 'sent', 'paid']),
+  "sentAt": zod.string().nullish(),
+  "paidAt": zod.string().nullish(),
+  "hash": zod.string()
+})
+export const AdminListInvoicesResponse = zod.array(AdminListInvoicesResponseItem)
+
+
+/**
+ * @summary Issue an invoice for a monthly charge (admin only)
+ */
+export const AdminIssueInvoiceParams = zod.object({
+  "installationId": zod.coerce.number().int(),
+  "period": zod.coerce.string()
+})
+
+export const AdminIssueInvoiceResponse = zod.object({
+  "id": zod.number().int(),
+  "installationId": zod.number().int(),
+  "installationName": zod.string(),
+  "customerTaxId": zod.string().optional(),
+  "fullNumber": zod.string(),
+  "issueDate": zod.string(),
+  "period": zod.string(),
+  "baseCents": zod.number().int().optional(),
+  "farmCount": zod.number().int().optional(),
+  "variableCents": zod.number().int().optional(),
+  "subtotalCents": zod.number().int(),
+  "taxRateBps": zod.number().int(),
+  "taxName": zod.string(),
+  "taxCents": zod.number().int(),
+  "totalCents": zod.number().int(),
+  "status": zod.enum(['issued', 'sent', 'paid']),
+  "sentAt": zod.string().nullish(),
+  "paidAt": zod.string().nullish(),
+  "hash": zod.string()
+})
+
+
+/**
+ * @summary Email the invoice PDF to the cooperative (admin only)
+ */
+export const AdminSendInvoiceParams = zod.object({
+  "invoiceId": zod.coerce.number().int()
+})
+
+export const AdminSendInvoiceResponse = zod.object({
+  "id": zod.number().int(),
+  "installationId": zod.number().int(),
+  "installationName": zod.string(),
+  "customerTaxId": zod.string().optional(),
+  "fullNumber": zod.string(),
+  "issueDate": zod.string(),
+  "period": zod.string(),
+  "baseCents": zod.number().int().optional(),
+  "farmCount": zod.number().int().optional(),
+  "variableCents": zod.number().int().optional(),
+  "subtotalCents": zod.number().int(),
+  "taxRateBps": zod.number().int(),
+  "taxName": zod.string(),
+  "taxCents": zod.number().int(),
+  "totalCents": zod.number().int(),
+  "status": zod.enum(['issued', 'sent', 'paid']),
+  "sentAt": zod.string().nullish(),
+  "paidAt": zod.string().nullish(),
+  "hash": zod.string()
+})
+
+
+/**
+ * @summary Mark an invoice as paid (admin only)
+ */
+export const AdminMarkInvoicePaidParams = zod.object({
+  "invoiceId": zod.coerce.number().int()
+})
+
+export const AdminMarkInvoicePaidResponse = zod.object({
+  "id": zod.number().int(),
+  "installationId": zod.number().int(),
+  "installationName": zod.string(),
+  "customerTaxId": zod.string().optional(),
+  "fullNumber": zod.string(),
+  "issueDate": zod.string(),
+  "period": zod.string(),
+  "baseCents": zod.number().int().optional(),
+  "farmCount": zod.number().int().optional(),
+  "variableCents": zod.number().int().optional(),
+  "subtotalCents": zod.number().int(),
+  "taxRateBps": zod.number().int(),
+  "taxName": zod.string(),
+  "taxCents": zod.number().int(),
+  "totalCents": zod.number().int(),
+  "status": zod.enum(['issued', 'sent', 'paid']),
+  "sentAt": zod.string().nullish(),
+  "paidAt": zod.string().nullish(),
+  "hash": zod.string()
+})
+
+
