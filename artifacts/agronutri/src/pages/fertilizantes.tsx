@@ -1,10 +1,11 @@
-import { useListFertilizers, useCreateFertilizer, useUpdateFertilizer, useDeleteFertilizer, getListFertilizersQueryKey, useGetMe } from "@workspace/api-client-react";
+import { useListFertilizers, useCreateFertilizer, useUpdateFertilizer, getListFertilizersQueryKey, useGetMe } from "@workspace/api-client-react";
 import type { Fertilizer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, FlaskConical, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, FlaskConical, Info, Pencil, Plus, Search } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +95,24 @@ export default function Fertilizantes() {
                             Sin riqueza declarada
                           </Badge>
                         )}
+                        {fert.notes && (
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label={`Nota de ${fert.name}`}
+                                  className="text-muted-foreground hover:text-foreground shrink-0"
+                                >
+                                  <Info className="w-4 h-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs whitespace-pre-wrap">
+                                {fert.notes}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -116,7 +135,6 @@ export default function Fertilizantes() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         {isAdmin && <EditFertilizerButton fertilizer={fert} />}
-                        <DeleteFertilizerButton id={fert.id} name={fert.name} />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -380,30 +398,5 @@ function EditFertilizerButton({ fertilizer }: { fertilizer: Fertilizer }) {
         </Form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DeleteFertilizerButton({ id, name }: { id: number, name: string }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const mutation = useDeleteFertilizer({
-    mutation: {
-      onSuccess: () => {
-        toast({ title: "Eliminado correctamente" });
-        queryClient.invalidateQueries({ queryKey: getListFertilizersQueryKey() });
-      }
-    }
-  });
-
-  return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="text-destructive hover:bg-destructive/10"
-      onClick={() => { if(confirm(`¿Eliminar ${name}?`)) mutation.mutate({ fertilizerId: id }) }}
-      disabled={mutation.isPending}
-    >
-      <Trash2 className="w-4 h-4" />
-    </Button>
   );
 }
