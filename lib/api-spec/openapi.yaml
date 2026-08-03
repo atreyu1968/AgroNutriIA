@@ -71,6 +71,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserProfile"
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordInput"
+      responses:
+        "204":
+          description: "Si existe una cuenta con ese correo, se envía un email de recuperación"
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        "204":
+          description: "Contraseña restablecida"
   /auth/logout:
     post:
       operationId: logout
@@ -1123,6 +1149,17 @@ components:
         name: { type: string, minLength: 1 }
         company: { type: string }
         phone: { type: string }
+    ForgotPasswordInput:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    ResetPasswordInput:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string, minLength: 1 }
+        password: { type: string, minLength: 8 }
     LoginInput:
       type: object
       required: [email, password]

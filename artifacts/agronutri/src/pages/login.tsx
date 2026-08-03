@@ -90,6 +90,12 @@ export default function Login() {
             )}
           />
 
+          <div className="text-right text-sm">
+            <Link href="/recuperar" className="font-medium text-primary hover:underline">
+              ¿Has olvidado tu contraseña?
+            </Link>
+          </div>
+
           <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
             {loginMutation.isPending ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>

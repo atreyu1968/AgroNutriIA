@@ -48,7 +48,19 @@ El script instala y configura automáticamente:
 
    Si no indicas dominio, la web responderá en la IP del servidor.
 
-4. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y crea tu usuario desde **Registro**.
+   Durante la instalación el script te pedirá:
+   - **Correo y contraseña del administrador** (crea la cuenta con la que entrarás a la app).
+   - **Clave de API de Resend** (opcional): activa la recuperación de contraseña por email. Puedes obtenerla gratis en [resend.com](https://resend.com); si la omites, la app funciona igual pero los enlaces de recuperación solo aparecerán en los logs del servidor.
+
+   Para una instalación 100 % desatendida (sin preguntas), pasa los valores por variables de entorno:
+
+   ```bash
+   sudo ADMIN_EMAIL=admin@midominio.com ADMIN_PASSWORD='MiClaveSegura1' \
+        RESEND_API_KEY=re_xxx EMAIL_FROM='AgroNutri <no-reply@midominio.com>' \
+        bash install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
+   ```
+
+4. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y entra con la cuenta de administrador que definiste durante la instalación.
 
 5. Dentro de la app, en **Ajustes**, añade tu clave de OpenAI para activar el técnico virtual, el chat con adjuntos y los borradores de programa por IA.
 
@@ -81,6 +93,20 @@ sudo bash /opt/agronutri/deploy/install.sh https://github.com/atreyu1968/AgroNut
 
 El instalador es **re-ejecutable**: si ya hay una instalación, actualiza el código, vuelve a compilar y reinicia los servicios conservando las credenciales y las sesiones. Antes de aplicar cambios de esquema hace una copia de seguridad automática de la base de datos en `/var/backups/agronutri` (si aun así quieres restaurar: `pg_restore -d agronutri fichero.dump`). Ten en cuenta que la actualización sincroniza el esquema automáticamente; si una versión nueva elimina columnas o tablas, esos datos concretos se pierden — de ahí la copia previa.
 
+
+### Recuperación de contraseña por email
+
+La app incluye recuperación de contraseña ("¿Has olvidado tu contraseña?" en la pantalla de acceso). El usuario recibe por email un enlace que caduca en 1 hora y solo puede usarse una vez; al restablecerla, se cierran todas sus sesiones abiertas.
+
+Requiere estas variables en `/etc/agronutri/api.env` (el instalador las rellena si le diste la clave):
+
+| Variable | Descripción |
+|---|---|
+| `RESEND_API_KEY` | Clave de API de [Resend](https://resend.com) |
+| `EMAIL_FROM` | Remitente, p. ej. `AgroNutri <no-reply@midominio.com>` (el dominio debe estar verificado en Resend; sin él se usa el remitente de pruebas, que solo entrega al correo de tu propia cuenta de Resend) |
+| `APP_URL` | URL pública de la app, usada en los enlaces del email |
+
+Tras cambiar estas variables: `sudo systemctl restart agronutri-api`.
 
 ### HTTPS
 

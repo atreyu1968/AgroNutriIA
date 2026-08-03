@@ -19,6 +19,17 @@ export interface RegisterInput {
   phone?: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  /** @minLength 1 */
+  token: string;
+  /** @minLength 8 */
+  password: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;

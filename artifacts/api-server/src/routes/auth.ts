@@ -1,10 +1,14 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, usersTable, sessionsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, passwordResetTokensTable } from "@workspace/db";
+import { and, gt, isNull } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import {
   RegisterBody,
   LoginBody,
+  ForgotPasswordBody,
+  ResetPasswordBody,
   UpdateMeBody,
   RegisterResponse,
   LoginResponse,
@@ -19,6 +23,8 @@ import {
   SESSION_TTL_MS,
 } from "../middlewares/auth";
 import { randomToken } from "../lib/crypto";
+import { appUrl, emailConfigured, sendPasswordResetEmail } from "../lib/email";
+import { logger } from "../lib/logger";
 import { serializeUser } from "../lib/serializers";
 import { audit } from "../lib/audit";
 
@@ -87,6 +93,122 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const token = await startSession(res, user.id);
   await audit({ userId: user.id, action: "login", entityType: "user", entityId: user.id });
   res.json(LoginResponse.parse({ ...serializeUser(user), token }));
+});
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+
+function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+// Limitador sencillo en memoria para evitar abuso del envío de emails:
+// máx. 5 solicitudes por IP y 3 por correo cada 15 minutos.
+const FORGOT_WINDOW_MS = 15 * 60 * 1000;
+const forgotHits = new Map<string, number[]>();
+function forgotAllowed(key: string, max: number): boolean {
+  const now = Date.now();
+  const hits = (forgotHits.get(key) ?? []).filter((t) => now - t < FORGOT_WINDOW_MS);
+  if (hits.length >= max) {
+    forgotHits.set(key, hits);
+    return false;
+  }
+  hits.push(now);
+  forgotHits.set(key, hits);
+  if (forgotHits.size > 10000) {
+    for (const [k, v] of forgotHits) {
+      if (v.every((t) => now - t >= FORGOT_WINDOW_MS)) forgotHits.delete(k);
+    }
+  }
+  return true;
+}
+
+router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+  const parsed = ForgotPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const email = parsed.data.email.toLowerCase().trim();
+  const withinLimit =
+    forgotAllowed(`ip:${req.ip ?? "?"}`, 5) && forgotAllowed(`email:${email}`, 3);
+
+  // Respuesta siempre 204 para no revelar si el correo existe (también al limitar).
+  res.status(204).send();
+  if (!withinLimit) {
+    logger.warn({ ip: req.ip }, "forgot-password limitado por exceso de solicitudes");
+    return;
+  }
+
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    if (!user) return;
+    const token = randomToken();
+    await db.insert(passwordResetTokensTable).values({
+      tokenHash: hashResetToken(token),
+      userId: user.id,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    });
+    // En producción el enlace se construye solo desde APP_URL configurada;
+    // nunca desde la cabecera Host (controlable por el cliente).
+    let base = appUrl();
+    if (!base) {
+      if (process.env.NODE_ENV === "production") {
+        logger.error(
+          "APP_URL no configurada: no se puede generar un enlace de recuperación seguro en producción",
+        );
+        return;
+      }
+      base = `${req.protocol}://${req.get("host") ?? "localhost"}`;
+    }
+    const resetUrl = `${base}/restablecer?token=${token}`;
+    if (emailConfigured()) {
+      await sendPasswordResetEmail(user.email, user.name, resetUrl);
+    } else {
+      logger.warn(
+        { email: user.email, resetUrl },
+        "RESEND_API_KEY no configurada: no se ha enviado el email de recuperación (enlace en este log)",
+      );
+    }
+    await audit({ userId: user.id, action: "forgot_password", entityType: "user", entityId: user.id });
+  } catch (err) {
+    logger.error({ err }, "Error procesando la solicitud de recuperación de contraseña");
+  }
+});
+
+router.post("/auth/reset-password", async (req, res): Promise<void> => {
+  const parsed = ResetPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const tokenHash = hashResetToken(parsed.data.token);
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  // Consumo atómico del token: el UPDATE condicional garantiza un solo uso
+  // aunque lleguen dos peticiones simultáneas con el mismo enlace.
+  const userId = await db.transaction(async (tx) => {
+    const [consumed] = await tx
+      .update(passwordResetTokensTable)
+      .set({ usedAt: new Date() })
+      .where(
+        and(
+          eq(passwordResetTokensTable.tokenHash, tokenHash),
+          isNull(passwordResetTokensTable.usedAt),
+          gt(passwordResetTokensTable.expiresAt, new Date()),
+        ),
+      )
+      .returning({ userId: passwordResetTokensTable.userId });
+    if (!consumed) return null;
+    await tx.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, consumed.userId));
+    // Cierra todas las sesiones abiertas por seguridad.
+    await tx.delete(sessionsTable).where(eq(sessionsTable.userId, consumed.userId));
+    return consumed.userId;
+  });
+  if (userId == null) {
+    res.status(400).json({ error: "El enlace no es válido o ha caducado. Solicita uno nuevo." });
+    return;
+  }
+  await audit({ userId, action: "reset_password", entityType: "user", entityId: userId });
+  res.status(204).send();
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {

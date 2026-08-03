@@ -42,6 +42,40 @@ export DEBIAN_FRONTEND=noninteractive
 log() { echo -e "\n\033[1;32m==> $*\033[0m"; }
 
 # ----------------------------------------------------------------------------
+# Credenciales del administrador (se piden si no vienen por variables de entorno:
+# ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME — útiles para instalaciones 100% desatendidas).
+if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+  read -rp "Correo del administrador: " ADMIN_EMAIL
+fi
+if [[ ! "$ADMIN_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
+  echo "ERROR: correo no válido: $ADMIN_EMAIL" >&2
+  exit 1
+fi
+if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
+  while true; do
+    read -rsp "Contraseña del administrador (mínimo 8 caracteres): " ADMIN_PASSWORD; echo
+    if [[ ${#ADMIN_PASSWORD} -lt 8 ]]; then echo "Debe tener al menos 8 caracteres."; continue; fi
+    read -rsp "Repite la contraseña: " ADMIN_PASSWORD2; echo
+    [[ "$ADMIN_PASSWORD" == "$ADMIN_PASSWORD2" ]] && break
+    echo "No coinciden, inténtalo de nuevo."
+  done
+fi
+if [[ ${#ADMIN_PASSWORD} -lt 8 ]]; then
+  echo "ERROR: la contraseña debe tener al menos 8 caracteres." >&2
+  exit 1
+fi
+ADMIN_NAME="${ADMIN_NAME:-Administrador}"
+
+# Clave de Resend para el envío de emails (recuperación de contraseña). Opcional.
+if [[ -z "${RESEND_API_KEY:-}" ]]; then
+  read -rp "Clave de API de Resend para emails (opcional, Enter para omitir): " RESEND_API_KEY || true
+fi
+EMAIL_FROM="${EMAIL_FROM:-}"
+if [[ -n "$RESEND_API_KEY" && -z "$EMAIL_FROM" ]]; then
+  read -rp "Remitente de los emails (p. ej. AgroNutri <no-reply@midominio.com>, Enter para el de pruebas de Resend): " EMAIL_FROM || true
+fi
+
+# ----------------------------------------------------------------------------
 log "Actualizando el sistema e instalando utilidades básicas"
 apt-get update -y
 apt-get upgrade -y
@@ -119,6 +153,11 @@ if [[ -f /etc/agronutri/api.env ]] && grep -q '^SESSION_SECRET=' /etc/agronutri/
 else
   SESSION_SECRET="$(openssl rand -hex 32)"
 fi
+if [[ "$DOMAIN" == "_" ]]; then
+  APP_URL="https://$(hostname -I | awk '{print $1}')"
+else
+  APP_URL="https://${DOMAIN}"
+fi
 install -d -m 750 /etc/agronutri
 cat > /etc/agronutri/api.env <<ENV
 NODE_ENV=production
@@ -126,6 +165,11 @@ HOST=127.0.0.1
 PORT=${API_PORT}
 DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
+# URL pública (para los enlaces de los emails de recuperación de contraseña).
+APP_URL=${APP_URL}
+# Envío de emails con Resend (recuperación de contraseña).
+RESEND_API_KEY=${RESEND_API_KEY}
+EMAIL_FROM=${EMAIL_FROM}
 ENV
 chmod 640 /etc/agronutri/api.env
 
@@ -140,6 +184,21 @@ if sudo -u postgres psql -d "${DB_NAME}" -tc "SELECT count(*) FROM information_s
 fi
 export DATABASE_URL
 pnpm --filter @workspace/db run push-force
+
+# ----------------------------------------------------------------------------
+log "Creando la cuenta de administrador"
+# El hash bcrypt se calcula con la propia dependencia del proyecto.
+ADMIN_HASH="$(cd "$APP_DIR/artifacts/api-server" && ADMIN_PASSWORD="$ADMIN_PASSWORD" node -e \
+  'require("bcryptjs").hash(process.env.ADMIN_PASSWORD, 10).then(h => process.stdout.write(h))')"
+ADMIN_EMAIL_LC="$(echo "$ADMIN_EMAIL" | tr "[:upper:]" "[:lower:]")"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" \
+  -v email="$ADMIN_EMAIL_LC" -v hash="$ADMIN_HASH" -v adminname="$ADMIN_NAME" <<'SQL'
+INSERT INTO users (email, password_hash, name, role, is_admin)
+VALUES (:'email', :'hash', :'adminname', 'owner', true)
+ON CONFLICT (email)
+DO UPDATE SET password_hash = EXCLUDED.password_hash, is_admin = true;
+SQL
+echo "Cuenta de administrador lista: ${ADMIN_EMAIL_LC}"
 
 # ----------------------------------------------------------------------------
 log "Compilando la API"
@@ -280,7 +339,10 @@ cat <<FIN
  Servicio:       systemctl status ${SERVICE_NAME}
  Logs API:       journalctl -u ${SERVICE_NAME} -f
 
- Primer paso: abre la web y crea tu usuario en "Registro".
+ Entra con la cuenta de administrador que acabas de definir:
+   ${ADMIN_EMAIL_LC}
+
  La clave de OpenAI se configura después dentro de la app (Ajustes).
+ Si configuraste Resend, la recuperación de contraseña por email ya funciona.
 ============================================================
 FIN

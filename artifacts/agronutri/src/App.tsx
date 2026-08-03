@@ -5,6 +5,8 @@ import { AppLayout } from '@/components/layout/app-layout';
 
 import Login from '@/pages/login';
 import Register from '@/pages/register';
+import Recuperar from '@/pages/recuperar';
+import Restablecer from '@/pages/restablecer';
 import Dashboard from '@/pages/dashboard';
 
 import { FincasRouter } from '@/pages/fincas/router';
@@ -38,6 +40,8 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/registro" component={Register} />
+      <Route path="/recuperar" component={Recuperar} />
+      <Route path="/restablecer" component={Restablecer} />
       
       {/* Protected Routes inside AppLayout */}
       <Route path="/">
