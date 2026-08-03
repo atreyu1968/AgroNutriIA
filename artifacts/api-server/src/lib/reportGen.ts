@@ -11,6 +11,7 @@ import {
   TableRow,
   TableCell,
   WidthType,
+  ShadingType,
 } from "docx";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
 
@@ -288,7 +289,12 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<voi
     }),
   ];
   for (const s of sections) {
-    children.push(new Paragraph({ text: s.heading, heading: HeadingLevel.HEADING_1 }));
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: s.heading, color: "1e4d36" })],
+      }),
+    );
     for (const p of s.paragraphs) children.push(new Paragraph({ text: p }));
     if (s.table) {
       children.push(
@@ -297,16 +303,35 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<voi
           rows: s.table.map(
             (row, ri) =>
               new TableRow({
-                children: row.map(
-                  (cell) =>
-                    new TableCell({
-                      children: [
-                        new Paragraph({
-                          children: [new TextRun({ text: cell, bold: ri === 0 })],
-                        }),
-                      ],
-                    }),
-                ),
+                children: row.map((cell, ci) => {
+                  const isStatusCol = ri > 0 && ci === row.length - 1;
+                  const sColor = isStatusCol ? statusColor(cell) : null;
+                  const shade =
+                    ri === 0
+                      ? { type: ShadingType.CLEAR, fill: "1e4d36" }
+                      : ri % 2 === 0
+                        ? { type: ShadingType.CLEAR, fill: "f2f6f3" }
+                        : undefined;
+                  return new TableCell({
+                    shading: shade,
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: isStatusCol ? cell.replace(/_/g, " ") : cell,
+                            bold: ri === 0,
+                            color:
+                              ri === 0
+                                ? "ffffff"
+                                : sColor
+                                  ? sColor.replace("#", "")
+                                  : undefined,
+                          }),
+                        ],
+                      }),
+                    ],
+                  });
+                }),
               }),
           ),
         }),
