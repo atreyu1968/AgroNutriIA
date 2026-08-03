@@ -1627,6 +1627,70 @@ paths:
                 properties:
                   ok: { type: boolean }
 
+  /admin/installations/{installationId}/backups:
+    get:
+      operationId: adminListBackups
+      tags: [admin]
+      summary: List backups of an installation (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Backups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBackupList"
+    post:
+      operationId: adminCreateBackup
+      tags: [admin]
+      summary: Create a new database backup of an installation (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBackup"
+
+  /admin/installations/{installationId}/backups/{fileName}/restore:
+    post:
+      operationId: adminRestoreBackup
+      tags: [admin]
+      summary: Restore an installation database from a backup (admin only)
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: fileName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Restore result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, detail]
+                properties:
+                  ok: { type: boolean }
+                  detail: { type: string }
+
   /admin/invoices:
     get:
       operationId: adminListInvoices
@@ -2191,6 +2255,24 @@ components:
         series: { type: ["string", "null"], maxLength: 10 }
         taxRateBps: { type: ["integer", "null"], minimum: 0, maximum: 3000 }
         taxName: { type: ["string", "null"], maxLength: 20 }
+    AdminBackup:
+      type: object
+      required: [fileName, sizeBytes, createdAt]
+      properties:
+        fileName: { type: string }
+        sizeBytes: { type: integer }
+        createdAt: { type: string }
+    AdminBackupList:
+      type: object
+      required: [simulated, backups]
+      properties:
+        simulated:
+          type: boolean
+          description: True si BACKUP_SCRIPT no está configurado (entorno de desarrollo)
+        backups:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminBackup"
     AdminInvoice:
       type: object
       required:

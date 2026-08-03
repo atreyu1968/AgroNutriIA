@@ -197,7 +197,17 @@ APP_URL=${APP_URL}
 # Envío de emails con Resend (recuperación de contraseña).
 RESEND_API_KEY=${RESEND_API_KEY}
 EMAIL_FROM=${EMAIL_FROM}
+# Copias de seguridad de las instalaciones de cooperativas (panel de administración).
+BACKUP_SCRIPT=${APP_DIR}/deploy/backup-coop.sh
+BACKUP_DIR=/var/backups/agronutri
 ENV
+
+# Regla sudoers restringida: el servicio (usuario agronutri) solo puede
+# ejecutar el script de copias de seguridad, nada más.
+cat > /etc/sudoers.d/agronutri-backup <<SUDOERS
+agronutri ALL=(root) NOPASSWD: /usr/bin/bash ${APP_DIR}/deploy/backup-coop.sh *
+SUDOERS
+chmod 440 /etc/sudoers.d/agronutri-backup
 chmod 640 /etc/agronutri/api.env
 
 # ----------------------------------------------------------------------------
@@ -295,6 +305,18 @@ server {
     index index.html;
     client_max_body_size 15m;
 
+    # Subida de copias de seguridad (ficheros grandes) — solo esta ruta.
+    location /api/admin/installations/ {
+        client_max_body_size 512m;
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 600s;
+        proxy_request_buffering off;
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:${API_PORT};
         proxy_set_header Host \$host;
@@ -360,6 +382,18 @@ server {
     root ${APP_DIR}/artifacts/agronutri/dist/public;
     index index.html;
     client_max_body_size 15m;
+
+    # Subida de copias de seguridad (ficheros grandes) — solo esta ruta.
+    location /api/admin/installations/ {
+        client_max_body_size 512m;
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 600s;
+        proxy_request_buffering off;
+    }
 
     location /api/ {
         proxy_pass http://127.0.0.1:${API_PORT};

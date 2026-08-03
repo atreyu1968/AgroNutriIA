@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { Router, type IRouter } from "express";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import {
   db,
   reportsTable,
@@ -34,6 +34,7 @@ import {
 } from "../lib/amendmentPlan";
 import { generatePdf, generateDocx, REPORTS_DIR } from "../lib/reportGen";
 import { audit } from "../lib/audit";
+import { demoMode, DEMO_REPORT_LIMIT_MESSAGE } from "../lib/demo";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -72,6 +73,18 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
     return;
   }
   const reportType = parsed.data.reportType ?? "fertirrigacion";
+  if (demoMode()) {
+    // En la instancia de demostración solo se permite un informe de cada tipo
+    // (los que terminaron en error no cuentan: se pueden reintentar).
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(reportsTable)
+      .where(and(eq(reportsTable.reportType, reportType), ne(reportsTable.status, "error")));
+    if (count >= 1) {
+      res.status(403).json({ error: DEMO_REPORT_LIMIT_MESSAGE });
+      return;
+    }
+  }
   const scenario = (parsed.data.scenario ?? null) as AmendmentScenario | null;
   if (reportType === "enmiendas") {
     if (!scenario) {

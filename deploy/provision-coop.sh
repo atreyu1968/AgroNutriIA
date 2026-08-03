@@ -100,6 +100,12 @@ DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
 APP_URL=https://${DOMAIN}
 EOF
+# Instancia de demostración: limita el uso a una finca y un informe de cada
+# tipo (exporta DEMO_MODE=1 al invocar este script).
+if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then
+  echo "DEMO_MODE=true" >> "$ENV_FILE"
+  echo "   (instancia de DEMOSTRACIÓN: 1 finca y 1 informe de cada tipo)"
+fi
 # Reporte automático de uso: la instancia cuenta sus fincas activas y las
 # envía a diario a la central (POST /api/billing/usage) para el cargo variable.
 if [[ -n "${CENTRAL_URL:-}" && -n "${INSTALL_TOKEN:-}" ]]; then

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminBackup';
+export * from './adminBackupList';
 export * from './adminBillingSettings';
 export * from './adminBillingSettingsInput';
 export * from './adminEmailSettings';
@@ -24,6 +26,7 @@ export * from './adminPaypalSettingsMode';
 export * from './adminPaypalSettingsSource';
 export * from './adminProvisionResult';
 export * from './adminReassignTechnicianInput';
+export * from './adminRestoreBackup200';
 export * from './adminTestEmailResult';
 export * from './adminUpdateInstallationBillingInfo200';
 export * from './adminUser';

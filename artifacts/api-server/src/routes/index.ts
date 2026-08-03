@@ -14,6 +14,7 @@ import adminRouter from "./admin";
 import signupRouter from "./signup";
 import adminInstallationsRouter from "./adminInstallations";
 import adminBillingRouter from "./adminBilling";
+import adminBackupsRouter from "./adminBackups";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(miscRouter);
 router.use(adminRouter);
 router.use(adminInstallationsRouter);
 router.use(adminBillingRouter);
+router.use(adminBackupsRouter);
 
 export default router;

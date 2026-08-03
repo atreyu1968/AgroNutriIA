@@ -2511,6 +2511,51 @@ export const AdminUpdateInstallationBillingInfoResponse = zod.object({
 
 
 /**
+ * @summary List backups of an installation (admin only)
+ */
+export const AdminListBackupsParams = zod.object({
+  "installationId": zod.coerce.number().int()
+})
+
+export const AdminListBackupsResponse = zod.object({
+  "simulated": zod.boolean().describe('True si BACKUP_SCRIPT no está configurado (entorno de desarrollo)'),
+  "backups": zod.array(zod.object({
+  "fileName": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Create a new database backup of an installation (admin only)
+ */
+export const AdminCreateBackupParams = zod.object({
+  "installationId": zod.coerce.number().int()
+})
+
+export const AdminCreateBackupResponse = zod.object({
+  "fileName": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Restore an installation database from a backup (admin only)
+ */
+export const AdminRestoreBackupParams = zod.object({
+  "installationId": zod.coerce.number().int(),
+  "fileName": zod.coerce.string()
+})
+
+export const AdminRestoreBackupResponse = zod.object({
+  "ok": zod.boolean(),
+  "detail": zod.string()
+})
+
+
+/**
  * @summary List issued invoices (admin only)
  */
 export const AdminListInvoicesResponseItem = zod.object({

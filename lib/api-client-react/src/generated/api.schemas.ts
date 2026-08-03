@@ -653,6 +653,18 @@ export interface AdminBillingSettingsInput {
   taxName?: string | null;
 }
 
+export interface AdminBackup {
+  fileName: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface AdminBackupList {
+  /** True si BACKUP_SCRIPT no está configurado (entorno de desarrollo) */
+  simulated: boolean;
+  backups: AdminBackup[];
+}
+
 export type AdminInvoiceStatus = typeof AdminInvoiceStatus[keyof typeof AdminInvoiceStatus];
 
 
@@ -1544,5 +1556,10 @@ subdomain: string;
 
 export type AdminUpdateInstallationBillingInfo200 = {
   ok: boolean;
+};
+
+export type AdminRestoreBackup200 = {
+  ok: boolean;
+  detail: string;
 };
 

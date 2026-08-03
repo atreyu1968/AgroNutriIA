@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   useAdminListInstallations,
   getAdminListInstallationsQueryKey,
@@ -8,6 +8,10 @@ import {
   useAdminGetPaypalSettings,
   getAdminGetPaypalSettingsQueryKey,
   useAdminUpdatePaypalSettings,
+  useAdminListBackups,
+  getAdminListBackupsQueryKey,
+  useAdminCreateBackup,
+  useAdminRestoreBackup,
   type AdminInstallation,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,7 +28,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, XCircle, Info, Loader2, RefreshCcw, Server, CreditCard, ExternalLink } from "lucide-react";
+import { CheckCircle2, XCircle, Info, Loader2, RefreshCcw, Server, CreditCard, ExternalLink, DatabaseBackup, Download, Upload, RotateCcw } from "lucide-react";
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   pending_payment: { label: "Pendiente de pago", className: "bg-amber-100 text-amber-800" },
@@ -79,6 +83,182 @@ function EventsDialog({ installation, onClose }: { installation: AdminInstallati
               </li>
             ))}
           </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function BackupsDialog({ installation, onClose }: { installation: AdminInstallation; onClose: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
+  const { data, isLoading } = useAdminListBackups(installation.id, {
+    query: { queryKey: getAdminListBackupsQueryKey(installation.id) },
+  });
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: getAdminListBackupsQueryKey(installation.id) });
+
+  const create = useAdminCreateBackup({
+    mutation: {
+      onSuccess: (b) => { invalidate(); toast({ title: "Copia creada", description: b.fileName }); },
+      onError: (err) => toast({ title: "No se pudo crear la copia", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+  const restore = useAdminRestoreBackup({
+    mutation: {
+      onSuccess: (r) => {
+        setConfirmRestore(null);
+        toast({ title: "Base de datos restaurada", description: r.detail });
+      },
+      onError: (err) => {
+        setConfirmRestore(null);
+        toast({ title: "No se pudo restaurar", description: errorMessage(err), variant: "destructive" });
+      },
+    },
+  });
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    try {
+      const resp = await fetch(
+        `${import.meta.env.BASE_URL}api/admin/installations/${installation.id}/backups/upload`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/octet-stream" },
+          body: file,
+          credentials: "include",
+        },
+      );
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? `Error ${resp.status}`);
+      }
+      invalidate();
+      toast({ title: "Copia subida", description: file.name });
+    } catch (err) {
+      toast({ title: "No se pudo subir", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Copias de seguridad — {installation.name}</DialogTitle>
+        </DialogHeader>
+        {data?.simulated && (
+          <p className="text-xs rounded-md bg-amber-50 text-amber-800 border border-amber-200 px-3 py-2">
+            Entorno de desarrollo: las copias se simulan. En el servidor real (con
+            BACKUP_SCRIPT configurado) se hace una copia completa de la base de datos.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => create.mutate({ installationId: installation.id })}
+            disabled={create.isPending}
+            data-testid="button-create-backup"
+          >
+            {create.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DatabaseBackup className="w-4 h-4 mr-2" />}
+            Crear copia ahora
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            data-testid="button-upload-backup"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+            Subir copia (.dump)
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".dump"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }}
+            data-testid="input-upload-backup"
+          />
+        </div>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : !data?.backups.length ? (
+          <p className="text-sm text-muted-foreground" data-testid="text-no-backups">
+            Todavía no hay copias de esta cooperativa.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b">
+                  <th className="py-2 pr-4">Fichero</th>
+                  <th className="py-2 pr-4">Tamaño</th>
+                  <th className="py-2 pr-4">Fecha</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {data.backups.map((b) => (
+                  <tr key={b.fileName} className="border-b last:border-0" data-testid={`row-backup-${b.fileName}`}>
+                    <td className="py-2.5 pr-4 font-mono text-xs">{b.fileName}</td>
+                    <td className="py-2.5 pr-4">{formatSize(b.sizeBytes)}</td>
+                    <td className="py-2.5 pr-4">{new Date(b.createdAt).toLocaleString("es-ES")}</td>
+                    <td className="py-2.5 text-right whitespace-nowrap">
+                      <Button asChild variant="ghost" size="sm" data-testid={`button-download-${b.fileName}`}>
+                        <a href={`${import.meta.env.BASE_URL}api/admin/installations/${installation.id}/backups/${b.fileName}/download`}>
+                          <Download className="w-3.5 h-3.5 mr-1" /> Descargar
+                        </a>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setConfirmRestore(b.fileName)}
+                        disabled={restore.isPending}
+                        data-testid={`button-restore-${b.fileName}`}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 mr-1" /> Restaurar
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {confirmRestore && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-4 space-y-3">
+            <p className="text-sm text-red-800">
+              Vas a restaurar la base de datos de <strong>{installation.name}</strong> con la copia{" "}
+              <span className="font-mono text-xs">{confirmRestore}</span>. Los datos actuales de esa
+              cooperativa se sustituirán por los de la copia (antes se guarda automáticamente una
+              copia de seguridad previa). ¿Continuar?
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => restore.mutate({ installationId: installation.id, fileName: confirmRestore })}
+                disabled={restore.isPending}
+                data-testid="button-confirm-restore"
+              >
+                {restore.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Sí, restaurar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmRestore(null)} data-testid="button-cancel-restore">
+                Cancelar
+              </Button>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
@@ -179,6 +359,7 @@ export function InstalacionesTab() {
     query: { queryKey: getAdminListInstallationsQueryKey(), refetchInterval: 15000 },
   });
   const [eventsFor, setEventsFor] = useState<AdminInstallation | null>(null);
+  const [backupsFor, setBackupsFor] = useState<AdminInstallation | null>(null);
 
   const provision = useAdminProvisionInstallation({
     mutation: {
@@ -246,6 +427,9 @@ export function InstalacionesTab() {
                           <Button variant="ghost" size="sm" onClick={() => setEventsFor(i)} data-testid={`button-events-${i.id}`}>
                             Eventos
                           </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setBackupsFor(i)} data-testid={`button-backups-${i.id}`}>
+                            <DatabaseBackup className="w-3.5 h-3.5 mr-1" /> Copias
+                          </Button>
                           {(i.status === "error" || i.status === "pending_payment" || i.status === "provisioning") && (
                             <Button
                               variant="outline"
@@ -269,6 +453,7 @@ export function InstalacionesTab() {
       </Card>
 
       {eventsFor && <EventsDialog installation={eventsFor} onClose={() => setEventsFor(null)} />}
+      {backupsFor && <BackupsDialog installation={backupsFor} onClose={() => setBackupsFor(null)} />}
     </div>
   );
 }

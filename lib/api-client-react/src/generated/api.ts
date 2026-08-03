@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminBackup,
+  AdminBackupList,
   AdminBillingSettings,
   AdminBillingSettingsInput,
   AdminEmailSettings,
@@ -32,6 +34,7 @@ import type {
   AdminPaypalSettingsInput,
   AdminProvisionResult,
   AdminReassignTechnicianInput,
+  AdminRestoreBackup200,
   AdminTestEmailResult,
   AdminUpdateInstallationBillingInfo200,
   AdminUser,
@@ -7019,6 +7022,227 @@ export const useAdminUpdateInstallationBillingInfo = <TError = ErrorType<unknown
         TContext
       > => {
       return useMutation(getAdminUpdateInstallationBillingInfoMutationOptions(options));
+    }
+
+export const getAdminListBackupsUrl = (installationId: number,) => {
+
+
+
+
+  return `/api/admin/installations/${installationId}/backups`
+}
+
+/**
+ * @summary List backups of an installation (admin only)
+ */
+export const adminListBackups = async (installationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AdminBackupList> => {
+
+  return customFetch<AdminBackupList>(getAdminListBackupsUrl(installationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListBackupsQueryKey = (installationId: number,) => {
+    return [
+    `/api/admin/installations/${installationId}/backups`
+    ] as const;
+    }
+
+
+export const getAdminListBackupsQueryOptions = <TData = Awaited<ReturnType<typeof adminListBackups>>, TError = ErrorType<unknown>>(installationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListBackups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListBackupsQueryKey(installationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListBackups>>> = ({ signal }) => adminListBackups(installationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: installationId !== null && installationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListBackups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListBackupsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListBackups>>>
+export type AdminListBackupsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List backups of an installation (admin only)
+ */
+
+export function useAdminListBackups<TData = Awaited<ReturnType<typeof adminListBackups>>, TError = ErrorType<unknown>>(
+ installationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListBackups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListBackupsQueryOptions(installationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminCreateBackupUrl = (installationId: number,) => {
+
+
+
+
+  return `/api/admin/installations/${installationId}/backups`
+}
+
+/**
+ * @summary Create a new database backup of an installation (admin only)
+ */
+export const adminCreateBackup = async (installationId: number, options?: Parameters<typeof customFetch>[1]): Promise<AdminBackup> => {
+
+  return customFetch<AdminBackup>(getAdminCreateBackupUrl(installationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminCreateBackupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateBackup>>, TError,{installationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateBackup>>, TError,{installationId: number}, TContext> => {
+
+const mutationKey = ['adminCreateBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateBackup>>, {installationId: number}> = (props) => {
+          const {installationId} = props ?? {};
+
+          return  adminCreateBackup(installationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateBackupMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateBackup>>>
+
+    export type AdminCreateBackupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new database backup of an installation (admin only)
+ */
+export const useAdminCreateBackup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateBackup>>, TError,{installationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateBackup>>,
+        TError,
+        {installationId: number},
+        TContext
+      > => {
+      return useMutation(getAdminCreateBackupMutationOptions(options));
+    }
+
+export const getAdminRestoreBackupUrl = (installationId: number,
+    fileName: string,) => {
+
+
+
+
+  return `/api/admin/installations/${installationId}/backups/${fileName}/restore`
+}
+
+/**
+ * @summary Restore an installation database from a backup (admin only)
+ */
+export const adminRestoreBackup = async (installationId: number,
+    fileName: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminRestoreBackup200> => {
+
+  return customFetch<AdminRestoreBackup200>(getAdminRestoreBackupUrl(installationId,fileName),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminRestoreBackupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRestoreBackup>>, TError,{installationId: number;fileName: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRestoreBackup>>, TError,{installationId: number;fileName: string}, TContext> => {
+
+const mutationKey = ['adminRestoreBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRestoreBackup>>, {installationId: number;fileName: string}> = (props) => {
+          const {installationId,fileName} = props ?? {};
+
+          return  adminRestoreBackup(installationId,fileName,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRestoreBackupMutationResult = NonNullable<Awaited<ReturnType<typeof adminRestoreBackup>>>
+
+    export type AdminRestoreBackupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Restore an installation database from a backup (admin only)
+ */
+export const useAdminRestoreBackup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRestoreBackup>>, TError,{installationId: number;fileName: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRestoreBackup>>,
+        TError,
+        {installationId: number;fileName: string},
+        TContext
+      > => {
+      return useMutation(getAdminRestoreBackupMutationOptions(options));
     }
 
 export const getAdminListInvoicesUrl = () => {

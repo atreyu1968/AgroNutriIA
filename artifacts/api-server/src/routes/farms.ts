@@ -41,6 +41,7 @@ import {
   userName,
 } from "../lib/farmContext";
 import { audit } from "../lib/audit";
+import { demoMode, DEMO_FARM_LIMIT_MESSAGE } from "../lib/demo";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -78,6 +79,13 @@ router.post("/farms", async (req, res): Promise<void> => {
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
+  }
+  if (demoMode()) {
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(farmsTable);
+    if (count >= 1) {
+      res.status(403).json({ error: DEMO_FARM_LIMIT_MESSAGE });
+      return;
+    }
   }
   const [farm] = await db
     .insert(farmsTable)
