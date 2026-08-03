@@ -1,5 +1,4 @@
-import { Sprout } from "lucide-react";
-import { Link } from "wouter";
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,14 +8,9 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Sprout className="w-10 h-10 text-primary-foreground" />
-          </div>
+        <div className="flex justify-center mb-4">
+          <img src={logoUrl} alt="AgroNutri AI" className="h-16 sm:h-20 w-auto" />
         </div>
-        <h2 className="text-center text-3xl font-bold tracking-tight text-foreground">
-          AgroNutri AI
-        </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
           Sistema Inteligente de Precisión para el Cultivo de Platanera
         </p>

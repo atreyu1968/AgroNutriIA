@@ -53,13 +53,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const visibleNavItems = NAV_ITEMS.filter(item => !item.adminOnly || user.isAdmin);
+  const logoIconUrl = `${import.meta.env.BASE_URL}favicon.png`;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-2 text-primary">
-          <Sprout className="w-6 h-6" />
+          <img src={logoIconUrl} alt="" className="w-6 h-6 object-contain" />
           <span className="font-bold text-lg">AgroNutri</span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
@@ -73,7 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="p-6 flex items-center gap-3 text-sidebar-primary">
-          <Sprout className="w-8 h-8" />
+          <img src={logoIconUrl} alt="" className="w-8 h-8 object-contain" />
           <span className="font-bold text-xl tracking-tight">AgroNutri AI</span>
         </div>
 
