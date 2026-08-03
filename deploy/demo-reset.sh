@@ -25,6 +25,12 @@
 #       Desactiva y elimina el temporizador (la copia de referencia se
 #       conserva).
 #
+#   sudo bash demo-reset.sh notify-failure <subdominio>
+#       (Uso interno) Lo ejecuta systemd vía OnFailure= cuando el reinicio
+#       nocturno falla: deja un fichero-marcador, registra el fallo en el
+#       journal y, si la central tiene Resend configurado (RESEND_API_KEY y
+#       ALERT_EMAIL en /etc/agronutri/api.env), envía un email de aviso.
+#
 # Para regenerar la copia de referencia (p. ej. tras cambiar el contenido de
 # la demo), vuelve a ejecutar "setup": sobrescribe el fichero de referencia.
 # ============================================================================
@@ -48,7 +54,10 @@ BACKUP_SCRIPT="${SCRIPT_DIR}/backup-coop.sh"
 REF_DIR="/var/backups/agronutri/${SUB}"
 REF_FILE="${REF_DIR}/demo-reference.dump"
 UNIT="agronutri-demo-reset-${SUB}"
+FAIL_UNIT="${UNIT}-failure"
 ENV_FILE="/etc/agronutri/instances/${SUB}.env"
+CENTRAL_ENV="/etc/agronutri/api.env"
+FAIL_MARKER="${REF_DIR}/last-reset-failed"
 
 if [[ ! -f "$BACKUP_SCRIPT" ]]; then
   echo "ERROR: no se encuentra ${BACKUP_SCRIPT}." >&2; exit 1
@@ -72,10 +81,21 @@ case "$ACTION" in
 [Unit]
 Description=AgroNutri AI: reinicio de la demo ${SUB} desde la copia de referencia
 After=postgresql.service
+# Si el reinicio falla (disco lleno, copia corrupta, PostgreSQL caído…),
+# avisar en vez de fallar en silencio.
+OnFailure=${FAIL_UNIT}.service
 
 [Service]
 Type=oneshot
 ExecStart=$(command -v bash) ${SCRIPT_DIR}/demo-reset.sh restore ${SUB}
+EOF
+    cat > "/etc/systemd/system/${FAIL_UNIT}.service" <<EOF
+[Unit]
+Description=AgroNutri AI: aviso de fallo del reinicio de la demo ${SUB}
+
+[Service]
+Type=oneshot
+ExecStart=$(command -v bash) ${SCRIPT_DIR}/demo-reset.sh notify-failure ${SUB}
 EOF
     cat > "/etc/systemd/system/${UNIT}.timer" <<EOF
 [Unit]
@@ -110,15 +130,60 @@ EOF
     fi
     echo "[$(date -Is)] Restaurando demo ${SUB} desde ${REF_FILE}…"
     bash "$BACKUP_SCRIPT" "$SUB" restore "$REF_FILE"
+    # Reinicio correcto: retirar el marcador de fallo de noches anteriores.
+    rm -f "$FAIL_MARKER"
     echo "[$(date -Is)] Demo ${SUB} restaurada."
+    ;;
+  notify-failure)
+    TS="$(date -Is)"
+    HOST="$(hostname -f 2>/dev/null || hostname)"
+    # 1) Constancia clara: marcador en disco (persiste aunque el email falle)
+    #    y entrada explícita en el journal de esta unidad de aviso.
+    mkdir -p "$REF_DIR"
+    echo "${TS} fallo del reinicio nocturno de la demo ${SUB} en ${HOST}" >> "$FAIL_MARKER"
+    echo "AVISO: el reinicio nocturno de la demo ${SUB} ha FALLADO (${TS})." >&2
+    echo "       Diagnóstico: journalctl -u ${UNIT}.service" >&2
+    echo "       Marcador:    ${FAIL_MARKER}" >&2
+
+    # 2) Email vía Resend, si la central lo tiene configurado. ALERT_EMAIL es
+    #    el destinatario de avisos operativos (opcional en api.env).
+    RESEND_API_KEY=""; EMAIL_FROM=""; ALERT_EMAIL=""
+    if [[ -f "$CENTRAL_ENV" ]]; then
+      RESEND_API_KEY="$(grep '^RESEND_API_KEY=' "$CENTRAL_ENV" | cut -d= -f2- || true)"
+      EMAIL_FROM="$(grep '^EMAIL_FROM=' "$CENTRAL_ENV" | cut -d= -f2- || true)"
+      ALERT_EMAIL="$(grep '^ALERT_EMAIL=' "$CENTRAL_ENV" | cut -d= -f2- || true)"
+    fi
+    if [[ -z "$RESEND_API_KEY" || -z "$ALERT_EMAIL" ]]; then
+      echo "AVISO: sin email de alerta (faltan RESEND_API_KEY o ALERT_EMAIL en ${CENTRAL_ENV}); el fallo queda solo en el journal y en ${FAIL_MARKER}." >&2
+      exit 0
+    fi
+    EMAIL_FROM="${EMAIL_FROM:-AgroNutri <onboarding@resend.dev>}"
+    # Cuerpo en texto plano, sin volcar el journal (evita problemas de
+    # escapado en JSON); el email remite al comando de diagnóstico.
+    SUBJECT="[AgroNutri] Fallo del reinicio nocturno de la demo ${SUB}"
+    BODY="El reinicio nocturno de la cooperativa de demostracion '${SUB}' ha fallado en ${HOST} (${TS}).\n\nLa demo puede haber quedado 'usada' o parada. Revisa el servidor:\n\n  journalctl -u ${UNIT}.service\n  sudo bash ${SCRIPT_DIR}/demo-reset.sh restore ${SUB}\n\nMarcador de fallo: ${FAIL_MARKER}"
+    HTTP_CODE="$(curl -sS -o /tmp/agronutri-demo-alert-resp.json -w '%{http_code}' \
+      --max-time 30 \
+      -X POST https://api.resend.com/emails \
+      -H "Authorization: Bearer ${RESEND_API_KEY}" \
+      -H "Content-Type: application/json" \
+      --data "{\"from\":\"${EMAIL_FROM//\"/\\\"}\",\"to\":[\"${ALERT_EMAIL}\"],\"subject\":\"${SUBJECT}\",\"text\":\"${BODY}\"}" \
+      || echo "000")"
+    if [[ "$HTTP_CODE" == 2* ]]; then
+      echo "OK: aviso enviado por email a ${ALERT_EMAIL}."
+    else
+      echo "ERROR: no se pudo enviar el email de aviso (HTTP ${HTTP_CODE}); respuesta en /tmp/agronutri-demo-alert-resp.json. El fallo queda registrado en el journal y en ${FAIL_MARKER}." >&2
+      # No fallar la unidad de aviso: el registro local ya está hecho.
+    fi
     ;;
   disable)
     systemctl disable --now "${UNIT}.timer" 2>/dev/null || true
-    rm -f "/etc/systemd/system/${UNIT}.timer" "/etc/systemd/system/${UNIT}.service"
+    rm -f "/etc/systemd/system/${UNIT}.timer" "/etc/systemd/system/${UNIT}.service" \
+          "/etc/systemd/system/${FAIL_UNIT}.service"
     systemctl daemon-reload
     echo "OK: temporizador ${UNIT} desactivado (la copia ${REF_FILE} se conserva)."
     ;;
   *)
-    echo "ERROR: acción desconocida: $ACTION (usa setup, restore o disable)" >&2; exit 1
+    echo "ERROR: acción desconocida: $ACTION (usa setup, restore, disable o notify-failure)" >&2; exit 1
     ;;
 esac

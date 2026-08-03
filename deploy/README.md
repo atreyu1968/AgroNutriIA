@@ -64,6 +64,33 @@ sudo bash demo-reset.sh disable prueba
 journalctl -u agronutri-demo-reset-prueba.service
 ```
 
+### Aviso si el reinicio nocturno falla
+
+Si una noche el reinicio falla (disco lleno, copia de referencia corrupta,
+PostgreSQL caído…), la demo queda "usada" o parada. Para no enterarse por un
+visitante, `setup` instala también una unidad `OnFailure=`
+(`agronutri-demo-reset-<sub>-failure.service`) que se dispara cuando el
+servicio de reinicio termina en error y hace tres cosas:
+
+1. **Deja constancia en el journal** de la unidad de aviso:
+   `journalctl -u agronutri-demo-reset-prueba-failure.service`.
+2. **Escribe un fichero-marcador** con fecha y máquina en
+   `/var/backups/agronutri/<sub>/last-reset-failed`. El siguiente reinicio que
+   termine bien lo elimina, así que su existencia indica que el último intento
+   falló.
+3. **Envía un email** vía Resend si la central lo tiene configurado: requiere
+   `RESEND_API_KEY` y `ALERT_EMAIL` (destinatario de avisos operativos) en
+   `/etc/agronutri/api.env`. `install.sh` acepta `ALERT_EMAIL` como variable de
+   entorno y conserva el valor existente al reinstalar; también puede añadirse
+   a mano al fichero. Sin estas variables, el aviso queda solo en el journal y
+   en el marcador.
+
+Para probar el aviso sin romper nada:
+
+```bash
+sudo bash demo-reset.sh notify-failure prueba
+```
+
 Cada restauración pasa por `backup-coop.sh restore`, que detiene el servicio,
 guarda antes una copia `pre-restore-<fecha>.dump` por si acaso, restaura la
 base de datos y vuelve a arrancar el servicio.

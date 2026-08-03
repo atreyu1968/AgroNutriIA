@@ -169,6 +169,10 @@ pnpm install --frozen-lockfile || pnpm install
 # ----------------------------------------------------------------------------
 log "Generando secretos y fichero de entorno"
 # En re-ejecuciones se conserva el SESSION_SECRET (mantiene las sesiones).
+if [[ -z "${ALERT_EMAIL:-}" && -f /etc/agronutri/api.env ]]; then
+  # Conservar el destinatario de avisos operativos configurado previamente.
+  ALERT_EMAIL="$(grep '^ALERT_EMAIL=' /etc/agronutri/api.env | cut -d= -f2- || true)"
+fi
 if [[ -f /etc/agronutri/api.env ]] && grep -q '^SESSION_SECRET=' /etc/agronutri/api.env; then
   SESSION_SECRET="$(grep '^SESSION_SECRET=' /etc/agronutri/api.env | cut -d= -f2-)"
 else
@@ -197,6 +201,9 @@ APP_URL=${APP_URL}
 # Envío de emails con Resend (recuperación de contraseña).
 RESEND_API_KEY=${RESEND_API_KEY}
 EMAIL_FROM=${EMAIL_FROM}
+# Destinatario de los avisos operativos (p. ej. fallo del reinicio nocturno
+# de la demo, deploy/demo-reset.sh). Opcional; requiere RESEND_API_KEY.
+ALERT_EMAIL=${ALERT_EMAIL:-}
 # Copias de seguridad de las instalaciones de cooperativas (panel de administración).
 BACKUP_SCRIPT=${APP_DIR}/deploy/backup-coop.sh
 BACKUP_DIR=/var/backups/agronutri
