@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLogin, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useLogin, useGetMe, getGetMeQueryKey, useGetAuthConfig, getGetAuthConfigQueryKey } from "@workspace/api-client-react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ export default function Login() {
   const { toast } = useToast();
 
   const { data: user, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
+  const { data: authConfig } = useGetAuthConfig({ query: { queryKey: getGetAuthConfigQueryKey() } });
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -102,12 +103,14 @@ export default function Login() {
         </form>
       </Form>
 
-      <div className="mt-6 text-center text-sm">
-        <span className="text-muted-foreground">¿No tienes cuenta? </span>
-        <Link href="/registro" className="font-medium text-primary hover:underline">
-          Regístrate aquí
-        </Link>
-      </div>
+      {authConfig?.registrationEnabled !== false && (
+        <div className="mt-6 text-center text-sm">
+          <span className="text-muted-foreground">¿No tienes cuenta? </span>
+          <Link href="/registro" className="font-medium text-primary hover:underline">
+            Regístrate aquí
+          </Link>
+        </div>
+      )}
     </AuthLayout>
   );
 }

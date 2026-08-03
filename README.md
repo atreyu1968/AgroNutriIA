@@ -60,7 +60,7 @@ El script instala y configura automáticamente:
         bash install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
    ```
 
-4. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y entra con la cuenta de administrador que definiste durante la instalación.
+4. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y entra con la cuenta de administrador que definiste durante la instalación. El registro público queda desactivado en el servidor: es el administrador quien crea las cuentas desde **Administración → Usuarios** (también puede cambiarles la contraseña o desactivarlas). Si quieres permitir que cualquiera se registre, pon `PUBLIC_REGISTRATION=true` en `/etc/agronutri/api.env` y reinicia la API.
 
 5. Dentro de la app, en **Ajustes**, añade tu clave de OpenAI para activar el técnico virtual, el chat con adjuntos y los borradores de programa por IA.
 

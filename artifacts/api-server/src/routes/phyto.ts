@@ -1,0 +1,329 @@
+import { Router, type IRouter } from "express";
+import { desc, eq } from "drizzle-orm";
+import OpenAI from "openai";
+import {
+  db,
+  phytoTreatmentsTable,
+  sectorsTable,
+  type PhytoTreatment,
+  type Sector,
+} from "@workspace/db";
+import {
+  ListPhytoTreatmentsResponse,
+  CreatePhytoTreatmentBody,
+  CreatePhytoTreatmentResponse,
+  PhytoConsultBody,
+  PhytoConsultResponse,
+} from "@workspace/api-zod";
+import { requireAuth, farmAccess, canEdit, parseIntParam } from "../middlewares/auth";
+import { resolveCredential, userName } from "../lib/farmContext";
+import { clientFor, checkMonthlyLimit, estimateCostEur, recordUsage } from "../lib/openai";
+import { audit } from "../lib/audit";
+
+const router: IRouter = Router();
+router.use(requireAuth);
+
+function serializeTreatment(
+  t: PhytoTreatment,
+  sectorName: string | null,
+  createdByName: string | null,
+) {
+  return {
+    id: t.id,
+    farmId: t.farmId,
+    sectorId: t.sectorId,
+    sectorName,
+    applicationDate: t.applicationDate,
+    productName: t.productName,
+    registryNumber: t.registryNumber,
+    activeIngredient: t.activeIngredient,
+    targetPest: t.targetPest,
+    doseAmount: t.doseAmount,
+    doseUnit: t.doseUnit,
+    waterVolumeL: t.waterVolumeL,
+    areaHa: t.areaHa,
+    safetyDays: t.safetyDays,
+    notes: t.notes,
+    createdByName,
+    createdAt: t.createdAt.toISOString(),
+  };
+}
+
+async function sectorMap(farmId: number): Promise<Map<number, Sector>> {
+  const rows = await db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId));
+  return new Map(rows.map((s) => [s.id, s]));
+}
+
+router.get("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(phytoTreatmentsTable)
+    .where(eq(phytoTreatmentsTable.farmId, farmId))
+    .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
+  const sectors = await sectorMap(farmId);
+  const result = [];
+  for (const t of rows) {
+    result.push(
+      serializeTreatment(
+        t,
+        t.sectorId ? (sectors.get(t.sectorId)?.name ?? null) : null,
+        await userName(t.createdBy),
+      ),
+    );
+  }
+  res.json(ListPhytoTreatmentsResponse.parse(result));
+});
+
+router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para registrar tratamientos" });
+    return;
+  }
+  const parsed = CreatePhytoTreatmentBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const sectors = await sectorMap(farmId);
+  if (parsed.data.sectorId != null && !sectors.has(parsed.data.sectorId)) {
+    res.status(400).json({ error: "El sector no pertenece a esta finca" });
+    return;
+  }
+  const [t] = await db
+    .insert(phytoTreatmentsTable)
+    .values({ ...parsed.data, farmId, createdBy: req.user!.id })
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "phyto_treatment_created",
+    entityType: "phyto_treatment",
+    entityId: t.id,
+    detail: `${t.productName} (${t.applicationDate})`,
+  });
+  res.status(201).json(
+    CreatePhytoTreatmentResponse.parse(
+      serializeTreatment(
+        t,
+        t.sectorId ? (sectors.get(t.sectorId)?.name ?? null) : null,
+        await userName(t.createdBy),
+      ),
+    ),
+  );
+});
+
+router.delete("/farms/:farmId/phyto/treatments/:treatmentId", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const treatmentId = parseIntParam(req.params.treatmentId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para eliminar tratamientos" });
+    return;
+  }
+  const [t] = await db.select().from(phytoTreatmentsTable).where(eq(phytoTreatmentsTable.id, treatmentId));
+  if (!t || t.farmId !== farmId) {
+    res.status(404).json({ error: "Tratamiento no encontrado" });
+    return;
+  }
+  await db.delete(phytoTreatmentsTable).where(eq(phytoTreatmentsTable.id, treatmentId));
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "phyto_treatment_deleted",
+    entityType: "phyto_treatment",
+    entityId: treatmentId,
+    detail: t.productName,
+  });
+  res.status(204).end();
+});
+
+function treatmentsHistoryBlock(rows: PhytoTreatment[], sectors: Map<number, Sector>): string {
+  const year = new Date().getFullYear();
+  const thisYear = rows.filter((t) => t.applicationDate.startsWith(String(year)));
+  if (!thisYear.length) return `Sin aplicaciones registradas en ${year}.`;
+  // Recuento por producto y sector para vigilar el máximo de aplicaciones anuales.
+  const counts = new Map<string, number>();
+  for (const t of thisYear) {
+    const sector = t.sectorId ? (sectors.get(t.sectorId)?.name ?? `sector ${t.sectorId}`) : "toda la finca";
+    const key = `${t.productName}||${sector}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const lines = [...counts.entries()].map(([key, n]) => {
+    const [product, sector] = key.split("||");
+    return `- ${product} en ${sector}: ${n} aplicación(es) en ${year}`;
+  });
+  const detail = thisYear
+    .slice(0, 30)
+    .map(
+      (t) =>
+        `- ${t.applicationDate}: ${t.productName}${t.registryNumber ? ` (nº reg. ${t.registryNumber})` : ""}${t.targetPest ? `, contra ${t.targetPest}` : ""}${t.doseAmount ? `, dosis ${t.doseAmount} ${t.doseUnit ?? ""}` : ""}${t.sectorId ? `, sector: ${sectors.get(t.sectorId)?.name ?? t.sectorId}` : ", toda la finca"}`,
+    )
+    .join("\n");
+  return `Recuento de aplicaciones por producto y parcela en ${year}:\n${lines.join("\n")}\n\nDetalle de las últimas aplicaciones:\n${detail}`;
+}
+
+const PHYTO_SOURCES_GUIDE = `FUENTES OFICIALES OBLIGATORIAS (consúltalas con la búsqueda web antes de recomendar):
+1. Registro Oficial de Productos Fitosanitarios del MAPA (Ministerio de Agricultura, Pesca y Alimentación de España) — es la única fuente jurídicamente válida. Se actualiza semanalmente (normalmente los viernes). Un producto solo puede usarse si está autorizado e inscrito Y su ficha incluye expresamente el cultivo «platanera» y la plaga concreta.
+2. Sección de Sanidad Vegetal del Gobierno de Canarias — autorizaciones excepcionales, avisos y resoluciones que pueden limitarse a Canarias, a fechas o islas concretas, con dosis distintas y caducidad automática.
+3. Guía de Gestión Integrada de Plagas de la platanera del MAPA — para estrategia (umbrales, control biológico, prevención de resistencias), nunca sustituye al Registro.
+4. Etiqueta vigente del producto — dosis exacta, forma de aplicación y plazo de seguridad.
+
+En cada producto que menciones, indica siempre que se pueda: nombre comercial, número de registro, materia activa, plaga autorizada en platanera, dosis máxima, número máximo de aplicaciones por campaña, intervalo entre aplicaciones, plazo de seguridad y volumen de caldo. No recomiendes nunca un producto sin comprobar que su autorización en platanera está vigente hoy; las listas de hace meses pueden estar desactualizadas (en 2026 ha habido cambios en acetamiprid, piriproxifen, milbemectina, Beauveria bassiana, spirotetramat y sulfoxaflor).`;
+
+router.post("/farms/:farmId/phyto/consult", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
+    return;
+  }
+  const parsed = PhytoConsultBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const credential = await resolveCredential(access.farm, req.user!);
+  if (!credential) {
+    res.status(400).json({
+      error: "No hay ninguna clave de OpenAI configurada. Añádela en Ajustes para usar el asesor.",
+    });
+    return;
+  }
+  const limitMsg = await checkMonthlyLimit(req.user!, credential);
+  if (limitMsg) {
+    res.status(402).json({ error: limitMsg });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(phytoTreatmentsTable)
+    .where(eq(phytoTreatmentsTable.farmId, farmId))
+    .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
+  const sectors = await sectorMap(farmId);
+  const farm = access.farm;
+
+  const sectorLine =
+    parsed.data.sectorId != null
+      ? (() => {
+          const s = sectors.get(parsed.data.sectorId!);
+          return s
+            ? `Sector objeto de la consulta: ${s.name}${s.surfaceHa ? ` (${s.surfaceHa} ha)` : ""}${s.plantCount ? `, ${s.plantCount} plantas` : ""}.`
+            : "";
+        })()
+      : "";
+
+  const instructions = `Eres un asesor experto en sanidad vegetal de platanera en Canarias, integrado en AgroNutri AI. Respondes siempre en español, con rigor técnico y prudencia.
+
+${PHYTO_SOURCES_GUIDE}
+
+DATOS DE LA FINCA:
+- Nombre: ${farm.name}${farm.island ? `, isla: ${farm.island}` : ""}${farm.municipality ? `, municipio: ${farm.municipality}` : ""}
+- Cultivo: ${farm.mainCrop ?? "platanera"}${farm.variety ? `, variedad ${farm.variety}` : ""}
+- Sistema: ${farm.cropSystem ?? "no indicado"}; superficie: ${farm.surfaceHa ?? "?"} ha; plantas: ${farm.plantCount ?? "?"}
+${sectorLine}
+
+HISTORIAL DE TRATAMIENTOS DE ESTA FINCA (para vigilar el número máximo de aplicaciones anuales por producto y parcela):
+${treatmentsHistoryBlock(rows, sectors)}
+
+INSTRUCCIONES DE RESPUESTA:
+- Usa la búsqueda web para verificar en el Registro del MAPA y en Sanidad Vegetal del Gobierno de Canarias que cada producto que recomiendes está autorizado HOY en platanera para la plaga indicada. Cita las fuentes.
+- Si el historial muestra que un producto ya se ha aplicado el máximo de veces permitido este año en esa parcela, adviértelo claramente y propón alternativas (rotación de materias activas para evitar resistencias).
+- Valora compatibilidades y riesgos de mezclas en tanque (orden de incorporación, pH del caldo, incompatibilidades conocidas, fitotoxicidad, riesgo para fauna auxiliar y polinizadores, bandas de seguridad).
+- Cuando des dosis, calcula el caldo: cantidad de producto = dosis × volumen de caldo (p. ej., 150 ml/hl en 400 L → 600 ml), ajustada a la superficie o número de plantas del sector si se conoce. Muestra el cálculo.
+- Indica siempre el plazo de seguridad antes de recolección y el equipo de protección recomendado.
+- Recuerda registrar la aplicación en el cuaderno de explotación.
+- Termina siempre con la advertencia de que la información debe contrastarse con la etiqueta vigente y el Registro del MAPA, y que la decisión final corresponde a un técnico autorizado en gestión integrada de plagas.`;
+
+  const question = parsed.data.targetPest
+    ? `Plaga o problema: ${parsed.data.targetPest}\n\n${parsed.data.question}`
+    : parsed.data.question;
+
+  const client = clientFor(credential);
+  const model = credential.selectedModel ?? "gpt-4o-mini";
+  const started = Date.now();
+  const sources: string[] = [];
+  try {
+    let response: OpenAI.Responses.Response;
+    try {
+      response = await client.responses.create({
+        model,
+        instructions,
+        input: question,
+        tools: [{ type: "web_search" }],
+        max_output_tokens: 3000,
+      });
+    } catch (err) {
+      if (/web_search/i.test((err as Error).message)) {
+        // Sin búsqueda web no se pueden verificar las autorizaciones vigentes:
+        // es más seguro no recomendar nada que recomendar sin contrastar.
+        res.status(502).json({
+          error:
+            "El modelo configurado no permite búsqueda web, necesaria para verificar las autorizaciones vigentes en el Registro del MAPA. Cambia a un modelo con búsqueda web en Ajustes.",
+        });
+        return;
+      }
+      throw err;
+    }
+    for (const item of response.output) {
+      if (item.type === "message") {
+        for (const part of item.content) {
+          if (part.type === "output_text") {
+            for (const ann of part.annotations ?? []) {
+              if (ann.type === "url_citation" && ann.url && !sources.includes(ann.url)) {
+                sources.push(ann.url);
+              }
+            }
+          }
+        }
+      }
+    }
+    const inputTokens = response.usage?.input_tokens ?? 0;
+    const outputTokens = response.usage?.output_tokens ?? 0;
+    await recordUsage({
+      userId: req.user!.id,
+      farmId,
+      model,
+      operation: "phyto_consult",
+      inputTokens,
+      outputTokens,
+      estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
+      durationMs: Date.now() - started,
+      result: "ok",
+    });
+    const answer = response.output_text?.trim() || "No he podido generar una respuesta.";
+    res.json(PhytoConsultResponse.parse({ answer, sources }));
+  } catch (err) {
+    await recordUsage({
+      userId: req.user!.id,
+      farmId,
+      model,
+      operation: "phyto_consult",
+      durationMs: Date.now() - started,
+      result: "error",
+    });
+    res.status(502).json({ error: `Error del asesor IA: ${(err as Error).message}` });
+  }
+});
+
+export default router;

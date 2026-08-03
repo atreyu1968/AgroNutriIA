@@ -109,6 +109,15 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         .where(eq(messagesTable.conversationId, conversation.id))
         .orderBy(messagesTable.id)
     : [];
+  // Guard: without a technician-AI reply, the notes synthesis has almost no
+  // material and would fabricate content. Require a completed exchange.
+  if (conversation && !conversationMsgs.some((m) => m.role === "assistant")) {
+    res.status(422).json({
+      error:
+        "El técnico IA aún no ha respondido en esa conversación. Espera su respuesta (o revisa la previsualización) antes de generar el informe.",
+    });
+    return;
+  }
   const title =
     parsed.data.title ?? `Informe técnico de fertirrigación — ${access.farm.name}`;
   const [report] = await db

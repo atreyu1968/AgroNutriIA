@@ -4,6 +4,8 @@ import { eq, sql } from "drizzle-orm";
 import { db, usersTable, farmsTable, farmMembersTable } from "@workspace/db";
 import {
   AdminListUsersResponse,
+  AdminCreateUserBody,
+  AdminCreateUserResponse,
   AdminUpdateUserBody,
   AdminUpdateUserResponse,
   AdminListFarmsResponse,
@@ -46,6 +48,7 @@ async function serializeAdminUser(u: typeof usersTable.$inferSelect) {
     phone: u.phone,
     role: u.role,
     isAdmin: u.isAdmin,
+    active: u.active,
     aiMonthlyLimitEur: u.aiMonthlyLimitEur,
     farmCount: (owned?.count ?? 0) + (member?.count ?? 0),
     createdAt: u.createdAt.toISOString(),
@@ -57,6 +60,40 @@ router.get("/admin/users", async (_req, res): Promise<void> => {
   const result = [];
   for (const u of users) result.push(await serializeAdminUser(u));
   res.json(AdminListUsersResponse.parse(result));
+});
+
+router.post("/admin/users", async (req, res): Promise<void> => {
+  const parsed = AdminCreateUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const email = parsed.data.email.toLowerCase().trim();
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (existing) {
+    res.status(409).json({ error: "Ya existe una cuenta con ese correo" });
+    return;
+  }
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      email,
+      passwordHash,
+      name: parsed.data.name,
+      company: parsed.data.company ?? null,
+      role: parsed.data.role ?? "owner",
+      isAdmin: parsed.data.isAdmin ?? false,
+    })
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    action: "admin_user_created",
+    entityType: "user",
+    entityId: user.id,
+    detail: user.email,
+  });
+  res.status(201).json(AdminCreateUserResponse.parse(await serializeAdminUser(user)));
 });
 
 router.patch("/admin/users/:userId", async (req, res): Promise<void> => {
@@ -72,6 +109,10 @@ router.patch("/admin/users/:userId", async (req, res): Promise<void> => {
   }
   if (userId === req.user!.id && parsed.data.isAdmin === false) {
     res.status(400).json({ error: "No puedes quitarte a ti mismo los permisos de administrador" });
+    return;
+  }
+  if (userId === req.user!.id && parsed.data.active === false) {
+    res.status(400).json({ error: "No puedes desactivar tu propia cuenta" });
     return;
   }
   const { password, ...rest } = parsed.data;

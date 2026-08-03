@@ -1,0 +1,87 @@
+La fuente oficial y jurídicamente válida para consultar los productos fitosanitarios permitidos en platanera es el Registro Oficial de Productos Fitosanitarios del Ministerio de Agricultura, Pesca y Alimentación —MAPA—. En este momento, la base de datos indica una última actualización de 3 de agosto de 2026 y advierte de que se actualiza semanalmente.
+
+1. Registro Oficial del MAPA
+
+Accede al Registro de Productos Fitosanitarios y realiza una consulta por cultivo:
+
+Entra en Consultas fitosanitarias del MAPA.
+Selecciona la búsqueda por cultivo o uso autorizado.
+Introduce como cultivo «platanera».
+Añade, cuando proceda, la plaga o problema que deseas controlar:
+cochinilla;
+mosca blanca;
+araña roja o ácaros;
+picudo de la platanera;
+trips;
+pulgones;
+malas hierbas;
+enfermedades fúngicas;
+nematodos.
+Abre la ficha individual de cada producto y consulta su etiqueta autorizada.
+
+El Registro del MAPA es la referencia principal porque un producto solamente puede comercializarse y utilizarse como fitosanitario cuando está autorizado e inscrito. El Ministerio señala que esta base de datos se actualiza semanalmente, normalmente los viernes a partir de las 14:00 horas.
+
+2. Qué debes comprobar en cada producto
+
+No basta con que el producto aparezca en el Registro. En su ficha debe figurar expresamente el uso en platanera. Conviene comprobar:
+
+Nombre comercial y número de registro.
+Materia activa y concentración.
+Estado de la autorización.
+Fecha de caducidad o retirada.
+Cultivo autorizado: debe aparecer platanera.
+Plaga concreta autorizada.
+Dosis máxima.
+Número máximo de aplicaciones.
+Intervalo entre aplicaciones.
+Momento de aplicación.
+Plazo de seguridad antes de la recolección.
+Volumen de caldo.
+Forma de aplicación: pulverización, tratamiento localizado, suelo, cebo, trampa, etc.
+Condiciones especiales para cultivos al aire libre o bajo invernadero.
+Restricciones ambientales y bandas de seguridad.
+Clasificación para uso profesional o no profesional.
+
+Un producto puede estar autorizado para cítricos, aguacate u otros frutales y, sin embargo, no estar autorizado en platanera. Incluso puede estar permitido para una plaga en platanera, pero no para otra. En el propio Registro aparecen fichas donde el uso en platanera se vincula específicamente a determinadas plagas, como cochinillas, mosca blanca o pulgones.
+
+3. Autorizaciones excepcionales para Canarias
+
+Además del Registro general, debes consultar la sección de Sanidad Vegetal del Gobierno de Canarias. Allí se publican avisos, resoluciones y autorizaciones excepcionales relacionadas con plagas y cultivos del Archipiélago.
+
+Estas autorizaciones son especialmente importantes porque pueden:
+
+limitarse exclusivamente a Canarias;
+autorizarse durante unas fechas concretas;
+afectar solo a determinadas islas;
+establecer dosis y número de aplicaciones diferentes;
+finalizar automáticamente al cumplirse el periodo autorizado.
+
+El sector platanero está experimentando cambios frecuentes en las materias activas disponibles. Por ejemplo, el Gobierno de Canarias informó en 2026 de modificaciones, exclusiones y solicitudes excepcionales relativas a acetamiprid, piriproxifen, milbemectina, Beauveria bassiana, spirotetramat y sulfoxaflor. Por ello, una lista elaborada hace uno o dos años puede estar ya desactualizada.
+
+4. Guía de Gestión Integrada de Plagas de la platanera
+
+El MAPA dispone también de una Guía de Gestión Integrada de Plagas de la platanera. Es útil para identificar:
+
+las principales plagas y enfermedades;
+los métodos de seguimiento;
+los umbrales orientativos de intervención;
+las medidas culturales;
+el control biológico;
+los métodos físicos;
+las estrategias para prevenir resistencias.
+
+No obstante, la propia guía indica que, cuando sea necesario utilizar fitosanitarios, deberán emplearse los productos que estén autorizados en ese momento en el Registro Oficial. Por tanto, la guía sirve para decidir cómo gestionar la plaga, pero no sustituye la consulta actualizada del Registro.
+
+Recomendación práctica
+
+Para una explotación de platanera en Canarias utilizaría este orden de consulta:
+
+Registro Oficial del MAPA: confirma que el producto y el uso concreto están autorizados.
+Etiqueta vigente del producto: determina exactamente la dosis, aplicación y plazo de seguridad.
+Sanidad Vegetal del Gobierno de Canarias: comprueba autorizaciones excepcionales y avisos regionales.
+Técnico de la OPP, cooperativa o ATRIA: determina la necesidad real del tratamiento y su encaje en la gestión integrada.
+Cuaderno de explotación: registra producto, número de registro, fecha, parcela, dosis, superficie, plaga y aplicador.
+
+No tomaría como referencia principal los catálogos de distribuidores, antiguas hojas divulgadoras o listados descargados hace meses. Pueden servir como orientación, pero siempre deben contrastarse con el Registro del MAPA y con las resoluciones excepcionales vigentes.
+
+Puedo elaborar una tabla actualizada de productos autorizados en platanera, organizada por cochinilla, mosca blanca, araña roja, picudo, trips, pulgón, hongos y herbicidas, incluyendo materia activa, nombre comercial, dosis y plazo de seguridad.

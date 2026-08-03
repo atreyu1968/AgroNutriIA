@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   useAdminListUsers,
   getAdminListUsersQueryKey,
+  useAdminCreateUser,
   useAdminUpdateUser,
   useAdminDeleteUser,
   useAdminListFarms,
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Users, MapPin, ShieldCheck, Pencil, Trash2 } from "lucide-react";
+import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propietario",
@@ -64,14 +65,32 @@ export default function Administracion() {
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState("owner");
   const [editIsAdmin, setEditIsAdmin] = useState(false);
+  const [editActive, setEditActive] = useState(true);
   const [editLimit, setEditLimit] = useState<string>("");
   const [editPassword, setEditPassword] = useState("");
+
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState("owner");
+  const [newIsAdmin, setNewIsAdmin] = useState(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() });
     queryClient.invalidateQueries({ queryKey: getAdminListFarmsQueryKey() });
   };
 
+  const createUser = useAdminCreateUser({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setCreating(false);
+        toast({ title: "Usuario creado" });
+      },
+      onError: (err) => toast({ title: "No se pudo crear", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
   const updateUser = useAdminUpdateUser({
     mutation: {
       onSuccess: () => {
@@ -124,6 +143,7 @@ export default function Administracion() {
     setEditName(u.name);
     setEditRole(u.role);
     setEditIsAdmin(u.isAdmin);
+    setEditActive(u.active);
     setEditLimit(u.aiMonthlyLimitEur != null ? String(u.aiMonthlyLimitEur) : "");
     setEditPassword("");
   };
@@ -141,6 +161,7 @@ export default function Administracion() {
         name: editName,
         role: editRole as "owner" | "technician" | "manager" | "viewer",
         isAdmin: editIsAdmin,
+        active: editActive,
         aiMonthlyLimitEur: editLimit === "" ? null : parseFloat(editLimit),
         // parsedLimit validated above
         ...(editPassword ? { password: editPassword } : {}),
@@ -163,7 +184,19 @@ export default function Administracion() {
 
         <TabsContent value="usuarios" className="mt-6">
           <Card>
-            <CardHeader><CardTitle className="text-base">Usuarios registrados</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Usuarios registrados</CardTitle>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("owner"); setNewIsAdmin(false);
+                  setCreating(true);
+                }}
+              >
+                <UserPlus className="w-4 h-4" /> Crear usuario
+              </Button>
+            </CardHeader>
             <CardContent>
               {loadingUsers ? (
                 <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}</div>
@@ -175,6 +208,7 @@ export default function Administracion() {
                         <div className="font-medium flex items-center gap-2">
                           {u.name}
                           {u.isAdmin && <Badge variant="secondary" className="gap-1"><ShieldCheck className="w-3 h-3" /> Admin</Badge>}
+                          {!u.active && <Badge variant="outline" className="text-destructive border-destructive/40">Desactivado</Badge>}
                         </div>
                         <div className="text-sm text-muted-foreground truncate">{u.email}{u.company ? ` · ${u.company}` : ""}</div>
                       </div>
@@ -277,11 +311,87 @@ export default function Administracion() {
               <Label>Nueva contraseña (opcional)</Label>
               <Input type="password" value={editPassword} placeholder="Mínimo 8 caracteres" onChange={e => setEditPassword(e.target.value)} />
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label>Cuenta activa</Label>
+                <p className="text-xs text-muted-foreground">Si se desactiva, el usuario no podrá iniciar sesión y sus sesiones dejarán de funcionar.</p>
+              </div>
+              <Switch
+                checked={editActive}
+                onCheckedChange={setEditActive}
+                disabled={editingUser?.id === me?.id}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
             <Button onClick={saveUser} disabled={updateUser.isPending || (editPassword.length > 0 && editPassword.length < 8)}>
               Guardar cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create user dialog */}
+      <Dialog open={creating} onOpenChange={(open) => !open && setCreating(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Crear usuario</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nombre</Label>
+              <Input value={newName} onChange={e => setNewName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Correo electrónico</Label>
+              <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Contraseña</Label>
+              <Input type="password" value={newPassword} placeholder="Mínimo 8 caracteres" onChange={e => setNewPassword(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Rol por defecto</Label>
+              <Select value={newRole} onValueChange={setNewRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ROLE_LABELS).map(([v, l]) => (
+                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label>Administrador</Label>
+                <p className="text-xs text-muted-foreground">Acceso total a usuarios, fincas y auditoría.</p>
+              </div>
+              <Switch checked={newIsAdmin} onCheckedChange={setNewIsAdmin} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreating(false)}>Cancelar</Button>
+            <Button
+              disabled={
+                createUser.isPending ||
+                !newName.trim() ||
+                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim()) ||
+                newPassword.length < 8
+              }
+              onClick={() =>
+                createUser.mutate({
+                  data: {
+                    name: newName.trim(),
+                    email: newEmail.trim(),
+                    password: newPassword,
+                    role: newRole as "owner" | "technician" | "manager" | "viewer",
+                    isAdmin: newIsAdmin,
+                  },
+                })
+              }
+            >
+              Crear usuario
             </Button>
           </DialogFooter>
         </DialogContent>

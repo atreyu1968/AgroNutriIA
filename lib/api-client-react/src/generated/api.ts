@@ -22,10 +22,12 @@ import type {
 import type {
   AdminFarm,
   AdminUser,
+  AdminUserCreate,
   AdminUserUpdate,
   Analysis,
   AnalysisInput,
   AuditEntry,
+  AuthConfig,
   CalculationRequest,
   CalculationResult,
   Conversation,
@@ -57,6 +59,10 @@ import type {
   LoginInput,
   Message,
   MessageInput,
+  PhytoConsultInput,
+  PhytoConsultResult,
+  PhytoTreatment,
+  PhytoTreatmentCreate,
   ProductSheet,
   Recommendation,
   RecommendationInput,
@@ -4187,6 +4193,300 @@ export const usePreviewReportNotes = <TError = ErrorType<unknown>,
       return useMutation(getPreviewReportNotesMutationOptions(options));
     }
 
+export const getListPhytoTreatmentsUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/phyto/treatments`
+}
+
+/**
+ * @summary List phytosanitary treatments of a farm
+ */
+export const listPhytoTreatments = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<PhytoTreatment[]> => {
+
+  return customFetch<PhytoTreatment[]>(getListPhytoTreatmentsUrl(farmId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPhytoTreatmentsQueryKey = (farmId: number,) => {
+    return [
+    `/api/farms/${farmId}/phyto/treatments`
+    ] as const;
+    }
+
+
+export const getListPhytoTreatmentsQueryOptions = <TData = Awaited<ReturnType<typeof listPhytoTreatments>>, TError = ErrorType<unknown>>(farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPhytoTreatments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPhytoTreatmentsQueryKey(farmId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPhytoTreatments>>> = ({ signal }) => listPhytoTreatments(farmId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPhytoTreatments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPhytoTreatmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listPhytoTreatments>>>
+export type ListPhytoTreatmentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List phytosanitary treatments of a farm
+ */
+
+export function useListPhytoTreatments<TData = Awaited<ReturnType<typeof listPhytoTreatments>>, TError = ErrorType<unknown>>(
+ farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPhytoTreatments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPhytoTreatmentsQueryOptions(farmId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePhytoTreatmentUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/phyto/treatments`
+}
+
+/**
+ * @summary Register a phytosanitary application
+ */
+export const createPhytoTreatment = async (farmId: number,
+    phytoTreatmentCreate: PhytoTreatmentCreate, options?: Parameters<typeof customFetch>[1]): Promise<PhytoTreatment> => {
+
+  return customFetch<PhytoTreatment>(getCreatePhytoTreatmentUrl(farmId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(phytoTreatmentCreate)
+  }
+);}
+
+
+
+
+
+export const getCreatePhytoTreatmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPhytoTreatment>>, TError,{farmId: number;data: BodyType<PhytoTreatmentCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPhytoTreatment>>, TError,{farmId: number;data: BodyType<PhytoTreatmentCreate>}, TContext> => {
+
+const mutationKey = ['createPhytoTreatment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPhytoTreatment>>, {farmId: number;data: BodyType<PhytoTreatmentCreate>}> = (props) => {
+          const {farmId,data} = props ?? {};
+
+          return  createPhytoTreatment(farmId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePhytoTreatmentMutationResult = NonNullable<Awaited<ReturnType<typeof createPhytoTreatment>>>
+    export type CreatePhytoTreatmentMutationBody = BodyType<PhytoTreatmentCreate>
+    export type CreatePhytoTreatmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Register a phytosanitary application
+ */
+export const useCreatePhytoTreatment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPhytoTreatment>>, TError,{farmId: number;data: BodyType<PhytoTreatmentCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPhytoTreatment>>,
+        TError,
+        {farmId: number;data: BodyType<PhytoTreatmentCreate>},
+        TContext
+      > => {
+      return useMutation(getCreatePhytoTreatmentMutationOptions(options));
+    }
+
+export const getDeletePhytoTreatmentUrl = (farmId: number,
+    treatmentId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/phyto/treatments/${treatmentId}`
+}
+
+/**
+ * @summary Delete a phytosanitary treatment record
+ */
+export const deletePhytoTreatment = async (farmId: number,
+    treatmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeletePhytoTreatmentUrl(farmId,treatmentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePhytoTreatmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePhytoTreatment>>, TError,{farmId: number;treatmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePhytoTreatment>>, TError,{farmId: number;treatmentId: number}, TContext> => {
+
+const mutationKey = ['deletePhytoTreatment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePhytoTreatment>>, {farmId: number;treatmentId: number}> = (props) => {
+          const {farmId,treatmentId} = props ?? {};
+
+          return  deletePhytoTreatment(farmId,treatmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePhytoTreatmentMutationResult = NonNullable<Awaited<ReturnType<typeof deletePhytoTreatment>>>
+
+    export type DeletePhytoTreatmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a phytosanitary treatment record
+ */
+export const useDeletePhytoTreatment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePhytoTreatment>>, TError,{farmId: number;treatmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePhytoTreatment>>,
+        TError,
+        {farmId: number;treatmentId: number},
+        TContext
+      > => {
+      return useMutation(getDeletePhytoTreatmentMutationOptions(options));
+    }
+
+export const getPhytoConsultUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/phyto/consult`
+}
+
+/**
+ * @summary Ask the AI phytosanitary advisor (checks official registries via web search)
+ */
+export const phytoConsult = async (farmId: number,
+    phytoConsultInput: PhytoConsultInput, options?: Parameters<typeof customFetch>[1]): Promise<PhytoConsultResult> => {
+
+  return customFetch<PhytoConsultResult>(getPhytoConsultUrl(farmId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(phytoConsultInput)
+  }
+);}
+
+
+
+
+
+export const getPhytoConsultMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof phytoConsult>>, TError,{farmId: number;data: BodyType<PhytoConsultInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof phytoConsult>>, TError,{farmId: number;data: BodyType<PhytoConsultInput>}, TContext> => {
+
+const mutationKey = ['phytoConsult'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof phytoConsult>>, {farmId: number;data: BodyType<PhytoConsultInput>}> = (props) => {
+          const {farmId,data} = props ?? {};
+
+          return  phytoConsult(farmId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PhytoConsultMutationResult = NonNullable<Awaited<ReturnType<typeof phytoConsult>>>
+    export type PhytoConsultMutationBody = BodyType<PhytoConsultInput>
+    export type PhytoConsultMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Ask the AI phytosanitary advisor (checks official registries via web search)
+ */
+export const usePhytoConsult = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof phytoConsult>>, TError,{farmId: number;data: BodyType<PhytoConsultInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof phytoConsult>>,
+        TError,
+        {farmId: number;data: BodyType<PhytoConsultInput>},
+        TContext
+      > => {
+      return useMutation(getPhytoConsultMutationOptions(options));
+    }
+
 export const getGetUsageUrl = (params?: GetUsageParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -4414,6 +4714,83 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
 
 
 
+export const getGetAuthConfigUrl = () => {
+
+
+
+
+  return `/api/auth/config`
+}
+
+/**
+ * @summary Public auth configuration (no session required)
+ */
+export const getAuthConfig = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuthConfig> => {
+
+  return customFetch<AuthConfig>(getGetAuthConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuthConfigQueryKey = () => {
+    return [
+    `/api/auth/config`
+    ] as const;
+    }
+
+
+export const getGetAuthConfigQueryOptions = <TData = Awaited<ReturnType<typeof getAuthConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuthConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuthConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuthConfig>>> = ({ signal }) => getAuthConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuthConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuthConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getAuthConfig>>>
+export type GetAuthConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public auth configuration (no session required)
+ */
+
+export function useGetAuthConfig<TData = Awaited<ReturnType<typeof getAuthConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuthConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuthConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getAdminListUsersUrl = () => {
 
 
@@ -4490,6 +4867,77 @@ export function useAdminListUsers<TData = Awaited<ReturnType<typeof adminListUse
 
 
 
+
+export const getAdminCreateUserUrl = () => {
+
+
+
+
+  return `/api/admin/users`
+}
+
+/**
+ * @summary Create a user (admin only)
+ */
+export const adminCreateUser = async (adminUserCreate: AdminUserCreate, options?: Parameters<typeof customFetch>[1]): Promise<AdminUser> => {
+
+  return customFetch<AdminUser>(getAdminCreateUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminUserCreate)
+  }
+);}
+
+
+
+
+
+export const getAdminCreateUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateUser>>, TError,{data: BodyType<AdminUserCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateUser>>, TError,{data: BodyType<AdminUserCreate>}, TContext> => {
+
+const mutationKey = ['adminCreateUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateUser>>, {data: BodyType<AdminUserCreate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateUserMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateUser>>>
+    export type AdminCreateUserMutationBody = BodyType<AdminUserCreate>
+    export type AdminCreateUserMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a user (admin only)
+ */
+export const useAdminCreateUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateUser>>, TError,{data: BodyType<AdminUserCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateUser>>,
+        TError,
+        {data: BodyType<AdminUserCreate>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateUserMutationOptions(options));
+    }
 
 export const getAdminUpdateUserUrl = (userId: number,) => {
 

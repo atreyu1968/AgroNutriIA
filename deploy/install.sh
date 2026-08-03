@@ -165,6 +165,8 @@ HOST=127.0.0.1
 PORT=${API_PORT}
 DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
+# Registro público desactivado: las cuentas las crea el administrador desde la app.
+PUBLIC_REGISTRATION=false
 # URL pública (para los enlaces de los emails de recuperación de contraseña).
 APP_URL=${APP_URL}
 # Envío de emails con Resend (recuperación de contraseña).

@@ -50,7 +50,23 @@ async function startSession(
   return token;
 }
 
+// El registro público puede desactivarse con PUBLIC_REGISTRATION=false
+// (en ese caso solo el administrador da de alta usuarios).
+export function registrationEnabled(): boolean {
+  return process.env.PUBLIC_REGISTRATION !== "false";
+}
+
+router.get("/auth/config", (_req, res): void => {
+  res.json({ registrationEnabled: registrationEnabled() });
+});
+
 router.post("/auth/register", async (req, res): Promise<void> => {
+  if (!registrationEnabled()) {
+    res.status(403).json({
+      error: "El registro está desactivado. Pide al administrador que cree tu cuenta.",
+    });
+    return;
+  }
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -88,6 +104,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     res.status(401).json({ error: "Correo o contraseña incorrectos" });
+    return;
+  }
+  if (!user.active) {
+    res.status(403).json({ error: "Tu cuenta está desactivada. Contacta con el administrador." });
     return;
   }
   const token = await startSession(res, user.id);
@@ -141,7 +161,7 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
 
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-    if (!user) return;
+    if (!user || !user.active) return;
     const token = randomToken();
     await db.insert(passwordResetTokensTable).values({
       tokenHash: hashResetToken(token),

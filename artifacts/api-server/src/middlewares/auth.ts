@@ -37,7 +37,13 @@ export async function loadUser(req: Request): Promise<User | null> {
     .select({ user: usersTable })
     .from(sessionsTable)
     .innerJoin(usersTable, eq(usersTable.id, sessionsTable.userId))
-    .where(and(eq(sessionsTable.id, token), gt(sessionsTable.expiresAt, new Date())));
+    .where(
+      and(
+        eq(sessionsTable.id, token),
+        gt(sessionsTable.expiresAt, new Date()),
+        eq(usersTable.active, true),
+      ),
+    );
   return rows[0]?.user ?? null;
 }
 

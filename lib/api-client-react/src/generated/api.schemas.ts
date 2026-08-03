@@ -83,6 +83,7 @@ export interface AdminUser {
   phone?: string | null;
   role: string;
   isAdmin: boolean;
+  active: boolean;
   /** @nullable */
   aiMonthlyLimitEur?: number | null;
   farmCount: number;
@@ -104,6 +105,7 @@ export interface AdminUserUpdate {
   name?: string;
   role?: AdminUserUpdateRole;
   isAdmin?: boolean;
+  active?: boolean;
   /**
      * @minimum 0
      * @nullable
@@ -111,6 +113,99 @@ export interface AdminUserUpdate {
   aiMonthlyLimitEur?: number | null;
   /** @minLength 8 */
   password?: string;
+}
+
+export interface PhytoTreatment {
+  id: number;
+  farmId: number;
+  sectorId: number | null;
+  sectorName: string | null;
+  applicationDate: string;
+  productName: string;
+  registryNumber: string | null;
+  activeIngredient: string | null;
+  targetPest: string | null;
+  doseAmount: number | null;
+  doseUnit: string | null;
+  waterVolumeL: number | null;
+  areaHa: number | null;
+  safetyDays: number | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface PhytoTreatmentCreate {
+  sectorId?: number | null;
+  /**
+     * YYYY-MM-DD
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  applicationDate: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  productName: string;
+  /** @maxLength 50 */
+  registryNumber?: string | null;
+  /** @maxLength 200 */
+  activeIngredient?: string | null;
+  /** @maxLength 200 */
+  targetPest?: string | null;
+  /** @minimum 0 */
+  doseAmount?: number | null;
+  /** @maxLength 20 */
+  doseUnit?: string | null;
+  /** @minimum 0 */
+  waterVolumeL?: number | null;
+  /** @minimum 0 */
+  areaHa?: number | null;
+  /** @minimum 0 */
+  safetyDays?: number | null;
+  /** @maxLength 2000 */
+  notes?: string | null;
+}
+
+export interface PhytoConsultInput {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  question: string;
+  targetPest?: string | null;
+  sectorId?: number | null;
+}
+
+export interface PhytoConsultResult {
+  answer: string;
+  sources: string[];
+}
+
+export interface AuthConfig {
+  registrationEnabled: boolean;
+}
+
+export type AdminUserCreateRole = typeof AdminUserCreateRole[keyof typeof AdminUserCreateRole];
+
+
+export const AdminUserCreateRole = {
+  owner: 'owner',
+  technician: 'technician',
+  manager: 'manager',
+  viewer: 'viewer',
+} as const;
+
+export interface AdminUserCreate {
+  email: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 8 */
+  password: string;
+  /** @nullable */
+  company?: string | null;
+  role?: AdminUserCreateRole;
+  isAdmin?: boolean;
 }
 
 export interface AdminFarm {

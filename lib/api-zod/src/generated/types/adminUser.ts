@@ -16,6 +16,7 @@ export interface AdminUser {
   phone?: string | null;
   role: string;
   isAdmin: boolean;
+  active: boolean;
   /** @nullable */
   aiMonthlyLimitEur?: number | null;
   farmCount: number;

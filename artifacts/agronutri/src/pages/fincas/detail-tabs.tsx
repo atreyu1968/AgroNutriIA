@@ -842,7 +842,13 @@ export function ReportsTab({ farmId }: { farmId: number }) {
         toast({ title: "Informe en generación", description: "Estará listo en unos momentos." });
         queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(farmId) });
         setGenOpen(false);
-      }
+      },
+      onError: (err: unknown) => {
+        const message =
+          (err as { data?: { error?: string } })?.data?.error ??
+          "No se pudo generar el informe.";
+        toast({ title: "Informe no generado", description: message, variant: "destructive" });
+      },
     }
   });
 

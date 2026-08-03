@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRegister, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useRegister, useGetMe, getGetMeQueryKey, useGetAuthConfig, getGetAuthConfigQueryKey } from "@workspace/api-client-react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ export default function Register() {
   const { toast } = useToast();
 
   const { data: user, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
+  const { data: authConfig } = useGetAuthConfig({ query: { queryKey: getGetAuthConfigQueryKey() } });
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -62,6 +63,22 @@ export default function Register() {
   }
 
   if (isLoading || user) return null;
+
+  if (authConfig && !authConfig.registrationEnabled) {
+    return (
+      <AuthLayout>
+        <div className="text-center space-y-3">
+          <h2 className="text-lg font-semibold">Registro desactivado</h2>
+          <p className="text-sm text-muted-foreground">
+            En esta instalación las cuentas las crea el administrador. Si necesitas acceso, ponte en contacto con él.
+          </p>
+          <Link href="/login" className="inline-block font-medium text-primary hover:underline text-sm">
+            Volver a iniciar sesión
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>

@@ -17,6 +17,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone"),
   role: text("role").notNull().default("owner"),
   isAdmin: boolean("is_admin").notNull().default(false),
+  active: boolean("active").notNull().default(true),
   unitsPreference: text("units_preference").default("metric"),
   reportLanguage: text("report_language").default("es"),
   aiMonthlyLimitEur: real("ai_monthly_limit_eur"),

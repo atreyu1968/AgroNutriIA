@@ -8,6 +8,8 @@
 
 export * from './adminFarm';
 export * from './adminUser';
+export * from './adminUserCreate';
+export * from './adminUserCreateRole';
 export * from './adminUserUpdate';
 export * from './adminUserUpdateRole';
 export * from './analysis';
@@ -16,6 +18,7 @@ export * from './analysisInputType';
 export * from './analysisParameter';
 export * from './analysisType';
 export * from './auditEntry';
+export * from './authConfig';
 export * from './calculationRequest';
 export * from './calculationResult';
 export * from './calculationResultNutrients';
@@ -53,6 +56,10 @@ export * from './listAuditLogParams';
 export * from './loginInput';
 export * from './message';
 export * from './messageInput';
+export * from './phytoConsultInput';
+export * from './phytoConsultResult';
+export * from './phytoTreatment';
+export * from './phytoTreatmentCreate';
 export * from './productSheet';
 export * from './productSheetComposition';
 export * from './recommendation';

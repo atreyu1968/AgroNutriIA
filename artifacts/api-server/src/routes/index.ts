@@ -8,6 +8,7 @@ import recommendationsRouter from "./recommendations";
 import credentialsRouter from "./credentials";
 import conversationsRouter from "./conversations";
 import reportsRouter from "./reports";
+import phytoRouter from "./phyto";
 import miscRouter from "./misc";
 import adminRouter from "./admin";
 
@@ -22,6 +23,7 @@ router.use(recommendationsRouter);
 router.use(credentialsRouter);
 router.use(conversationsRouter);
 router.use(reportsRouter);
+router.use(phytoRouter);
 router.use(miscRouter);
 router.use(adminRouter);
 

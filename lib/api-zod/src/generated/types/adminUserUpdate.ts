@@ -12,6 +12,7 @@ export interface AdminUserUpdate {
   name?: string;
   role?: AdminUserUpdateRole;
   isAdmin?: boolean;
+  active?: boolean;
   /**
      * @minimum 0
      * @nullable

@@ -1556,6 +1556,135 @@ export const PreviewReportNotesResponse = zod.object({
 })
 
 
+/**
+ * @summary List phytosanitary treatments of a farm
+ */
+export const ListPhytoTreatmentsParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const ListPhytoTreatmentsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "sectorId": zod.number().int().nullable(),
+  "sectorName": zod.string().nullable(),
+  "applicationDate": zod.string(),
+  "productName": zod.string(),
+  "registryNumber": zod.string().nullable(),
+  "activeIngredient": zod.string().nullable(),
+  "targetPest": zod.string().nullable(),
+  "doseAmount": zod.number().nullable(),
+  "doseUnit": zod.string().nullable(),
+  "waterVolumeL": zod.number().nullable(),
+  "areaHa": zod.number().nullable(),
+  "safetyDays": zod.number().int().nullable(),
+  "notes": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListPhytoTreatmentsResponse = zod.array(ListPhytoTreatmentsResponseItem)
+
+
+/**
+ * @summary Register a phytosanitary application
+ */
+export const CreatePhytoTreatmentParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const createPhytoTreatmentBodyApplicationDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createPhytoTreatmentBodyProductNameMax = 200;
+
+export const createPhytoTreatmentBodyRegistryNumberMax = 50;
+
+export const createPhytoTreatmentBodyActiveIngredientMax = 200;
+
+export const createPhytoTreatmentBodyTargetPestMax = 200;
+
+export const createPhytoTreatmentBodyDoseAmountMin = 0;
+
+export const createPhytoTreatmentBodyDoseUnitMax = 20;
+
+export const createPhytoTreatmentBodyWaterVolumeLMin = 0;
+
+export const createPhytoTreatmentBodyAreaHaMin = 0;
+
+export const createPhytoTreatmentBodySafetyDaysMin = 0;
+
+export const createPhytoTreatmentBodyNotesMax = 2000;
+
+
+
+export const CreatePhytoTreatmentBody = zod.object({
+  "sectorId": zod.number().int().nullish(),
+  "applicationDate": zod.string().regex(createPhytoTreatmentBodyApplicationDateRegExp).describe('YYYY-MM-DD'),
+  "productName": zod.string().min(1).max(createPhytoTreatmentBodyProductNameMax),
+  "registryNumber": zod.string().max(createPhytoTreatmentBodyRegistryNumberMax).nullish(),
+  "activeIngredient": zod.string().max(createPhytoTreatmentBodyActiveIngredientMax).nullish(),
+  "targetPest": zod.string().max(createPhytoTreatmentBodyTargetPestMax).nullish(),
+  "doseAmount": zod.number().min(createPhytoTreatmentBodyDoseAmountMin).nullish(),
+  "doseUnit": zod.string().max(createPhytoTreatmentBodyDoseUnitMax).nullish(),
+  "waterVolumeL": zod.number().min(createPhytoTreatmentBodyWaterVolumeLMin).nullish(),
+  "areaHa": zod.number().min(createPhytoTreatmentBodyAreaHaMin).nullish(),
+  "safetyDays": zod.number().int().min(createPhytoTreatmentBodySafetyDaysMin).nullish(),
+  "notes": zod.string().max(createPhytoTreatmentBodyNotesMax).nullish()
+})
+
+export const CreatePhytoTreatmentResponse = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "sectorId": zod.number().int().nullable(),
+  "sectorName": zod.string().nullable(),
+  "applicationDate": zod.string(),
+  "productName": zod.string(),
+  "registryNumber": zod.string().nullable(),
+  "activeIngredient": zod.string().nullable(),
+  "targetPest": zod.string().nullable(),
+  "doseAmount": zod.number().nullable(),
+  "doseUnit": zod.string().nullable(),
+  "waterVolumeL": zod.number().nullable(),
+  "areaHa": zod.number().nullable(),
+  "safetyDays": zod.number().int().nullable(),
+  "notes": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a phytosanitary treatment record
+ */
+export const DeletePhytoTreatmentParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "treatmentId": zod.coerce.number().int()
+})
+
+export const DeletePhytoTreatmentResponse = zod.void()
+
+
+/**
+ * @summary Ask the AI phytosanitary advisor (checks official registries via web search)
+ */
+export const PhytoConsultParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const phytoConsultBodyQuestionMax = 4000;
+
+
+
+export const PhytoConsultBody = zod.object({
+  "question": zod.string().min(1).max(phytoConsultBodyQuestionMax),
+  "targetPest": zod.string().nullish(),
+  "sectorId": zod.number().int().nullish()
+})
+
+export const PhytoConsultResponse = zod.object({
+  "answer": zod.string(),
+  "sources": zod.array(zod.string())
+})
+
+
 export const GetUsageQueryParams = zod.object({
   "month": zod.coerce.string().optional().describe('Month in YYYY-MM format; defaults to current month')
 })
@@ -1629,6 +1758,14 @@ export const GetDashboardResponse = zod.object({
 
 
 /**
+ * @summary Public auth configuration (no session required)
+ */
+export const GetAuthConfigResponse = zod.object({
+  "registrationEnabled": zod.boolean()
+})
+
+
+/**
  * @summary List all users (admin only)
  */
 export const AdminListUsersResponseItem = zod.object({
@@ -1639,11 +1776,44 @@ export const AdminListUsersResponseItem = zod.object({
   "phone": zod.string().nullish(),
   "role": zod.string(),
   "isAdmin": zod.boolean(),
+  "active": zod.boolean(),
   "aiMonthlyLimitEur": zod.number().nullish(),
   "farmCount": zod.number().int(),
   "createdAt": zod.string()
 })
 export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
+
+
+/**
+ * @summary Create a user (admin only)
+ */
+
+export const adminCreateUserBodyPasswordMin = 8;
+
+
+
+export const AdminCreateUserBody = zod.object({
+  "email": zod.string().email(),
+  "name": zod.string().min(1),
+  "password": zod.string().min(adminCreateUserBodyPasswordMin),
+  "company": zod.string().nullish(),
+  "role": zod.enum(['owner', 'technician', 'manager', 'viewer']).optional(),
+  "isAdmin": zod.boolean().optional()
+})
+
+export const AdminCreateUserResponse = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "company": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "isAdmin": zod.boolean(),
+  "active": zod.boolean(),
+  "aiMonthlyLimitEur": zod.number().nullish(),
+  "farmCount": zod.number().int(),
+  "createdAt": zod.string()
+})
 
 
 /**
@@ -1664,6 +1834,7 @@ export const AdminUpdateUserBody = zod.object({
   "name": zod.string().min(1).optional(),
   "role": zod.enum(['owner', 'technician', 'manager', 'viewer']).optional(),
   "isAdmin": zod.boolean().optional(),
+  "active": zod.boolean().optional(),
   "aiMonthlyLimitEur": zod.number().min(adminUpdateUserBodyAiMonthlyLimitEurMin).nullish(),
   "password": zod.string().min(adminUpdateUserBodyPasswordMin).optional()
 })
@@ -1676,6 +1847,7 @@ export const AdminUpdateUserResponse = zod.object({
   "phone": zod.string().nullish(),
   "role": zod.string(),
   "isAdmin": zod.boolean(),
+  "active": zod.boolean(),
   "aiMonthlyLimitEur": zod.number().nullish(),
   "farmCount": zod.number().int(),
   "createdAt": zod.string()
