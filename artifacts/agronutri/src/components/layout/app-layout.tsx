@@ -73,9 +73,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-200 ease-in-out flex flex-col md:translate-x-0 md:static md:w-64 md:shrink-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="p-6 flex items-center gap-3 text-sidebar-primary">
-          <img src={logoIconUrl} alt="" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-xl tracking-tight">AgroNutri AI</span>
+        <div className="p-6">
+          <img
+            src={`${import.meta.env.BASE_URL}logo-blanco.png`}
+            alt="AgroNutri AI"
+            className="w-full max-w-[190px] object-contain"
+          />
         </div>
 
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
