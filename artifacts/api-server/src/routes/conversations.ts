@@ -110,12 +110,9 @@ async function saveProductSheet(
   const sourceUrl =
     args.sourceUrl && /^https?:\/\//i.test(args.sourceUrl.trim()) ? args.sourceUrl.trim() : null;
   const [dupe] = await db
-    .select({ id: productSheetsTable.id })
+    .select({ id: productSheetsTable.id, fertilizerId: productSheetsTable.fertilizerId })
     .from(productSheetsTable)
     .where(sql`lower(${productSheetsTable.name}) = ${name.toLowerCase()}`);
-  if (dupe) {
-    return { ok: true, sheetId: dupe.id, addedToCatalog: false, error: "Ya existía una ficha con ese nombre; no se ha duplicado" };
-  }
   const comp = args.composition
     ? {
         nPct: cleanPct(args.composition.nPct),
@@ -129,35 +126,54 @@ async function saveProductSheet(
     : null;
   const hasComposition = comp != null && Object.values(comp).some((v) => v != null);
 
+  // Añade SIEMPRE el producto al catálogo de fertilizantes (aunque no tenga
+  // riqueza NPK declarada, como bioestimulantes o enmiendas) para que quede
+  // disponible en la calculadora.
   let fertilizerId: number | null = null;
   let addedToCatalog = false;
-  if (hasComposition) {
-    const existing = await db
-      .select({ id: fertilizersTable.id })
-      .from(fertilizersTable)
-      .where(sql`lower(${fertilizersTable.name}) = ${name.toLowerCase()}`);
-    if (existing.length) {
-      fertilizerId = existing[0].id;
-    } else {
-      const [fert] = await db
-        .insert(fertilizersTable)
-        .values({
-          name,
-          formulaType: args.formulaType === "liquid" ? "liquid" : "solid",
-          usage: "fertirrigacion",
-          nPct: comp!.nPct ?? 0,
-          p2o5Pct: comp!.p2o5Pct ?? 0,
-          k2oPct: comp!.k2oPct ?? 0,
-          caoPct: comp!.caoPct ?? 0,
-          mgoPct: comp!.mgoPct ?? 0,
-          so3Pct: comp!.so3Pct ?? 0,
-          boronPct: comp!.boronPct ?? 0,
-          notes: `Añadido desde ficha web por el técnico IA${sourceUrl ? ` (${sourceUrl})` : ""}`,
-        })
-        .returning();
-      fertilizerId = fert.id;
-      addedToCatalog = true;
+  const existing = await db
+    .select({ id: fertilizersTable.id })
+    .from(fertilizersTable)
+    .where(sql`lower(${fertilizersTable.name}) = ${name.toLowerCase()}`);
+  if (existing.length) {
+    fertilizerId = existing[0].id;
+  } else {
+    const [fert] = await db
+      .insert(fertilizersTable)
+      .values({
+        name,
+        formulaType: args.formulaType === "liquid" ? "liquid" : "solid",
+        usage: "fertirrigacion",
+        nPct: comp?.nPct ?? 0,
+        p2o5Pct: comp?.p2o5Pct ?? 0,
+        k2oPct: comp?.k2oPct ?? 0,
+        caoPct: comp?.caoPct ?? 0,
+        mgoPct: comp?.mgoPct ?? 0,
+        so3Pct: comp?.so3Pct ?? 0,
+        boronPct: comp?.boronPct ?? 0,
+        notes: `Añadido desde ficha web por el técnico IA${sourceUrl ? ` (${sourceUrl})` : ""}${hasComposition ? "" : ". Sin riqueza NPK declarada: revisa la composición antes de usarlo en cálculos."}`,
+      })
+      .returning();
+    fertilizerId = fert.id;
+    addedToCatalog = true;
+  }
+
+  if (dupe) {
+    // La ficha ya existía: no se duplica, pero se vincula al catálogo si faltaba.
+    if (!dupe.fertilizerId && fertilizerId) {
+      await db
+        .update(productSheetsTable)
+        .set({ fertilizerId })
+        .where(eq(productSheetsTable.id, dupe.id));
     }
+    return {
+      ok: true,
+      sheetId: dupe.id,
+      addedToCatalog,
+      error: addedToCatalog
+        ? undefined
+        : "Ya existía una ficha con ese nombre; no se ha duplicado",
+    };
   }
   const [sheet] = await db
     .insert(productSheetsTable)
