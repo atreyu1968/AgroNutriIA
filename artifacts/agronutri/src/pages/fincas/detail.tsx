@@ -184,7 +184,7 @@ export default function FincaDetail() {
         </TabsContent>
 
         <TabsContent value="sectores"><SectorsTab farmId={farmId} /></TabsContent>
-        <TabsContent value="analiticas"><AnalysesTab farmId={farmId} /></TabsContent>
+        <TabsContent value="analiticas"><AnalysesTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
         <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} /></TabsContent>
         <TabsContent value="informes"><ReportsTab farmId={farmId} /></TabsContent>
         <TabsContent value="miembros"><MembersTab farmId={farmId} /></TabsContent>

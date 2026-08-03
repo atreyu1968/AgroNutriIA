@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { 
   useListSectors, useCreateSector, useDeleteSector,
-  useListAnalyses, useCreateAnalysis, useImportAnalysisPdf,
+  useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis,
   useListRecommendations, useChangeRecommendationStatus,
   useListReports, useCreateReport,
   useListMembers, useAddMember, useRemoveMember,
@@ -10,12 +10,16 @@ import {
   getListRecommendationsQueryKey, getListReportsQueryKey, 
   getListMembersQueryKey, getGetFarmApiConfigQueryKey
 } from "@workspace/api-client-react";
-import type { AnalysisInput } from "@workspace/api-client-react";
+import type { AnalysisInput, Analysis } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -327,8 +331,150 @@ export function ImportAnalysisButton({ farmId }: { farmId: number }) {
   );
 }
 
-export function AnalysesTab({ farmId }: { farmId: number }) {
+type AnalysisRow = Analysis;
+
+const paramStatusLabel: Record<string, { label: string; className: string }> = {
+  muy_bajo: { label: "Muy bajo", className: "bg-red-500/10 text-red-700" },
+  bajo: { label: "Bajo", className: "bg-amber-500/10 text-amber-700" },
+  normal: { label: "Normal", className: "bg-green-500/10 text-green-700" },
+  alto: { label: "Alto", className: "bg-amber-500/10 text-amber-700" },
+  muy_alto: { label: "Muy alto", className: "bg-red-500/10 text-red-700" },
+};
+
+function AnalysisDetailDialog({
+  farmId,
+  analysis,
+  canEdit,
+  onClose,
+}: {
+  farmId: number;
+  analysis: AnalysisRow | null;
+  canEdit: boolean;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const deleteMutation = useDeleteAnalysis({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+        setConfirmOpen(false);
+        onClose();
+        toast({ title: "Analítica eliminada" });
+      },
+      onError: (err: unknown) => {
+        const anyErr = err as { response?: { data?: { error?: string } }; data?: { error?: string }; message?: string };
+        toast({
+          title: "No se pudo eliminar la analítica",
+          description: anyErr?.response?.data?.error ?? anyErr?.data?.error ?? anyErr?.message ?? "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const tipo = analysis?.type === "soil" ? "Suelo" : analysis?.type === "leaf" ? "Foliar" : "Agua de riego";
+
+  return (
+    <Dialog open={analysis !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Detalle de la analítica</DialogTitle>
+        </DialogHeader>
+        {analysis && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              <span><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{tipo}</span></span>
+              <span><span className="text-muted-foreground">Fecha de muestreo:</span> <span className="font-medium">{formatDate(analysis.sampleDate)}</span></span>
+              {analysis.reference && <span><span className="text-muted-foreground">Referencia:</span> <span className="font-medium">{analysis.reference}</span></span>}
+              {analysis.laboratory && <span><span className="text-muted-foreground">Laboratorio:</span> <span className="font-medium">{analysis.laboratory}</span></span>}
+            </div>
+            {analysis.description && <p className="text-sm text-muted-foreground">{analysis.description}</p>}
+            {analysis.notes && <p className="text-sm text-muted-foreground italic">{analysis.notes}</p>}
+            <div className="max-h-80 overflow-y-auto border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Parámetro</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Unidad</TableHead>
+                    <TableHead>Rango ref.</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(analysis.parameters ?? []).map((p, i) => {
+                    const st = p.status ? paramStatusLabel[p.status] : undefined;
+                    return (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="text-right">{formatNumber(p.value)}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.unit || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {p.refLow != null || p.refHigh != null ? `${p.refLow ?? "…"} – ${p.refHigh ?? "…"}` : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {st ? <Badge variant="outline" className={st.className}>{st.label}</Badge> : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {(analysis.parameters ?? []).length === 0 && (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sin parámetros registrados.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-between items-center">
+              {canEdit ? (
+                <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={deleteMutation.isPending}>
+                      <Trash2 className="w-4 h-4 mr-2" /> Eliminar analítica
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar esta analítica?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminará la analítica de {tipo.toLowerCase()} del {formatDate(analysis.sampleDate)}
+                        {analysis.reference ? ` (ref. ${analysis.reference})` : ""}. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteMutation.isPending}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          deleteMutation.mutate({ farmId, analysisId: analysis.id });
+                        }}
+                      >
+                        {deleteMutation.isPending ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Eliminando…</>
+                        ) : (
+                          "Eliminar"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : <span />}
+              <Button variant="outline" onClick={onClose}>Cerrar</Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEdit?: boolean }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
+  const [selected, setSelected] = useState<AnalysisRow | null>(null);
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center">
@@ -357,7 +503,7 @@ export function AnalysesTab({ farmId }: { farmId: number }) {
               <TableRow><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
             ) : analyses && analyses.length > 0 ? (
               analyses.map(a => (
-                <TableRow key={a.id}>
+                <TableRow key={a.id} className="cursor-pointer" onClick={() => setSelected(a)}>
                   <TableCell>{formatDate(a.sampleDate)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={
@@ -379,6 +525,7 @@ export function AnalysesTab({ farmId }: { farmId: number }) {
           </TableBody>
         </Table>
       </Card>
+      <AnalysisDetailDialog farmId={farmId} analysis={selected} canEdit={canEdit} onClose={() => setSelected(null)} />
     </div>
   );
 }
