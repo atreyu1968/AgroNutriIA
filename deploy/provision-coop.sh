@@ -101,7 +101,13 @@ SESSION_SECRET=${SESSION_SECRET}
 APP_URL=https://${DOMAIN}
 # Instancia de cooperativa: oculta Instalaciones/Facturación y deshabilita sus APIs
 COOP_INSTANCE=true
+# Directorio de informes EXCLUSIVO de esta instancia. Todas las instancias
+# comparten APP_DIR, y los nombres informe-<farmId>-<reportId> (ids serial por
+# base de datos) colisionarían entre cooperativas en un directorio común.
+# También permite al reinicio nocturno de la demo limpiar sus PDFs huérfanos.
+REPORTS_DIR=${APP_DIR}/artifacts/api-server/storage/reports/${SUB}
 EOF
+install -d -o agronutri -g agronutri "${APP_DIR}/artifacts/api-server/storage/reports/${SUB}"
 # Instancia de demostración: limita el uso a una finca y un informe de cada
 # tipo (exporta DEMO_MODE=1 al invocar este script).
 if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then

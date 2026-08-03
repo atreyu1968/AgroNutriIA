@@ -51,6 +51,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_SCRIPT="${SCRIPT_DIR}/backup-coop.sh"
+APP_DIR="${APP_DIR:-/opt/agronutri}"
 REF_DIR="/var/backups/agronutri/${SUB}"
 REF_FILE="${REF_DIR}/demo-reference.dump"
 UNIT="agronutri-demo-reset-${SUB}"
@@ -133,6 +134,24 @@ EOF
     # Reinicio correcto: retirar el marcador de fallo de noches anteriores.
     rm -f "$FAIL_MARKER"
     echo "[$(date -Is)] Demo ${SUB} restaurada."
+    # --- PDFs de informes huérfanos (solo demo) ------------------------------
+    # Los informes generados por los visitantes viven en el sistema de
+    # ficheros, no en la base de datos: sin esta limpieza quedarían huérfanos
+    # y se acumularían noche tras noche. Solo se limpia el directorio de
+    # informes PROPIO de la instancia demo (variable REPORTS_DIR que
+    # provision-coop.sh escribe en su fichero de entorno); jamás el
+    # directorio compartido storage/reports, donde conviven los informes de
+    # las cooperativas reales.
+    DEMO_REPORTS_DIR="$(grep -E '^REPORTS_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
+    SHARED_REPORTS_DIR="$(realpath -m -- "${APP_DIR}/artifacts/api-server/storage/reports")"
+    if [[ -z "$DEMO_REPORTS_DIR" ]]; then
+      echo "AVISO: ${ENV_FILE} no define REPORTS_DIR; se omite la limpieza de PDFs huérfanos." >&2
+      echo "       Añade REPORTS_DIR=<dir exclusivo de la demo> (ver deploy/README.md) y reinicia el servicio." >&2
+    elif [[ "$(realpath -m -- "$DEMO_REPORTS_DIR")" == "$SHARED_REPORTS_DIR" ]]; then
+      echo "AVISO: REPORTS_DIR de la demo apunta al directorio compartido ${SHARED_REPORTS_DIR}; se omite la limpieza." >&2
+    else
+      bash "${SCRIPT_DIR}/clean-orphan-reports.sh" "agronutri_${SUB//-/_}" "$DEMO_REPORTS_DIR"
+    fi
     ;;
   notify-failure)
     TS="$(date -Is)"

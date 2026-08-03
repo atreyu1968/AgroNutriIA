@@ -11,5 +11,6 @@
 - [Invoice DB trigger guards](invoice-db-guards.md) — no session-variable bypasses in triggers; single-role Replit Postgres means DDL bypass is inherent, document trust model.
 - [billing_charges status](billing-charge-status.md) — PayPal collection keys on invoiced_at/paypal_sale_id, not status; manual invoicing also writes status="invoiced".
 - [pdfkit footers](pdfkit-footer.md) — zero out `margins.bottom` before writing footer text in the bottom margin, or pdfkit silently appends blank pages.
+- [Shared reports storage](shared-reports-storage.md) — storage/reports is shared by all coop instances on a server; cleanups must be DB-scoped diffs, never directory sweeps.
 - [Schema deploys via drizzle push](db-schema-drift.md) — no migration files by design: deploy/install.sh and provision-coop.sh run `pnpm --filter @workspace/db run push-force`; new tables need no migration, just schema + push.
 - [Demo-mode limit tests](demo-mode-tests.md) — DEMO_MODE is per-process: own test file; demo limits count reports globally, so neutralize dev-seed rows and restore after.

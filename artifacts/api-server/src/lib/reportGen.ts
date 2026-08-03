@@ -20,7 +20,15 @@ import {
 } from "docx";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
 
-export const REPORTS_DIR = path.resolve(process.cwd(), "storage", "reports");
+// Directorio de informes. En producción cada instancia de cooperativa define
+// REPORTS_DIR en su fichero de entorno (provision-coop.sh) apuntando a un
+// subdirectorio propio: todas las instancias comparten APP_DIR y, sin esta
+// separación, los nombres `informe-<farmId>-<reportId>` (ids serial por base
+// de datos) podrían colisionar entre cooperativas. Además permite que el
+// reinicio nocturno de la demo limpie su directorio sin tocar a nadie más.
+export const REPORTS_DIR = process.env.REPORTS_DIR
+  ? path.resolve(process.env.REPORTS_DIR)
+  : path.resolve(process.cwd(), "storage", "reports");
 
 // Logo AgroNutri (color). El bundle esbuild vive en dist/, así que se resuelve
 // por ruta absoluta desde el cwd del artefacto (igual que storage/).
