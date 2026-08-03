@@ -200,6 +200,42 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
     return { label: `Vigente hasta ${formatDate(expiryDate)}`, variant: "secondary" };
   }
 
+  // Avisos: productos usados en los últimos 12 meses cuya autorización caducó o caduca pronto
+  const expiryAlerts = useMemo(() => {
+    if (!treatments?.length || !products?.length) return [];
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 12);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const recent = treatments.filter((t) => t.applicationDate >= cutoffStr);
+    if (!recent.length) return [];
+
+    const usedByRegistry = new Map<string, string>(); // registryNumber -> productName
+    const usedByName = new Set<string>();
+    for (const t of recent) {
+      if (t.registryNumber) usedByRegistry.set(t.registryNumber.trim().toLowerCase(), t.productName);
+      usedByName.add(t.productName.trim().toLowerCase());
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const soon = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const alerts: { id: number; productName: string; expiryDate: string; expired: boolean }[] = [];
+    for (const p of products) {
+      if (!p.expiryDate || p.expiryDate > soon) continue;
+      const matches =
+        (p.registryNumber && usedByRegistry.has(p.registryNumber.trim().toLowerCase())) ||
+        usedByName.has(p.productName.trim().toLowerCase());
+      if (matches) {
+        alerts.push({
+          id: p.id,
+          productName: p.productName,
+          expiryDate: p.expiryDate,
+          expired: p.expiryDate < today,
+        });
+      }
+    }
+    return alerts.sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+  }, [treatments, products]);
+
   const years = useMemo(() => {
     const ys = new Set<string>([String(new Date().getFullYear())]);
     for (const t of treatments ?? []) ys.add(t.applicationDate.slice(0, 4));
@@ -251,8 +287,56 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
 
   return (
     <div className="space-y-6 mt-6">
+      {/* Aviso de autorizaciones caducadas o a punto de caducar */}
+      {expiryAlerts.length > 0 && (
+        <div
+          className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 space-y-2"
+          data-testid="expiry-alert-banner"
+        >
+          <p className="text-sm font-semibold flex items-center gap-2 text-destructive">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Autorizaciones caducadas o a punto de caducar en productos que usas
+          </p>
+          <ul className="text-sm space-y-1">
+            {expiryAlerts.map((a) => (
+              <li key={a.id} className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium">{a.productName}</span>
+                <Badge variant="destructive" className="text-xs">
+                  {a.expired ? `Caducó el ${formatDate(a.expiryDate)}` : `Caduca el ${formatDate(a.expiryDate)}`}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            Estos productos aparecen en tu cuaderno de tratamientos de los últimos 12 meses.
+            Consulta al asesor de fitosanitarios para buscar una alternativa autorizada.
+          </p>
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setQuestion(
+                  `La autorización de ${expiryAlerts.map((a) => a.productName).join(", ")} ${
+                    expiryAlerts.length > 1
+                      ? "ha caducado o caduca pronto"
+                      : expiryAlerts[0].expired
+                        ? "ha caducado"
+                        : "caduca pronto"
+                  }. ¿Qué alternativas autorizadas puedo usar en platanera?`,
+                );
+                document.getElementById("asesor-fitosanitarios")?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <Bot className="w-4 h-4" /> Buscar alternativa con el asesor
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Asesor IA */}
-      <Card className="shadow-sm border-t-4 border-t-primary">
+      <Card id="asesor-fitosanitarios" className="shadow-sm border-t-4 border-t-primary">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Bot className="w-5 h-5" /> Asesor de fitosanitarios

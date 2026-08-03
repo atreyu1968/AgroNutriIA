@@ -78,27 +78,6 @@ router.get("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =>
     .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
   const sectors = await sectorMap(farmId);
         let result: unknown;
-
-async function canEditCatalog(user: User): Promise<boolean> {
-  if (user.isAdmin) return true;
-  const [owned] = await db
-    .select({ id: farmsTable.id })
-    .from(farmsTable)
-    .where(eq(farmsTable.ownerId, user.id))
-    .limit(1);
-  if (owned) return true;
-  const [membership] = await db
-    .select({ id: farmMembersTable.id })
-    .from(farmMembersTable)
-    .where(
-      and(
-        eq(farmMembersTable.userId, user.id),
-        inArray(farmMembersTable.role, ["owner", "technician"]),
-      ),
-    )
-    .limit(1);
-  return Boolean(membership);
-}
   for (const t of rows) {
     result.push(
       serializeTreatment(
@@ -123,8 +102,6 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     return;
   }
   const parsed = PhytoConsultBody.safeParse(req.body);
-
-  const existing = await findExistingProduct(parsed.data);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -219,6 +196,51 @@ type ProductInput = {
   sourceUrl?: string | null;
 };
 
+// Editar el catálogo compartido exige ser administrador, propietario de
+// alguna finca o técnico (miembro con rol owner/technician).
+async function canEditCatalog(user: User): Promise<boolean> {
+  if (user.isAdmin) return true;
+  const [owned] = await db
+    .select({ id: farmsTable.id })
+    .from(farmsTable)
+    .where(eq(farmsTable.ownerId, user.id))
+    .limit(1);
+  if (owned) return true;
+  const [membership] = await db
+    .select({ id: farmMembersTable.id })
+    .from(farmMembersTable)
+    .where(
+      and(
+        eq(farmMembersTable.userId, user.id),
+        inArray(farmMembersTable.role, ["owner", "technician"]),
+      ),
+    )
+    .limit(1);
+  return Boolean(membership);
+}
+
+// Solo se admiten URLs http(s) absolutas como fuente: el frontend las
+// renderiza como enlaces y una URL `javascript:` sería XSS almacenado.
+export function isValidSourceUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Política de escritura del catálogo compartido: crear puede cualquiera con
+// sesión, pero sobrescribir una entrada existente solo el administrador o
+// quien la creó (misma regla que el borrado).
+export function canMutateProduct(
+  user: { id: number; isAdmin: boolean },
+  existing: { createdBy: number | null } | undefined,
+): boolean {
+  if (!existing) return true;
+  return user.isAdmin || existing.createdBy === user.id;
+}
+
 // Upsert por número de registro (preferido) o por nombre comercial (igualdad
 // sin distinguir mayúsculas; nunca patrones). Los índices únicos de la tabla
 // evitan duplicados en peticiones concurrentes: si el insert choca, se
@@ -252,7 +274,7 @@ async function upsertProduct(
     expiryDate: data.expiryDate ?? null,
     exceptional: data.exceptional ? 1 : 0,
     notes: data.notes ?? null,
-    sourceUrl: data.sourceUrl ?? null,
+    sourceUrl: data.sourceUrl && isValidSourceUrl(data.sourceUrl) ? data.sourceUrl : null,
     lastVerifiedAt: verified ? new Date() : null,
     updatedAt: new Date(),
   };
@@ -291,30 +313,31 @@ router.get("/phyto/products", async (_req, res): Promise<void> => {
     .where(eq(phytoTreatmentsTable.farmId, farmId))
     .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
         let result: unknown;
+  for (const p of rows) {
+    result.push(serializeProduct(p, await userName(p.createdBy)));
+  }
+  res.json(ListPhytoProductsResponse.parse(result));
+});
 
-async function canEditCatalog(user: User): Promise<boolean> {
-  if (user.isAdmin) return true;
-  const [owned] = await db
-    .select({ id: farmsTable.id })
-    .from(farmsTable)
-    .where(eq(farmsTable.ownerId, user.id))
-    .limit(1);
-  if (owned) return true;
-  const [membership] = await db
-    .select({ id: farmMembersTable.id })
-    .from(farmMembersTable)
-    .where(
-      and(
-        eq(farmMembersTable.userId, user.id),
-        inArray(farmMembersTable.role, ["owner", "technician"]),
-      ),
-    )
-    .limit(1);
-  return Boolean(membership);
-}
+router.post("/phyto/products", async (req, res): Promise<void> => {
   const parsed = PhytoConsultBody.safeParse(req.body);
-
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (!(await canEditCatalog(req.user!))) {
+    res.status(403).json({ error: "Sin permisos para editar el catálogo" });
+    return;
+  }
+  if (parsed.data.sourceUrl && !isValidSourceUrl(parsed.data.sourceUrl)) {
+    res.status(400).json({ error: "La URL de la fuente debe ser una dirección http(s) válida" });
+    return;
+  }
   const existing = await findExistingProduct(parsed.data);
+  if (!canMutateProduct(req.user!, existing[0])) {
+    res.status(403).json({ error: "Solo el administrador o quien lo añadió puede modificarlo" });
+    return;
+  }
               const { product, created } = await upsertProduct(check.data, req.user!.id, true);
   await audit({
     userId: req.user!.id,
@@ -435,8 +458,6 @@ router.post("/farms/:farmId/phyto/plan-pdf", async (req, res): Promise<void> => 
     return;
   }
   const parsed = PhytoConsultBody.safeParse(req.body);
-
-  const existing = await findExistingProduct(parsed.data);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -470,8 +491,6 @@ router.post("/farms/:farmId/phyto/consult", async (req, res): Promise<void> => {
     return;
   }
   const parsed = PhytoConsultBody.safeParse(req.body);
-
-  const existing = await findExistingProduct(parsed.data);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -615,27 +634,6 @@ INSTRUCCIONES DE RESPUESTA:
       input = input.concat(response.output as OpenAI.Responses.ResponseInputItem[]);
       for (const call of functionCalls) {
         let result: unknown;
-
-async function canEditCatalog(user: User): Promise<boolean> {
-  if (user.isAdmin) return true;
-  const [owned] = await db
-    .select({ id: farmsTable.id })
-    .from(farmsTable)
-    .where(eq(farmsTable.ownerId, user.id))
-    .limit(1);
-  if (owned) return true;
-  const [membership] = await db
-    .select({ id: farmMembersTable.id })
-    .from(farmMembersTable)
-    .where(
-      and(
-        eq(farmMembersTable.userId, user.id),
-        inArray(farmMembersTable.role, ["owner", "technician"]),
-      ),
-    )
-    .limit(1);
-  return Boolean(membership);
-}
         if (call.name === "guardar_producto_autorizado") {
           try {
             const args = JSON.parse(call.arguments) as ProductInput;
