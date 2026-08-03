@@ -660,14 +660,12 @@ export const ImportAnalysisPdfBody = zod.object({
 })
 
 export const ImportAnalysisPdfResponse = zod.object({
-  "id": zod.number().int(),
-  "farmId": zod.number().int(),
-  "sectorId": zod.number().int().nullish(),
+  "sectorId": zod.number().int().optional(),
   "type": zod.enum(['soil', 'leaf', 'water']),
-  "reference": zod.string().nullish(),
-  "laboratory": zod.string().nullish(),
-  "description": zod.string().nullish(),
-  "sampleDate": zod.string().describe('YYYY-MM-DD'),
+  "reference": zod.string().optional(),
+  "laboratory": zod.string().optional(),
+  "description": zod.string().optional(),
+  "sampleDate": zod.string(),
   "parameters": zod.array(zod.object({
   "name": zod.string(),
   "value": zod.number(),
@@ -676,8 +674,7 @@ export const ImportAnalysisPdfResponse = zod.object({
   "refHigh": zod.number().nullish(),
   "status": zod.string().nullish().describe('muy_bajo | bajo | normal | alto | muy_alto')
 })),
-  "notes": zod.string().nullish(),
-  "createdAt": zod.string().nullish()
+  "notes": zod.string().optional()
 })
 
 

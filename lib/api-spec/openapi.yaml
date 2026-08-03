@@ -366,12 +366,12 @@ paths:
                   type: string
                   format: binary
       responses:
-        "201":
-          description: Analysis created from the PDF
+        "200":
+          description: Extracted analysis data for user review (not yet saved)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Analysis"
+                $ref: "#/components/schemas/AnalysisInput"
 
   /farms/{farmId}/analyses/{analysisId}:
     get:

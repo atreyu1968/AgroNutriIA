@@ -193,37 +193,33 @@ router.post(
         return;
       }
 
+      // The extraction is returned as a draft for the user to review and confirm;
+      // saving happens through the regular createAnalysis endpoint.
       const d = extracted.data;
-      const [analysis] = await db
-        .insert(analysesTable)
-        .values({
-          farmId,
-          type: d.type,
-          reference: d.reference ?? null,
-          laboratory: d.laboratory ?? null,
-          description: d.description ?? null,
-          sampleDate: d.sampleDate,
-          notes: d.notes ? `${d.notes} (importada de PDF)` : "Importada de PDF con el técnico virtual",
-          parameters: d.parameters.map((p: z.infer<typeof ExtractedAnalysis>["parameters"][number]) => ({
-            name: p.name,
-            value: p.value,
-            unit: p.unit ?? undefined,
-            refLow: p.refLow ?? undefined,
-            refHigh: p.refHigh ?? undefined,
-            status: p.status ?? undefined,
-          })),
-          createdBy: req.user!.id,
-        })
-        .returning();
+      const draft = {
+        type: d.type,
+        reference: d.reference ?? undefined,
+        laboratory: d.laboratory ?? undefined,
+        description: d.description ?? undefined,
+        sampleDate: d.sampleDate,
+        notes: d.notes ? `${d.notes} (importada de PDF)` : "Importada de PDF con el técnico virtual",
+        parameters: d.parameters.map((p: z.infer<typeof ExtractedAnalysis>["parameters"][number]) => ({
+          name: p.name,
+          value: p.value,
+          unit: p.unit ?? undefined,
+          refLow: p.refLow ?? undefined,
+          refHigh: p.refHigh ?? undefined,
+          status: p.status ?? undefined,
+        })),
+      };
       await audit({
         userId: req.user!.id,
         farmId,
-        action: "analysis_imported_pdf",
+        action: "analysis_pdf_extracted",
         entityType: "analysis",
-        entityId: analysis.id,
         detail: `${d.type} ${d.reference ?? ""}`.trim(),
       });
-      res.status(201).json(ImportAnalysisPdfResponse.parse(serializeAnalysis(analysis)));
+      res.status(200).json(ImportAnalysisPdfResponse.parse(draft));
     } catch (err) {
       req.log.error({ err: (err as Error).message }, "Analysis import failed");
       if (!usageRecorded) {
@@ -238,7 +234,7 @@ router.post(
       }
       res.status(502).json({
         error: usageRecorded
-          ? "Se han extraído los datos pero no se ha podido guardar la analítica. Inténtalo de nuevo."
+          ? "Se han extraído los datos pero no se han podido preparar para revisión. Inténtalo de nuevo."
           : "El servicio de OpenAI ha devuelto un error al procesar el PDF. Comprueba tu clave en Ajustes.",
       });
     }

@@ -1607,11 +1607,11 @@ export const getImportAnalysisPdfUrl = (farmId: number,) => {
  * @summary Upload a lab analysis PDF and extract its data with AI
  */
 export const importAnalysisPdf = async (farmId: number,
-    importAnalysisPdfBody: ImportAnalysisPdfBody, options?: Parameters<typeof customFetch>[1]): Promise<Analysis> => {
+    importAnalysisPdfBody: ImportAnalysisPdfBody, options?: Parameters<typeof customFetch>[1]): Promise<AnalysisInput> => {
     const formData = new FormData();
 formData.append(`file`, importAnalysisPdfBody.file);
 
-  return customFetch<Analysis>(getImportAnalysisPdfUrl(farmId),
+  return customFetch<AnalysisInput>(getImportAnalysisPdfUrl(farmId),
   {
     ...options,
     method: 'POST'

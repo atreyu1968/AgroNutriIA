@@ -10,6 +10,7 @@ import {
   getListRecommendationsQueryKey, getListReportsQueryKey, 
   getListMembersQueryKey, getGetFarmApiConfigQueryKey
 } from "@workspace/api-client-react";
+import type { AnalysisInput } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,26 +76,37 @@ export function ImportAnalysisButton({ farmId }: { farmId: number }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [draft, setDraft] = useState<AnalysisInput | null>(null);
+
+  const errorDescription = (err: unknown) => {
+    const anyErr = err as { response?: { data?: { error?: string } }; data?: { error?: string }; message?: string };
+    return anyErr?.response?.data?.error ?? anyErr?.data?.error ?? anyErr?.message ?? "Inténtalo de nuevo.";
+  };
+
   const importPdf = useImportAnalysisPdf({
     mutation: {
-      onSuccess: (analysis) => {
-        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
-        const tipo = analysis.type === "soil" ? "suelo" : analysis.type === "leaf" ? "foliar" : "agua";
-        toast({
-          title: "Analítica importada",
-          description: `El técnico virtual ha extraído ${analysis.parameters?.length ?? 0} parámetros de la analítica de ${tipo}${analysis.reference ? ` (${analysis.reference})` : ""}. Ya se usa en la calculadora y en las recomendaciones.`,
-        });
-      },
-      onError: (err: unknown) => {
-        const anyErr = err as { response?: { data?: { error?: string } }; data?: { error?: string }; message?: string };
-        toast({
-          title: "No se pudo importar el PDF",
-          description: anyErr?.response?.data?.error ?? anyErr?.data?.error ?? anyErr?.message ?? "Inténtalo de nuevo.",
-          variant: "destructive",
-        });
-      },
+      onSuccess: (extracted) => setDraft(extracted),
+      onError: (err: unknown) =>
+        toast({ title: "No se pudo importar el PDF", description: errorDescription(err), variant: "destructive" }),
     },
   });
+
+  const saveAnalysis = useCreateAnalysis({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+        setDraft(null);
+        toast({
+          title: "Analítica guardada",
+          description: "La analítica importada ya se usa en la calculadora y en las recomendaciones.",
+        });
+      },
+      onError: (err: unknown) =>
+        toast({ title: "No se pudo guardar la analítica", description: errorDescription(err), variant: "destructive" }),
+    },
+  });
+
+  const tipo = draft?.type === "soil" ? "suelo" : draft?.type === "leaf" ? "foliar" : "agua de riego";
 
   return (
     <>
@@ -116,6 +128,61 @@ export function ImportAnalysisButton({ farmId }: { farmId: number }) {
           <><Upload className="w-4 h-4 mr-2" /> Importar PDF</>
         )}
       </Button>
+
+      <Dialog open={draft !== null} onOpenChange={(open) => { if (!open) setDraft(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Revisa los datos extraídos</DialogTitle>
+          </DialogHeader>
+          {draft && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                El técnico virtual ha identificado una analítica de <span className="font-medium text-foreground">{tipo}</span>
+                {draft.reference ? <> con referencia <span className="font-medium text-foreground">{draft.reference}</span></> : null}
+                {draft.laboratory ? <> del laboratorio {draft.laboratory}</> : null}
+                {draft.sampleDate ? <> (muestreo: {formatDate(draft.sampleDate)})</> : null}.
+                Comprueba los valores antes de guardarla.
+              </p>
+              <div className="max-h-80 overflow-y-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Parámetro</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead>Rango ref.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {draft.parameters.map((p, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="text-right">{formatNumber(p.value)}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.unit || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {p.refLow != null || p.refHigh != null ? `${p.refLow ?? "…"} – ${p.refHigh ?? "…"}` : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDraft(null)} disabled={saveAnalysis.isPending}>
+                  Descartar
+                </Button>
+                <Button onClick={() => saveAnalysis.mutate({ farmId, data: draft })} disabled={saveAnalysis.isPending}>
+                  {saveAnalysis.isPending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
+                  ) : (
+                    "Guardar analítica"
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
