@@ -47,7 +47,7 @@ export default function Fertilizantes() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <CreateFertilizerDialog open={open} onOpenChange={setOpen} />
+          {isAdmin && <CreateFertilizerDialog open={open} onOpenChange={setOpen} />}
         </div>
       </div>
 
