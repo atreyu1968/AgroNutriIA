@@ -170,7 +170,7 @@ test("un administrador no puede quitarse a sí mismo los permisos de admin (400)
 async function assertRegistrationBlocked(emailTag: string) {
   const cfg = await api("GET", "/auth/config");
   assert.equal(cfg.status, 200);
-  assert.deepEqual(cfg.raw, { registrationEnabled: false });
+  assert.deepEqual(cfg.raw, { registrationEnabled: false, coopInstance: false });
 
   const email = `adm-users-registro-${emailTag}-${suffix}@test.local`;
   const reg = await api("POST", "/auth/register", {
@@ -202,7 +202,7 @@ test("con PUBLIC_REGISTRATION=true el registro público funciona", async (t) => 
 
   const cfg = await api("GET", "/auth/config");
   assert.equal(cfg.status, 200);
-  assert.deepEqual(cfg.raw, { registrationEnabled: true });
+  assert.deepEqual(cfg.raw, { registrationEnabled: true, coopInstance: false });
 
   const email = `adm-users-registro-abierto-${suffix}@test.local`;
   createdEmails.push(email);

@@ -99,6 +99,8 @@ PORT=${API_PORT}
 DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
 APP_URL=https://${DOMAIN}
+# Instancia de cooperativa: oculta Instalaciones/Facturación y deshabilita sus APIs
+COOP_INSTANCE=true
 EOF
 # Instancia de demostración: limita el uso a una finca y un informe de cada
 # tipo (exporta DEMO_MODE=1 al invocar este script).

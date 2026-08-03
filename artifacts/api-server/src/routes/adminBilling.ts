@@ -15,6 +15,7 @@ import {
   AdminIssueInvoiceResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { isCoopInstance } from "../lib/instance";
 import { audit } from "../lib/audit";
 import { setEmailSetting } from "../lib/email";
 import {
@@ -33,6 +34,15 @@ import {
 import { sendInvoiceEmail } from "../lib/email";
 
 const router: IRouter = Router();
+// En instancias de cooperativa la facturación es exclusiva de la central:
+// sus rutas se deshabilitan por completo.
+router.use((_req, res, next) => {
+  if (isCoopInstance()) {
+    res.status(404).json({ error: "No disponible en esta instalación" });
+    return;
+  }
+  next();
+});
 router.use(requireAuth);
 router.use((req, res, next) => {
   if (!req.user!.isAdmin) {

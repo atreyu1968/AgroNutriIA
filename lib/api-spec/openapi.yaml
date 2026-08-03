@@ -2086,9 +2086,10 @@ components:
               message: { type: string, nullable: true }
     AuthConfig:
       type: object
-      required: [registrationEnabled]
+      required: [registrationEnabled, coopInstance]
       properties:
         registrationEnabled: { type: boolean }
+        coopInstance: { type: boolean }
     AdminUserCreate:
       type: object
       required: [email, name, password]

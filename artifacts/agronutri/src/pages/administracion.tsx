@@ -17,6 +17,8 @@ import {
   useListMembers,
   getListMembersQueryKey,
   useAdminReassignTechnician,
+  useGetAuthConfig,
+  getGetAuthConfigQueryKey,
   type AdminUser,
   type AdminFarm,
 } from "@workspace/api-client-react";
@@ -59,6 +61,10 @@ function errorMessage(err: unknown): string {
 
 export default function Administracion() {
   const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
+  const { data: authConfig } = useGetAuthConfig({ query: { queryKey: getGetAuthConfigQueryKey() } });
+  // Instalaciones y Facturación son exclusivas de la instalación central
+  // (la del vendedor); en las instancias de cooperativa se ocultan.
+  const centralOnly = authConfig ? !authConfig.coopInstance : false;
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -193,17 +199,25 @@ export default function Administracion() {
           <TabsTrigger value="usuarios" className="gap-2"><Users className="w-4 h-4" /> Usuarios</TabsTrigger>
           <TabsTrigger value="fincas" className="gap-2"><MapPin className="w-4 h-4" /> Fincas</TabsTrigger>
           <TabsTrigger value="configuracion" className="gap-2"><Mail className="w-4 h-4" /> Configuración</TabsTrigger>
-          <TabsTrigger value="instalaciones" className="gap-2"><Server className="w-4 h-4" /> Instalaciones</TabsTrigger>
-          <TabsTrigger value="facturacion" className="gap-2" data-testid="tab-facturacion"><ReceiptText className="w-4 h-4" /> Facturación</TabsTrigger>
+          {centralOnly && (
+            <TabsTrigger value="instalaciones" className="gap-2"><Server className="w-4 h-4" /> Instalaciones</TabsTrigger>
+          )}
+          {centralOnly && (
+            <TabsTrigger value="facturacion" className="gap-2" data-testid="tab-facturacion"><ReceiptText className="w-4 h-4" /> Facturación</TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="facturacion" className="mt-6">
-          <FacturacionTab />
-        </TabsContent>
+        {centralOnly && (
+          <TabsContent value="facturacion" className="mt-6">
+            <FacturacionTab />
+          </TabsContent>
+        )}
 
-        <TabsContent value="instalaciones" className="mt-6">
-          <InstalacionesTab />
-        </TabsContent>
+        {centralOnly && (
+          <TabsContent value="instalaciones" className="mt-6">
+            <InstalacionesTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="usuarios" className="mt-6">
           <Card>

@@ -8,4 +8,5 @@
 
 export interface AuthConfig {
   registrationEnabled: boolean;
+  coopInstance: boolean;
 }

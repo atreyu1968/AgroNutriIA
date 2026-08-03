@@ -14,6 +14,7 @@ import {
   AdminUpdatePaypalSettingsBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { isCoopInstance } from "../lib/instance";
 import { audit } from "../lib/audit";
 import {
   getPaypalConfig,
@@ -26,6 +27,15 @@ import {
 import { provisionInBackground, currentPeriod, installationUrl } from "../lib/provisioner";
 
 const router: IRouter = Router();
+// En instancias de cooperativa la gestión de instalaciones es exclusiva de la
+// central: sus rutas se deshabilitan por completo.
+router.use((_req, res, next) => {
+  if (isCoopInstance()) {
+    res.status(404).json({ error: "No disponible en esta instalación" });
+    return;
+  }
+  next();
+});
 router.use(requireAuth);
 router.use((req, res, next) => {
   if (!req.user!.isAdmin) {

@@ -2049,7 +2049,8 @@ export const GetDashboardResponse = zod.object({
  * @summary Public auth configuration (no session required)
  */
 export const GetAuthConfigResponse = zod.object({
-  "registrationEnabled": zod.boolean()
+  "registrationEnabled": zod.boolean(),
+  "coopInstance": zod.boolean()
 })
 
 
