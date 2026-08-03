@@ -31,6 +31,7 @@ export type ReportData = {
   recommendation: Recommendation | null;
   authorName: string;
   date: string;
+  technicianNotes?: string | null;
 };
 
 type Section = { heading: string; paragraphs: string[]; table?: string[][] };
@@ -113,6 +114,16 @@ function buildSections(d: ReportData): Section[] {
       });
       n++;
     }
+  }
+  if (d.technicianNotes) {
+    sections.push({
+      heading: `${n}. Observaciones del técnico`,
+      paragraphs: d.technicianNotes
+        .split(/\n{2,}/)
+        .map((p) => p.trim())
+        .filter(Boolean),
+    });
+    n++;
   }
   sections.push({
     heading: `${n}. Seguimiento`,

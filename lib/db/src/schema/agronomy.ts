@@ -67,6 +67,36 @@ export const fertilizersTable = pgTable("fertilizers", {
 });
 export type Fertilizer = typeof fertilizersTable.$inferSelect;
 
+export type ProductSheetComposition = {
+  nPct?: number | null;
+  p2o5Pct?: number | null;
+  k2oPct?: number | null;
+  caoPct?: number | null;
+  mgoPct?: number | null;
+  so3Pct?: number | null;
+  boronPct?: number | null;
+};
+
+export const productSheetsTable = pgTable("product_sheets", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  manufacturer: text("manufacturer"),
+  category: text("category"), // abono soluble, quelato, bioestimulante, etc.
+  formulaType: text("formula_type"), // solid | liquid
+  description: text("description"),
+  composition: jsonb("composition").$type<ProductSheetComposition | null>(),
+  dosage: text("dosage"),
+  sourceUrl: text("source_url"),
+  fertilizerId: integer("fertilizer_id").references(() => fertilizersTable.id, {
+    onDelete: "set null",
+  }),
+  createdBy: integer("created_by").references(() => usersTable.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type ProductSheet = typeof productSheetsTable.$inferSelect;
+
 export type RecommendationItem = {
   fertilizerId?: number | null;
   fertilizerName: string;

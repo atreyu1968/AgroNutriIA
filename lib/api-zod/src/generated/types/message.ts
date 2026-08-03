@@ -12,6 +12,7 @@ export interface Message {
   /** user | assistant | system */
   role: string;
   content: string;
+  attachments?: string[];
   toolsUsed?: string[];
   sources?: string[];
   /** @nullable */

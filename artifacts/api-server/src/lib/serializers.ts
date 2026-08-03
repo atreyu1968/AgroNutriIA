@@ -133,6 +133,7 @@ export function serializeMessage(m: Message) {
     conversationId: m.conversationId,
     role: m.role,
     content: m.content,
+    attachments: m.attachments ?? [],
     toolsUsed: m.toolsUsed ?? [],
     sources: m.sources ?? [],
     estimatedCostEur: m.estimatedCostEur,

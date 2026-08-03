@@ -56,6 +56,7 @@ import type {
   LoginInput,
   Message,
   MessageInput,
+  ProductSheet,
   Recommendation,
   RecommendationInput,
   RecommendationStatusChange,
@@ -66,6 +67,7 @@ import type {
   Sector,
   SectorInput,
   SectorUpdate,
+  UploadConversationAttachmentBody,
   UsageSummary,
   UserProfile,
   UserProfileUpdate
@@ -2362,6 +2364,154 @@ export function useGetMobileAppUrl<TData = Awaited<ReturnType<typeof getMobileAp
 
 
 
+export const getListProductSheetsUrl = () => {
+
+
+
+
+  return `/api/product-sheets`
+}
+
+/**
+ * @summary List saved plant nutrition product sheets
+ */
+export const listProductSheets = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProductSheet[]> => {
+
+  return customFetch<ProductSheet[]>(getListProductSheetsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductSheetsQueryKey = () => {
+    return [
+    `/api/product-sheets`
+    ] as const;
+    }
+
+
+export const getListProductSheetsQueryOptions = <TData = Awaited<ReturnType<typeof listProductSheets>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductSheets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductSheetsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductSheets>>> = ({ signal }) => listProductSheets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductSheets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductSheetsQueryResult = NonNullable<Awaited<ReturnType<typeof listProductSheets>>>
+export type ListProductSheetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List saved plant nutrition product sheets
+ */
+
+export function useListProductSheets<TData = Awaited<ReturnType<typeof listProductSheets>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductSheets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProductSheetsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteProductSheetUrl = (sheetId: number,) => {
+
+
+
+
+  return `/api/product-sheets/${sheetId}`
+}
+
+/**
+ * @summary Delete a saved product sheet
+ */
+export const deleteProductSheet = async (sheetId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteProductSheetUrl(sheetId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteProductSheetMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductSheet>>, TError,{sheetId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProductSheet>>, TError,{sheetId: number}, TContext> => {
+
+const mutationKey = ['deleteProductSheet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProductSheet>>, {sheetId: number}> = (props) => {
+          const {sheetId} = props ?? {};
+
+          return  deleteProductSheet(sheetId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProductSheetMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProductSheet>>>
+
+    export type DeleteProductSheetMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a saved product sheet
+ */
+export const useDeleteProductSheet = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductSheet>>, TError,{sheetId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProductSheet>>,
+        TError,
+        {sheetId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteProductSheetMutationOptions(options));
+    }
+
 export const getGenerateAiDraftRecommendationUrl = (farmId: number,) => {
 
 
@@ -3538,6 +3688,85 @@ export const useSendMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendMessageMutationOptions(options));
+    }
+
+export const getUploadConversationAttachmentUrl = (farmId: number,
+    conversationId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/conversations/${conversationId}/attachments`
+}
+
+/**
+ * @summary Attach a document (PDF) or image to the conversation; its content is extracted and added as a user message
+ */
+export const uploadConversationAttachment = async (farmId: number,
+    conversationId: number,
+    uploadConversationAttachmentBody: UploadConversationAttachmentBody, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+    const formData = new FormData();
+formData.append(`file`, uploadConversationAttachmentBody.file);
+if(uploadConversationAttachmentBody.note !== undefined) {
+ formData.append(`note`, uploadConversationAttachmentBody.note);
+ }
+
+  return customFetch<Message>(getUploadConversationAttachmentUrl(farmId,conversationId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadConversationAttachmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadConversationAttachment>>, TError,{farmId: number;conversationId: number;data: BodyType<UploadConversationAttachmentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadConversationAttachment>>, TError,{farmId: number;conversationId: number;data: BodyType<UploadConversationAttachmentBody>}, TContext> => {
+
+const mutationKey = ['uploadConversationAttachment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadConversationAttachment>>, {farmId: number;conversationId: number;data: BodyType<UploadConversationAttachmentBody>}> = (props) => {
+          const {farmId,conversationId,data} = props ?? {};
+
+          return  uploadConversationAttachment(farmId,conversationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadConversationAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadConversationAttachment>>>
+    export type UploadConversationAttachmentMutationBody = BodyType<UploadConversationAttachmentBody>
+    export type UploadConversationAttachmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Attach a document (PDF) or image to the conversation; its content is extracted and added as a user message
+ */
+export const useUploadConversationAttachment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadConversationAttachment>>, TError,{farmId: number;conversationId: number;data: BodyType<UploadConversationAttachmentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadConversationAttachment>>,
+        TError,
+        {farmId: number;conversationId: number;data: BodyType<UploadConversationAttachmentBody>},
+        TContext
+      > => {
+      return useMutation(getUploadConversationAttachmentMutationOptions(options));
     }
 
 export const getCreateDraftFromMessageUrl = (farmId: number,

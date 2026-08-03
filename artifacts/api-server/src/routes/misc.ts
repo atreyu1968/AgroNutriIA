@@ -10,6 +10,7 @@ import {
   recommendationsTable,
   analysesTable,
   usersTable,
+  productSheetsTable,
 } from "@workspace/db";
 import {
   GetUsageResponse,
@@ -18,6 +19,7 @@ import {
   ListAuditLogResponse,
   GetDashboardResponse,
   GetMobileAppUrlResponse,
+  ListProductSheetsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { farmAlerts, latestAnalysis, activeRecommendation } from "../lib/farmContext";
@@ -36,6 +38,46 @@ async function accessibleFarmIds(userId: number): Promise<number[]> {
     .where(eq(farmMembersTable.userId, userId));
   return [...new Set([...owned.map((r) => r.id), ...member.map((r) => r.id)])];
 }
+
+router.get("/product-sheets", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(productSheetsTable)
+    .orderBy(desc(productSheetsTable.createdAt));
+  res.json(
+    ListProductSheetsResponse.parse(
+      rows.map((s) => ({
+        id: s.id,
+        name: s.name,
+        manufacturer: s.manufacturer,
+        category: s.category,
+        formulaType: s.formulaType,
+        description: s.description,
+        composition: s.composition,
+        dosage: s.dosage,
+        sourceUrl: s.sourceUrl,
+        fertilizerId: s.fertilizerId,
+        createdBy: s.createdBy,
+        createdAt: s.createdAt.toISOString(),
+      })),
+    ),
+  );
+});
+
+router.delete("/product-sheets/:sheetId", async (req, res): Promise<void> => {
+  const id = Number(req.params.sheetId);
+  const [sheet] = await db.select().from(productSheetsTable).where(eq(productSheetsTable.id, id));
+  if (!sheet) {
+    res.status(404).json({ error: "Ficha no encontrada" });
+    return;
+  }
+  if (!req.user!.isAdmin && sheet.createdBy !== req.user!.id) {
+    res.status(403).json({ error: "Solo el creador o un administrador puede borrar la ficha" });
+    return;
+  }
+  await db.delete(productSheetsTable).where(eq(productSheetsTable.id, id));
+  res.status(204).send();
+});
 
 router.get("/mobile-app", async (_req, res): Promise<void> => {
   const url =

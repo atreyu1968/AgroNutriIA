@@ -38,6 +38,7 @@ export const messagesTable = pgTable("messages", {
     .references(() => conversationsTable.id, { onDelete: "cascade" }),
   role: text("role").notNull(), // user | assistant | system
   content: text("content").notNull(),
+  attachments: text("attachments").array(),
   toolsUsed: text("tools_used").array(),
   sources: text("sources").array(),
   estimatedCostEur: real("estimated_cost_eur"),

@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { ChatTecnicoPanel } from "@/components/chat-tecnico";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -849,6 +850,7 @@ export function ReportsTab({ farmId }: { farmId: number }) {
   const [genOpen, setGenOpen] = useState(false);
   const [selectedRecId, setSelectedRecId] = useState<string>("none");
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
+  const [chatConversationId, setChatConversationId] = useState<number | null>(null);
 
   const handleGenerate = () => {
     createMutation.mutate({
@@ -857,6 +859,7 @@ export function ReportsTab({ farmId }: { farmId: number }) {
         format,
         title: "Informe técnico de fertirrigación",
         ...(selectedRecId !== "none" ? { recommendationId: parseInt(selectedRecId, 10) } : {}),
+        ...(chatConversationId != null ? { conversationId: chatConversationId } : {}),
       },
     });
   };
@@ -869,7 +872,7 @@ export function ReportsTab({ farmId }: { farmId: number }) {
           <DialogTrigger asChild>
             <Button size="sm"><FileText className="w-4 h-4 mr-2" /> Generar Informe</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Generar informe</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -899,9 +902,22 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                   </SelectContent>
                 </Select>
               </div>
+              <ChatTecnicoPanel
+                farmId={farmId}
+                conversationTitle="Chat del informe técnico"
+                description="Cuéntale al técnico IA lo que quieres reflejar en el informe y adjunta documentos (PDF) o imágenes (fotos de campo, etiquetas, analíticas escaneadas...). La conversación se resumirá en la sección «Observaciones del técnico» del informe."
+                allowAttachments
+                compact
+                onConversationChange={setChatConversationId}
+              />
               <Button className="w-full" onClick={handleGenerate} disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Generando..." : "Generar informe"}
               </Button>
+              {chatConversationId != null && (
+                <p className="text-xs text-muted-foreground text-center">
+                  El informe incluirá las observaciones de la conversación con el técnico IA.
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>

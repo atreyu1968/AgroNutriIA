@@ -11,4 +11,6 @@ export interface ReportInput {
   title?: string;
   format: ReportInputFormat;
   recommendationId?: number;
+  /** Conversation with the AI technician whose notes and attachments are summarised into the report */
+  conversationId?: number | null;
 }

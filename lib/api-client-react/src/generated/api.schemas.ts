@@ -210,22 +210,22 @@ export interface FarmUpdate {
   cif?: string;
   island?: string;
   municipality?: string;
-  latitude?: number;
-  longitude?: number;
-  altitudeM?: number;
-  surfaceHa?: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  altitudeM?: number | null;
+  surfaceHa?: number | null;
   mainCrop?: string;
   variety?: string;
-  plantCount?: number;
+  plantCount?: number | null;
   phenologicalStage?: string;
   cropSystem?: string;
   soilType?: string;
   hasDrainage?: boolean;
   foliarAllowed?: boolean;
   hasDesalinatedWater?: boolean;
-  desalinatedWaterPct?: number;
-  weeklyLitresPerPlant?: number;
-  maxEcDsM?: number;
+  desalinatedWaterPct?: number | null;
+  weeklyLitresPerPlant?: number | null;
+  maxEcDsM?: number | null;
   managementNotes?: string;
   responsibleTechnician?: string;
 }
@@ -680,6 +680,7 @@ export interface Message {
   /** user | assistant | system */
   role: string;
   content: string;
+  attachments?: string[];
   toolsUsed?: string[];
   sources?: string[];
   /** @nullable */
@@ -690,6 +691,52 @@ export interface Message {
 export interface MessageInput {
   /** @minLength 1 */
   content: string;
+  /** Optional description of the fertilization plan the user is editing, added to the assistant context */
+  draftContext?: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type ProductSheetComposition = {
+  /** @nullable */
+  nPct?: number | null;
+  /** @nullable */
+  p2o5Pct?: number | null;
+  /** @nullable */
+  k2oPct?: number | null;
+  /** @nullable */
+  caoPct?: number | null;
+  /** @nullable */
+  mgoPct?: number | null;
+  /** @nullable */
+  so3Pct?: number | null;
+  /** @nullable */
+  boronPct?: number | null;
+} | null;
+
+export interface ProductSheet {
+  id: number;
+  name: string;
+  /** @nullable */
+  manufacturer?: string | null;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  formulaType?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  composition?: ProductSheetComposition;
+  /** @nullable */
+  dosage?: string | null;
+  /** @nullable */
+  sourceUrl?: string | null;
+  /** @nullable */
+  fertilizerId?: number | null;
+  /** @nullable */
+  createdBy?: number | null;
+  createdAt: string;
 }
 
 export interface ConversationDetail {
@@ -724,6 +771,8 @@ export interface ReportInput {
   title?: string;
   format: ReportInputFormat;
   recommendationId?: number;
+  /** Conversation with the AI technician whose notes and attachments are summarised into the report */
+  conversationId?: number | null;
 }
 
 export interface UsageEntry {
@@ -802,6 +851,11 @@ export type ImportAnalysisPdfBody = {
 
 export type GetMobileAppUrl200 = {
   url: string | null;
+};
+
+export type UploadConversationAttachmentBody = {
+  file: Blob;
+  note?: string;
 };
 
 export type GetUsageParams = {

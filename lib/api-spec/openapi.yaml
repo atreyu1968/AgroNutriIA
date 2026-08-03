@@ -521,6 +521,33 @@ paths:
                 required: [url]
                 properties:
                   url: { type: string, nullable: true }
+  /product-sheets:
+    get:
+      operationId: listProductSheets
+      tags: [misc]
+      summary: List saved plant nutrition product sheets
+      responses:
+        "200":
+          description: Product sheets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductSheet"
+  /product-sheets/{sheetId}:
+    delete:
+      operationId: deleteProductSheet
+      tags: [misc]
+      summary: Delete a saved product sheet
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
   /farms/{farmId}/recommendations/ai-draft:
     post:
       operationId: generateAiDraftRecommendation
@@ -789,6 +816,34 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Message"
+  /farms/{farmId}/conversations/{conversationId}/attachments:
+    post:
+      operationId: uploadConversationAttachment
+      tags: [conversations]
+      summary: Attach a document (PDF) or image to the conversation; its content is extracted and added as a user message
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                note:
+                  type: string
+      responses:
+        "201":
+          description: Stored user message containing the extracted content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
   /farms/{farmId}/conversations/{conversationId}/messages/{messageId}/draft-recommendation:
     post:
       operationId: createDraftFromMessage
@@ -1188,22 +1243,22 @@ components:
         cif: { type: string }
         island: { type: string }
         municipality: { type: string }
-        latitude: { type: number }
-        longitude: { type: number }
-        altitudeM: { type: number }
-        surfaceHa: { type: number }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        altitudeM: { type: number, nullable: true }
+        surfaceHa: { type: number, nullable: true }
         mainCrop: { type: string }
         variety: { type: string }
-        plantCount: { type: integer }
+        plantCount: { type: integer, nullable: true }
         phenologicalStage: { type: string }
         cropSystem: { type: string }
         soilType: { type: string }
         hasDrainage: { type: boolean }
         foliarAllowed: { type: boolean }
         hasDesalinatedWater: { type: boolean }
-        desalinatedWaterPct: { type: number }
-        weeklyLitresPerPlant: { type: number }
-        maxEcDsM: { type: number }
+        desalinatedWaterPct: { type: number, nullable: true }
+        weeklyLitresPerPlant: { type: number, nullable: true }
+        maxEcDsM: { type: number, nullable: true }
         managementNotes: { type: string }
         responsibleTechnician: { type: string }
     FarmSummary:
@@ -1585,6 +1640,10 @@ components:
         conversationId: { type: integer }
         role: { type: string, description: "user | assistant | system" }
         content: { type: string }
+        attachments:
+          type: array
+          items:
+            type: string
         toolsUsed:
           type: array
           items:
@@ -1600,6 +1659,36 @@ components:
       required: [content]
       properties:
         content: { type: string, minLength: 1 }
+        draftContext:
+          type: string
+          nullable: true
+          description: Optional description of the fertilization plan the user is editing, added to the assistant context
+    ProductSheet:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        manufacturer: { type: ["string", "null"] }
+        category: { type: ["string", "null"] }
+        formulaType: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        composition:
+          type: ["object", "null"]
+          additionalProperties: false
+          properties:
+            nPct: { type: ["number", "null"] }
+            p2o5Pct: { type: ["number", "null"] }
+            k2oPct: { type: ["number", "null"] }
+            caoPct: { type: ["number", "null"] }
+            mgoPct: { type: ["number", "null"] }
+            so3Pct: { type: ["number", "null"] }
+            boronPct: { type: ["number", "null"] }
+        dosage: { type: ["string", "null"] }
+        sourceUrl: { type: ["string", "null"] }
+        fertilizerId: { type: ["integer", "null"] }
+        createdBy: { type: ["integer", "null"] }
+        createdAt: { type: string }
     ConversationDetail:
       type: object
       required: [conversation, messages]
@@ -1630,6 +1719,10 @@ components:
         title: { type: string }
         format: { type: string, enum: [pdf, docx] }
         recommendationId: { type: integer }
+        conversationId:
+          type: integer
+          nullable: true
+          description: Conversation with the AI technician whose notes and attachments are summarised into the report
 
     UsageSummary:
       type: object

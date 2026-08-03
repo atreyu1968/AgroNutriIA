@@ -9,4 +9,6 @@
 export interface MessageInput {
   /** @minLength 1 */
   content: string;
+  /** Optional description of the fertilization plan the user is editing, added to the assistant context */
+  draftContext?: string | null;
 }

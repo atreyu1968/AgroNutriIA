@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useRunCalculation,
   useListFertilizers,
@@ -7,13 +7,16 @@ import {
   useUpdateRecommendation,
   getListRecommendationsQueryKey,
 } from "@workspace/api-client-react";
+import { ChatTecnicoPanel } from "@/components/chat-tecnico";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calculator, Plus, Trash2, Droplets, FlaskConical, AlertTriangle, ArrowRight, Bot, Save } from "lucide-react";
+import { Calculator, Plus, Trash2, Droplets, FlaskConical, AlertTriangle, ArrowRight, Bot, Save, Send, Globe, BookmarkPlus, ExternalLink } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +69,7 @@ export default function CalculadoraTab({
         });
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        const msg = (err as { data?: { error?: string } })?.data?.error;
         toast({ title: "No se pudo generar el plan", description: msg ?? "Inténtalo de nuevo.", variant: "destructive" });
       },
     },
@@ -95,7 +98,7 @@ export default function CalculadoraTab({
         });
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        const msg = (err as { data?: { error?: string } })?.data?.error;
         toast({ title: "No se pudo actualizar el borrador", description: msg ?? "Inténtalo de nuevo.", variant: "destructive" });
       },
     },
@@ -398,6 +401,22 @@ export default function CalculadoraTab({
           )}
         </div>
       </div>
+
+      <ChatTecnicoPanel
+        farmId={farmId}
+        conversationTitle="Chat del plan de abonado"
+        description="Consulta dudas sobre el plan que estás preparando. El técnico IA conoce las analíticas de la finca y tu borrador actual, puede buscar en la web productos de nutrición vegetal y guardar sus fichas para usarlas en las recomendaciones."
+        buildDraftContext={() => {
+          const lines = items
+            .filter((i) => i.fertId && i.dose > 0)
+            .map((i) => {
+              const fert = fertilizers?.find((f) => f.id.toString() === i.fertId);
+              return `- ${fert?.name ?? "?"}: ${i.dose} ${fert?.formulaType === "liquid" ? "L" : "kg"}/semana`;
+            });
+          if (!lines.length) return null;
+          return `Plantas: ${plantCount}, riego ${weeklyLitresPerPlant} L/planta/semana.\nFertilizantes del plan actual:\n${lines.join("\n")}`;
+        }}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
 import { SectorsTab, AnalysesTab, RecommendationsTab, ReportsTab, MembersTab, ConfigTab } from "./detail-tabs";
+import { EditFarmButton } from "./edit-farm";
 import CalculadoraTab from "@/pages/calculadora";
 
 export default function FincaDetail() {
@@ -60,6 +61,10 @@ export default function FincaDetail() {
           </p>
         </div>
         
+        <div className="flex flex-wrap gap-2 shrink-0">
+        {(farm.myRole === "owner" || farm.myRole === "technician") && (
+          <EditFarmButton farm={farm} />
+        )}
         <Button className="gap-2 shrink-0 shadow-md" asChild>
           <Link href={`/${farmId}/tecnico`}>
             <Sprout className="w-4 h-4" />
@@ -67,6 +72,7 @@ export default function FincaDetail() {
             <ArrowRight className="w-4 h-4 ml-1 opacity-70" />
           </Link>
         </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="resumen" className="w-full">

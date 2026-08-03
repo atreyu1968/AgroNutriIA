@@ -256,22 +256,22 @@ export const UpdateFarmBody = zod.object({
   "cif": zod.string().optional(),
   "island": zod.string().optional(),
   "municipality": zod.string().optional(),
-  "latitude": zod.number().optional(),
-  "longitude": zod.number().optional(),
-  "altitudeM": zod.number().optional(),
-  "surfaceHa": zod.number().optional(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "altitudeM": zod.number().nullish(),
+  "surfaceHa": zod.number().nullish(),
   "mainCrop": zod.string().optional(),
   "variety": zod.string().optional(),
-  "plantCount": zod.number().int().optional(),
+  "plantCount": zod.number().int().nullish(),
   "phenologicalStage": zod.string().optional(),
   "cropSystem": zod.string().optional(),
   "soilType": zod.string().optional(),
   "hasDrainage": zod.boolean().optional(),
   "foliarAllowed": zod.boolean().optional(),
   "hasDesalinatedWater": zod.boolean().optional(),
-  "desalinatedWaterPct": zod.number().optional(),
-  "weeklyLitresPerPlant": zod.number().optional(),
-  "maxEcDsM": zod.number().optional(),
+  "desalinatedWaterPct": zod.number().nullish(),
+  "weeklyLitresPerPlant": zod.number().nullish(),
+  "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().optional(),
   "responsibleTechnician": zod.string().optional()
 })
@@ -978,6 +978,44 @@ export const GetMobileAppUrlResponse = zod.object({
 
 
 /**
+ * @summary List saved plant nutrition product sheets
+ */
+export const ListProductSheetsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "manufacturer": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "formulaType": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "composition": zod.object({
+  "nPct": zod.number().nullish(),
+  "p2o5Pct": zod.number().nullish(),
+  "k2oPct": zod.number().nullish(),
+  "caoPct": zod.number().nullish(),
+  "mgoPct": zod.number().nullish(),
+  "so3Pct": zod.number().nullish(),
+  "boronPct": zod.number().nullish()
+}).nullish(),
+  "dosage": zod.string().nullish(),
+  "sourceUrl": zod.string().nullish(),
+  "fertilizerId": zod.number().int().nullish(),
+  "createdBy": zod.number().int().nullish(),
+  "createdAt": zod.string()
+})
+export const ListProductSheetsResponse = zod.array(ListProductSheetsResponseItem)
+
+
+/**
+ * @summary Delete a saved product sheet
+ */
+export const DeleteProductSheetParams = zod.object({
+  "sheetId": zod.coerce.number().int()
+})
+
+export const DeleteProductSheetResponse = zod.void()
+
+
+/**
  * @summary Generate an AI draft fertigation program from the latest analyses
  */
 export const GenerateAiDraftRecommendationParams = zod.object({
@@ -1333,6 +1371,7 @@ export const GetConversationResponse = zod.object({
   "conversationId": zod.number().int(),
   "role": zod.string().describe('user | assistant | system'),
   "content": zod.string(),
+  "attachments": zod.array(zod.string()).optional(),
   "toolsUsed": zod.array(zod.string()).optional(),
   "sources": zod.array(zod.string()).optional(),
   "estimatedCostEur": zod.number().nullish(),
@@ -1361,7 +1400,8 @@ export const SendMessageParams = zod.object({
 
 
 export const SendMessageBody = zod.object({
-  "content": zod.string().min(1)
+  "content": zod.string().min(1),
+  "draftContext": zod.string().nullish().describe('Optional description of the fertilization plan the user is editing, added to the assistant context')
 })
 
 export const SendMessageResponseItem = zod.object({
@@ -1369,12 +1409,39 @@ export const SendMessageResponseItem = zod.object({
   "conversationId": zod.number().int(),
   "role": zod.string().describe('user | assistant | system'),
   "content": zod.string(),
+  "attachments": zod.array(zod.string()).optional(),
   "toolsUsed": zod.array(zod.string()).optional(),
   "sources": zod.array(zod.string()).optional(),
   "estimatedCostEur": zod.number().nullish(),
   "createdAt": zod.string()
 })
 export const SendMessageResponse = zod.array(SendMessageResponseItem)
+
+
+/**
+ * @summary Attach a document (PDF) or image to the conversation; its content is extracted and added as a user message
+ */
+export const UploadConversationAttachmentParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "conversationId": zod.coerce.number().int()
+})
+
+export const UploadConversationAttachmentBody = zod.object({
+  "file": zod.instanceof(File),
+  "note": zod.string().optional()
+})
+
+export const UploadConversationAttachmentResponse = zod.object({
+  "id": zod.number().int(),
+  "conversationId": zod.number().int(),
+  "role": zod.string().describe('user | assistant | system'),
+  "content": zod.string(),
+  "attachments": zod.array(zod.string()).optional(),
+  "toolsUsed": zod.array(zod.string()).optional(),
+  "sources": zod.array(zod.string()).optional(),
+  "estimatedCostEur": zod.number().nullish(),
+  "createdAt": zod.string()
+})
 
 
 /**
@@ -1437,7 +1504,8 @@ export const CreateReportParams = zod.object({
 export const CreateReportBody = zod.object({
   "title": zod.string().optional(),
   "format": zod.enum(['pdf', 'docx']),
-  "recommendationId": zod.number().int().optional()
+  "recommendationId": zod.number().int().optional(),
+  "conversationId": zod.number().int().nullish().describe('Conversation with the AI technician whose notes and attachments are summarised into the report')
 })
 
 export const CreateReportResponse = zod.object({
