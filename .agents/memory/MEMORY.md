@@ -5,4 +5,5 @@
 - [Wouter nested routing](wouter-nested-routing.md) — inside `<Route nest>` routers, child paths/useRoute/Links must be base-relative or the section renders blank.
 - [Duplicate toast stores](duplicate-toast-stores.md) — toasts must use the single store `<Toaster/>` renders; API errors expose the message at `err.data.error`.
 - [Dev DB schema drift](db-schema-drift.md) — pg error 42703 "column does not exist" in dev: run drizzle push in lib/db before debugging code.
+- [Task-merge breakage](task-merge-breakage.md) — platform merges can commit mangled code; after merges, restart workflows, check build, repair by diffing gitsafe-backup/main.
 - [pdfkit footers](pdfkit-footer.md) — zero out `margins.bottom` before writing footer text in the bottom margin, or pdfkit silently appends blank pages.
