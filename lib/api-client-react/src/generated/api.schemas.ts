@@ -249,6 +249,13 @@ export interface PhytoProductCreate {
   sourceUrl?: string | null;
 }
 
+export interface PhytoSplitResult {
+  /** Fichas resultantes de la división (la original renombrada y las nuevas) */
+  products: PhytoProduct[];
+  /** Nombres que ya existían en el catálogo y no se han duplicado */
+  skippedNames: string[];
+}
+
 export interface PhytoRefreshBody {
   /**
      * Máximo de productos a completar en esta pasada (por defecto 6)

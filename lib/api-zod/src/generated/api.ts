@@ -1831,6 +1831,35 @@ export const RefreshPhytoProductsResponse = zod.object({
 
 
 /**
+ * @summary Split a catalog entry that groups several commercial names into one entry per name
+ */
+export const SplitPhytoProductParams = zod.object({
+  "productId": zod.coerce.number().int()
+})
+
+export const SplitPhytoProductResponse = zod.object({
+  "products": zod.array(zod.object({
+  "id": zod.number().int(),
+  "productName": zod.string(),
+  "registryNumber": zod.string().nullable(),
+  "activeIngredient": zod.string().nullable(),
+  "pests": zod.string().nullable(),
+  "doseInfo": zod.string().nullable(),
+  "maxApplicationsYear": zod.number().int().nullable(),
+  "safetyDays": zod.number().int().nullable(),
+  "expiryDate": zod.string().nullable().describe('YYYY-MM-DD end of authorization'),
+  "exceptional": zod.boolean(),
+  "notes": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "lastVerifiedAt": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "updatedAt": zod.string()
+})).describe('Fichas resultantes de la división (la original renombrada y las nuevas)'),
+  "skippedNames": zod.array(zod.string()).describe('Nombres que ya existían en el catálogo y no se han duplicado')
+})
+
+
+/**
  * @summary Update a catalog product in place (admin or creator)
  */
 export const UpdatePhytoProductParams = zod.object({

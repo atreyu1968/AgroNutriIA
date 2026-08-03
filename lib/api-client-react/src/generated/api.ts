@@ -70,6 +70,7 @@ import type {
   PhytoProductCreate,
   PhytoRefreshBody,
   PhytoRefreshResult,
+  PhytoSplitResult,
   PhytoTreatment,
   PhytoTreatmentCreate,
   ProductSheet,
@@ -4785,6 +4786,77 @@ export const useRefreshPhytoProducts = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRefreshPhytoProductsMutationOptions(options));
+    }
+
+export const getSplitPhytoProductUrl = (productId: number,) => {
+
+
+
+
+  return `/api/phyto/products/${productId}/split`
+}
+
+/**
+ * @summary Split a catalog entry that groups several commercial names into one entry per name
+ */
+export const splitPhytoProduct = async (productId: number, options?: Parameters<typeof customFetch>[1]): Promise<PhytoSplitResult> => {
+
+  return customFetch<PhytoSplitResult>(getSplitPhytoProductUrl(productId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSplitPhytoProductMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof splitPhytoProduct>>, TError,{productId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof splitPhytoProduct>>, TError,{productId: number}, TContext> => {
+
+const mutationKey = ['splitPhytoProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof splitPhytoProduct>>, {productId: number}> = (props) => {
+          const {productId} = props ?? {};
+
+          return  splitPhytoProduct(productId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SplitPhytoProductMutationResult = NonNullable<Awaited<ReturnType<typeof splitPhytoProduct>>>
+
+    export type SplitPhytoProductMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Split a catalog entry that groups several commercial names into one entry per name
+ */
+export const useSplitPhytoProduct = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof splitPhytoProduct>>, TError,{productId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof splitPhytoProduct>>,
+        TError,
+        {productId: number},
+        TContext
+      > => {
+      return useMutation(getSplitPhytoProductMutationOptions(options));
     }
 
 export const getUpdatePhytoProductUrl = (productId: number,) => {

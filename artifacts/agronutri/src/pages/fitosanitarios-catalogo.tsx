@@ -4,6 +4,7 @@ import {
   getListPhytoProductsQueryKey,
   useDeletePhytoProduct,
   useRefreshPhytoProducts,
+  useSplitPhytoProduct,
   useCreatePhytoProduct,
   useUpdatePhytoProduct,
   useGetMe,
@@ -35,7 +36,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw, Plus, Pencil, CalendarIcon, X, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw, Plus, Pencil, CalendarIcon, X, ArrowUp, ArrowDown, ArrowUpDown, Ungroup } from "lucide-react";
 
 function SortableHead({
   label,
@@ -82,6 +83,18 @@ function isExpired(p: PhytoProduct): boolean {
   return !!p.expiryDate && p.expiryDate < new Date().toISOString().slice(0, 10);
 }
 
+function splitNames(productName: string): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const part of productName.split(/[,;/]/)) {
+    const name = part.trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  return names;
+}
 export default function FitosanitariosCatalogo() {
   const { data: products, isLoading } = useListPhytoProducts();
   const { data: me } = useGetMe();
@@ -98,6 +111,7 @@ export default function FitosanitariosCatalogo() {
     }
   };
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [splitProduct, setSplitProduct] = useState<PhytoProduct | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<PhytoProduct | null>(null);
   const queryClient = useQueryClient();
@@ -169,6 +183,29 @@ export default function FitosanitariosCatalogo() {
       onError: (err) => {
         const msg = (err as { data?: { error?: string } })?.data?.error;
         toast({ title: "No se pudo actualizar", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  const splitMutation = useSplitPhytoProduct({
+    mutation: {
+      onSuccess: (r) => {
+        queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+        setSplitProduct(null);
+        toast({
+          title: "Ficha dividida",
+          description:
+            `Ahora hay ${r.products.length} ficha(s): ${r.products.map((p) => p.productName).join(", ")}.` +
+            (r.skippedNames.length
+              ? ` Ya existían y no se han duplicado: ${r.skippedNames.join(", ")}.`
+              : "") +
+            ' Usa "Actualizar con IA" para completar el nº de registro y la fecha de cada marca.',
+        });
+      },
+      onError: (err) => {
+        setSplitProduct(null);
+        const msg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "No se pudo dividir la ficha", description: msg, variant: "destructive" });
       },
     },
   });
@@ -307,6 +344,17 @@ export default function FitosanitariosCatalogo() {
                       )}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
+                      {canEdit && splitNames(p.productName).length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSplitProduct(p)}
+                          aria-label={`Dividir ${p.productName} en una ficha por marca`}
+                          title="Dividir en una ficha por marca"
+                        >
+                          <Ungroup className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -349,6 +397,38 @@ export default function FitosanitariosCatalogo() {
         }}
         product={editProduct}
       />
+
+      <AlertDialog open={splitProduct != null} onOpenChange={(open) => !open && setSplitProduct(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Dividir esta ficha en una por marca?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Esta ficha agrupa varios nombres comerciales. Se creará una ficha por marca,
+                  conservando la materia activa, las plagas y las notas comunes:
+                </p>
+                <ul className="list-disc pl-5">
+                  {splitProduct && splitNames(splitProduct.productName).map((n) => <li key={n}>{n}</li>)}
+                </ul>
+                <p>
+                  El nº de registro y la fecha de autorización son propios de cada marca:
+                  complétalos después con "Actualizar con IA".
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={splitMutation.isPending}
+              onClick={() => splitProduct && splitMutation.mutate({ productId: splitProduct.id })}
+            >
+              {splitMutation.isPending ? "Dividiendo..." : "Dividir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>

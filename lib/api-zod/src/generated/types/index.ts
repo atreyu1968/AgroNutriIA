@@ -70,6 +70,7 @@ export * from './phytoRefreshBody';
 export * from './phytoRefreshResult';
 export * from './phytoRefreshResultDetailsItem';
 export * from './phytoRefreshResultDetailsItemStatus';
+export * from './phytoSplitResult';
 export * from './phytoTreatment';
 export * from './phytoTreatmentCreate';
 export * from './productSheet';

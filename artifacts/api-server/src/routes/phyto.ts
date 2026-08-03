@@ -26,6 +26,7 @@ import {
   UpdatePhytoProductBody,
   UpdatePhytoProductResponse,
   RefreshPhytoProductsBody,
+  SplitPhytoProductResponse,
   RefreshPhytoProductsResponse,
   PhytoConsultBody,
   PhytoPlanPdfBody,
@@ -444,6 +445,138 @@ router.put("/phyto/products/:productId", async (req, res): Promise<void> => {
     detail: product.productName,
   });
   res.json(UpdatePhytoProductResponse.parse(serializeProduct(product, await userName(product.createdBy))));
+});
+
+// Divide el nombre comercial de una ficha agrupada ("Agroaceite, Agroil, Luqsol
+// Premium Blue") en nombres sueltos. Mismos separadores que usa el refresco por
+// IA para mapear la respuesta a fichas agrupadas.
+export function splitProductNames(productName: string): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const part of productName.split(/[,;/]/)) {
+    const name = part.trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  return names;
+}
+
+// Divide una ficha que agrupa varios nombres comerciales en una ficha por
+// nombre: la fila original se renombra al primer nombre (conserva todos sus
+// datos, id e historial) y se crean filas nuevas para el resto con los campos
+// comunes (materia activa, plagas, dosis, notas...). El nº de registro y la
+// fecha de autorización NO se copian a las nuevas: son propios de cada marca y
+// los completará "Actualizar con IA". Los nombres que ya existen en el catálogo
+// se omiten para no crear duplicados.
+router.post("/phyto/products/:productId/split", async (req, res): Promise<void> => {
+  if (!(await canEditCatalog(req.user!))) {
+    res.status(403).json({ error: "Sin permisos para modificar el catálogo" });
+    return;
+  }
+  const productId = parseIntParam(req.params.productId);
+  const [existing] = await db
+    .select()
+    .from(phytoProductsTable)
+    .where(eq(phytoProductsTable.id, productId));
+  if (!existing) {
+    res.status(404).json({ error: "Producto no encontrado" });
+    return;
+  }
+  if (!canMutateProduct(req.user!, existing)) {
+    res.status(403).json({ error: "Solo el administrador o quien lo añadió puede modificarlo" });
+    return;
+  }
+  const names = splitProductNames(existing.productName);
+  if (names.length < 2) {
+    res.status(400).json({ error: "Esta ficha no agrupa varios nombres comerciales" });
+    return;
+  }
+
+  const skippedNames: string[] = [];
+  const products: PhytoProduct[] = [];
+
+  // Renombra la ficha original al primer nombre libre; el resto se insertan.
+  const takenElsewhere = async (name: string): Promise<boolean> => {
+    const clash = await db
+      .select({ id: phytoProductsTable.id })
+      .from(phytoProductsTable)
+      .where(sql`lower(${phytoProductsTable.productName}) = lower(${name})`);
+    return clash.some((c) => c.id !== existing.id);
+  };
+
+  let renamed: PhytoProduct | null = null;
+  const toInsert: string[] = [];
+  for (const name of names) {
+    if (await takenElsewhere(name)) {
+      skippedNames.push(name);
+      continue;
+    }
+    if (!renamed) {
+      const [row] = await db
+        .update(phytoProductsTable)
+        .set({ productName: name, updatedAt: new Date() })
+        .where(eq(phytoProductsTable.id, existing.id))
+        .returning();
+      renamed = row;
+      products.push(row);
+    } else {
+      toInsert.push(name);
+    }
+  }
+  if (!renamed) {
+    res.status(409).json({
+      error: "Todos los nombres de esta ficha ya existen como fichas separadas en el catálogo",
+    });
+    return;
+  }
+  for (const name of toInsert) {
+    try {
+      const [row] = await db
+        .insert(phytoProductsTable)
+        .values({
+          productName: name,
+          // Propios de cada marca: se dejan vacíos para que "Actualizar con IA"
+          // complete el nº de registro y la fecha de autorización correctos.
+          registryNumber: null,
+          expiryDate: null,
+          lastVerifiedAt: null,
+          // Campos comunes de la ficha agrupada.
+          activeIngredient: existing.activeIngredient,
+          pests: existing.pests,
+          doseInfo: existing.doseInfo,
+          maxApplicationsYear: existing.maxApplicationsYear,
+          safetyDays: existing.safetyDays,
+          exceptional: existing.exceptional,
+          notes: existing.notes,
+          sourceUrl: existing.sourceUrl,
+          createdBy: existing.createdBy ?? req.user!.id,
+        })
+        .returning();
+      products.push(row);
+    } catch (err) {
+      // 23505: otra petición creó ese nombre a la vez; no duplicamos.
+      if ((err as { code?: string }).code !== "23505") throw err;
+      skippedNames.push(name);
+    }
+  }
+  await audit({
+    userId: req.user!.id,
+    farmId: null,
+    action: "phyto_product_split",
+    entityType: "phyto_product",
+    entityId: existing.id,
+    detail: `${existing.productName} → ${products.map((p) => p.productName).join(", ")}`,
+  });
+  res.json(
+    SplitPhytoProductResponse.parse({
+      products: await Promise.all(
+        products.map(async (p) => serializeProduct(p, await userName(p.createdBy))),
+      ),
+      skippedNames,
+    }),
+  );
 });
 
 router.delete("/phyto/products/:productId", async (req, res): Promise<void> => {
