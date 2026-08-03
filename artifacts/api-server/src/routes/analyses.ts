@@ -9,6 +9,8 @@ import {
   CreateAnalysisBody,
   CreateAnalysisResponse,
   GetAnalysisResponse,
+  UpdateAnalysisBody,
+  UpdateAnalysisResponse,
   ImportAnalysisPdfResponse,
 } from "@workspace/api-zod";
 import { requireAuth, farmAccess, canEdit, parseIntParam } from "../middlewares/auth";
@@ -304,6 +306,52 @@ router.get("/farms/:farmId/analyses/:analysisId", async (req, res): Promise<void
     return;
   }
   res.json(GetAnalysisResponse.parse(serializeAnalysis(analysis)));
+});
+
+router.put("/farms/:farmId/analyses/:analysisId", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const analysisId = parseIntParam(req.params.analysisId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos" });
+    return;
+  }
+  const parsed = UpdateAnalysisBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [analysis] = await db
+    .update(analysesTable)
+    .set({
+      type: parsed.data.type,
+      sampleDate: parsed.data.sampleDate,
+      parameters: parsed.data.parameters,
+      sectorId: parsed.data.sectorId ?? null,
+      reference: parsed.data.reference ?? null,
+      laboratory: parsed.data.laboratory ?? null,
+      description: parsed.data.description ?? null,
+      notes: parsed.data.notes ?? null,
+    })
+    .where(and(eq(analysesTable.id, analysisId), eq(analysesTable.farmId, farmId)))
+    .returning();
+  if (!analysis) {
+    res.status(404).json({ error: "Analítica no encontrada" });
+    return;
+  }
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "analysis_updated",
+    entityType: "analysis",
+    entityId: analysisId,
+    detail: `${analysis.type} ${analysis.reference ?? ""}`.trim(),
+  });
+  res.json(UpdateAnalysisResponse.parse(serializeAnalysis(analysis)));
 });
 
 router.delete("/farms/:farmId/analyses/:analysisId", async (req, res): Promise<void> => {

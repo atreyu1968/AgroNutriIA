@@ -387,6 +387,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Analysis"
+    put:
+      operationId: updateAnalysis
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/AnalysisId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
     delete:
       operationId: deleteAnalysis
       tags: [analyses]

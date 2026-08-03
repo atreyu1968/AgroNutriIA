@@ -709,6 +709,51 @@ export const GetAnalysisResponse = zod.object({
 })
 
 
+export const UpdateAnalysisParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "analysisId": zod.coerce.number().int()
+})
+
+export const UpdateAnalysisBody = zod.object({
+  "sectorId": zod.number().int().optional(),
+  "type": zod.enum(['soil', 'leaf', 'water']),
+  "reference": zod.string().optional(),
+  "laboratory": zod.string().optional(),
+  "description": zod.string().optional(),
+  "sampleDate": zod.string(),
+  "parameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.number(),
+  "unit": zod.string().nullish(),
+  "refLow": zod.number().nullish(),
+  "refHigh": zod.number().nullish(),
+  "status": zod.string().nullish().describe('muy_bajo | bajo | normal | alto | muy_alto')
+})),
+  "notes": zod.string().optional()
+})
+
+export const UpdateAnalysisResponse = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "sectorId": zod.number().int().nullish(),
+  "type": zod.enum(['soil', 'leaf', 'water']),
+  "reference": zod.string().nullish(),
+  "laboratory": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "sampleDate": zod.string().describe('YYYY-MM-DD'),
+  "parameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.number(),
+  "unit": zod.string().nullish(),
+  "refLow": zod.number().nullish(),
+  "refHigh": zod.number().nullish(),
+  "status": zod.string().nullish().describe('muy_bajo | bajo | normal | alto | muy_alto')
+})),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string().nullish()
+})
+
+
 export const DeleteAnalysisParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "analysisId": zod.coerce.number().int()

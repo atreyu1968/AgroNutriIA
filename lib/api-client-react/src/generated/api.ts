@@ -1745,6 +1745,74 @@ export function useGetAnalysis<TData = Awaited<ReturnType<typeof getAnalysis>>, 
 
 
 
+export const getUpdateAnalysisUrl = (farmId: number,
+    analysisId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/analyses/${analysisId}`
+}
+
+export const updateAnalysis = async (farmId: number,
+    analysisId: number,
+    analysisInput: AnalysisInput, options?: Parameters<typeof customFetch>[1]): Promise<Analysis> => {
+
+  return customFetch<Analysis>(getUpdateAnalysisUrl(farmId,analysisId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(analysisInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAnalysisMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAnalysis>>, TError,{farmId: number;analysisId: number;data: BodyType<AnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAnalysis>>, TError,{farmId: number;analysisId: number;data: BodyType<AnalysisInput>}, TContext> => {
+
+const mutationKey = ['updateAnalysis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAnalysis>>, {farmId: number;analysisId: number;data: BodyType<AnalysisInput>}> = (props) => {
+          const {farmId,analysisId,data} = props ?? {};
+
+          return  updateAnalysis(farmId,analysisId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof updateAnalysis>>>
+    export type UpdateAnalysisMutationBody = BodyType<AnalysisInput>
+    export type UpdateAnalysisMutationError = ErrorType<unknown>
+
+    export const useUpdateAnalysis = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAnalysis>>, TError,{farmId: number;analysisId: number;data: BodyType<AnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAnalysis>>,
+        TError,
+        {farmId: number;analysisId: number;data: BodyType<AnalysisInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAnalysisMutationOptions(options));
+    }
+
 export const getDeleteAnalysisUrl = (farmId: number,
     analysisId: number,) => {
 
