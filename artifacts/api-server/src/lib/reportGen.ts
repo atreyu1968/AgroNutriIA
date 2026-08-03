@@ -12,6 +12,10 @@ import {
   TableCell,
   WidthType,
   ShadingType,
+  Footer,
+  PageNumber,
+  TabStopType,
+  TabStopPosition,
 } from "docx";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
 
@@ -366,7 +370,35 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<voi
       );
     }
   }
-  const doc = new Document({ sections: [{ children }] });
+  const footer = new Footer({
+    children: [
+      new Paragraph({
+        tabStops: [
+          { type: TabStopType.CENTER, position: TabStopPosition.MAX / 2 },
+          { type: TabStopType.RIGHT, position: TabStopPosition.MAX },
+        ],
+        children: [
+          new TextRun({ text: d.farm.name, size: 16, color: "777777" }),
+          new TextRun({ text: "\tPágina ", size: 16, color: "777777" }),
+          new TextRun({
+            children: [PageNumber.CURRENT],
+            size: 16,
+            color: "777777",
+          }),
+          new TextRun({ text: " de ", size: 16, color: "777777" }),
+          new TextRun({
+            children: [PageNumber.TOTAL_PAGES],
+            size: 16,
+            color: "777777",
+          }),
+          new TextRun({ text: "\tAgroNutri AI", size: 16, color: "777777" }),
+        ],
+      }),
+    ],
+  });
+  const doc = new Document({
+    sections: [{ children, footers: { default: footer } }],
+  });
   const buffer = await Packer.toBuffer(doc);
   fs.writeFileSync(filePath, buffer);
 }
