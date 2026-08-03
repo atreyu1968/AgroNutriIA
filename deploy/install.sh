@@ -242,7 +242,14 @@ log "Compilando la API"
 pnpm --filter @workspace/api-server run build
 
 log "Compilando la web"
-BASE_PATH=/ PORT=3000 pnpm --filter @workspace/agronutri run build
+# Acceso a la cooperativa de pruebas en la landing (opcional): define
+# DEMO_URL (p. ej. https://prueba.tudominio.es) y, si quieres mostrar las
+# credenciales, DEMO_EMAIL y DEMO_PASSWORD antes de ejecutar este script.
+BASE_PATH=/ PORT=3000 \
+  VITE_DEMO_URL="${DEMO_URL:-}" \
+  VITE_DEMO_EMAIL="${DEMO_EMAIL:-}" \
+  VITE_DEMO_PASSWORD="${DEMO_PASSWORD:-}" \
+  pnpm --filter @workspace/agronutri run build
 
 # ----------------------------------------------------------------------------
 log "Creando usuario de sistema y servicio systemd para la API"

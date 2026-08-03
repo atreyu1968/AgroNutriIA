@@ -1,6 +1,20 @@
 import { Link } from "wouter";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { SignupForm } from "@/components/signup-form";
+
+// Acceso a la cooperativa de pruebas (se configura al construir la web:
+// VITE_DEMO_URL, VITE_DEMO_EMAIL, VITE_DEMO_PASSWORD). Sin URL, la sección
+// de demo no se muestra. En desarrollo se usa la cuenta demo local.
+const DEMO_URL =
+  (import.meta.env.VITE_DEMO_URL as string | undefined)?.trim() ||
+  (import.meta.env.DEV ? `${import.meta.env.BASE_URL}login` : "");
+const DEMO_EMAIL =
+  (import.meta.env.VITE_DEMO_EMAIL as string | undefined)?.trim() ||
+  (import.meta.env.DEV ? "demo@agronutri.es" : "");
+const DEMO_PASSWORD =
+  (import.meta.env.VITE_DEMO_PASSWORD as string | undefined)?.trim() ||
+  (import.meta.env.DEV ? "agronutri2026" : "");
 import { useReveal } from "@/hooks/use-reveal";
 import heroImage from "@assets/generated_images/hero-atlantic-plantation.jpg";
 import ctaImage from "@assets/generated_images/cta-banana-leaves.jpg";
@@ -127,6 +141,14 @@ function NavBar() {
           <a href="#precios" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
             Precios
           </a>
+          {DEMO_URL && (
+            <a href="#demo" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
+              Demo
+            </a>
+          )}
+          <a href="#contratar" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
+            Contratar
+          </a>
           <Link href="/terminos" className="text-sm font-medium text-[#12402d]/75 hover:text-[#12402d] transition-colors">
             Términos
           </Link>
@@ -159,6 +181,14 @@ function NavBar() {
           </a>
           <a href="#precios" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
             Precios
+          </a>
+          {DEMO_URL && (
+            <a href="#demo" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
+              Demo
+            </a>
+          )}
+          <a href="#contratar" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
+            Contratar
           </a>
           <Link href="/terminos" onClick={() => setOpen(false)} className="text-[#12402d]/90 font-medium">
             Términos
@@ -544,6 +574,78 @@ export default function Landing() {
                 <Link href="/terminos" className="text-[#6fd39f] underline underline-offset-2">términos y condiciones</Link>.
               </p>
             </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Demo access */}
+      {DEMO_URL && (
+        <Section id="demo" className="bg-[#eaf4ec]">
+          <div className="max-w-6xl mx-auto px-5 py-24">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="reveal">
+                <span className="text-xs font-mono-label tracking-[0.2em] uppercase text-[#2f9e68]">Pruébalo tú mismo</span>
+                <h2 className="mt-3 font-display text-3xl md:text-4xl font-semibold tracking-tight text-[#12402d]">
+                  Entra en la cooperativa de pruebas
+                </h2>
+                <p className="mt-5 text-[#12402d]/75 text-lg leading-relaxed">
+                  Explora la plataforma con datos reales de ejemplo antes de contratar: crea una
+                  finca, registra analíticas y genera un informe con el técnico virtual.
+                </p>
+                <p className="mt-3 text-sm text-[#12402d]/60">
+                  La demostración está limitada a una finca y a un informe de cada tipo, y es
+                  compartida: los datos pueden reiniciarse periódicamente.
+                </p>
+              </div>
+              <div className="reveal-scale rounded-3xl bg-white border border-[#12402d]/10 shadow-xl p-8 text-center">
+                <FlaskConical className="w-10 h-10 mx-auto text-[#2f9e68]" />
+                <h3 className="mt-4 font-semibold text-lg text-[#12402d]">Acceso a la demo</h3>
+                {DEMO_EMAIL && DEMO_PASSWORD ? (
+                  <div className="mt-5 space-y-2 text-left max-w-xs mx-auto">
+                    <div className="rounded-lg bg-[#eaf4ec] px-4 py-2.5 text-sm">
+                      <span className="text-[#12402d]/60">Usuario:</span>{" "}
+                      <span className="font-mono font-medium text-[#12402d]" data-testid="text-demo-email">{DEMO_EMAIL}</span>
+                    </div>
+                    <div className="rounded-lg bg-[#eaf4ec] px-4 py-2.5 text-sm">
+                      <span className="text-[#12402d]/60">Contraseña:</span>{" "}
+                      <span className="font-mono font-medium text-[#12402d]" data-testid="text-demo-password">{DEMO_PASSWORD}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-[#12402d]/65">
+                    Entra con las credenciales de demostración que te facilitemos.
+                  </p>
+                )}
+                <a href={DEMO_URL} target="_blank" rel="noreferrer">
+                  <Button
+                    size="lg"
+                    className="mt-6 w-full bg-[#2f9e68] hover:bg-[#258355] text-white font-semibold"
+                    data-testid="button-demo-access"
+                  >
+                    Abrir la demo <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Contratación */}
+      <Section id="contratar" className="bg-white">
+        <div className="max-w-3xl mx-auto px-5 py-24">
+          <div className="text-center reveal">
+            <span className="text-xs font-mono-label tracking-[0.2em] uppercase text-[#2f9e68]">Contratación online</span>
+            <h2 className="mt-3 font-display text-3xl md:text-4xl font-semibold tracking-tight text-[#12402d]">
+              Contrata tu instalación
+            </h2>
+            <p className="mt-4 text-[#12402d]/70 max-w-xl mx-auto">
+              Alta automática: rellena los datos, paga por PayPal y tu cooperativa tendrá su
+              instalación lista en su propio subdominio.
+            </p>
+          </div>
+          <div className="mt-10 reveal">
+            <SignupForm />
           </div>
         </div>
       </Section>

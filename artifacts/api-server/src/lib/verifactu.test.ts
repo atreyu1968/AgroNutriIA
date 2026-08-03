@@ -169,7 +169,13 @@ after(async () => {
     await db
       .delete(verifactuSubmissionsTable)
       .where(inArray(verifactuSubmissionsTable.invoiceId, invIds));
-    await db.delete(invoicesTable).where(inArray(invoicesTable.id, invIds));
+    // Las facturas emitidas están protegidas por trigger contra el borrado:
+    // se desactiva solo para limpiar los datos de prueba.
+    await db.transaction(async (tx) => {
+      await tx.execute(`ALTER TABLE invoices DISABLE TRIGGER invoices_protect_delete`);
+      await tx.delete(invoicesTable).where(inArray(invoicesTable.id, invIds));
+      await tx.execute(`ALTER TABLE invoices ENABLE TRIGGER invoices_protect_delete`);
+    });
   }
   await db
     .delete(billingChargesTable)
