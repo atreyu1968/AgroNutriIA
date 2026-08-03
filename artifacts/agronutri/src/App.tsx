@@ -13,6 +13,7 @@ import { FincasRouter } from '@/pages/fincas/router';
 
 import Ajustes from '@/pages/ajustes';
 import Fertilizantes from '@/pages/fertilizantes';
+import FitosanitariosCatalogo from '@/pages/fitosanitarios-catalogo';
 import ConsumoIA from '@/pages/consumo';
 import Auditoria from '@/pages/auditoria';
 import Administracion from '@/pages/administracion';
@@ -56,6 +57,9 @@ function Router() {
         <Redirect to="/fincas" />
       </Route>
 
+      <Route path="/fitosanitarios">
+        <AppLayout><FitosanitariosCatalogo /></AppLayout>
+      </Route>
       <Route path="/fertilizantes">
         <AppLayout><Fertilizantes /></AppLayout>
       </Route>
