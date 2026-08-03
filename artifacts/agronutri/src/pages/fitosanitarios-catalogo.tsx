@@ -35,7 +35,47 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw, Plus, Pencil, CalendarIcon, X } from "lucide-react";
+import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw, Plus, Pencil, CalendarIcon, X, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+
+function SortableHead({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onSort,
+  className,
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+  onSort: (key: SortKey) => void;
+  className?: string;
+}) {
+  const active = sortKey === k;
+  const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors select-none"
+        aria-label={`Ordenar por ${label}`}
+      >
+        {label}
+        <Icon className={`w-3.5 h-3.5 ${active ? "" : "opacity-40"}`} />
+      </button>
+    </TableHead>
+  );
+}
+
+type SortKey =
+  | "productName"
+  | "registryNumber"
+  | "activeIngredient"
+  | "maxApplicationsYear"
+  | "safetyDays"
+  | "expiryDate";
 import { formatDate, cn } from "@/lib/utils";
 
 function isExpired(p: PhytoProduct): boolean {
@@ -47,6 +87,16 @@ export default function FitosanitariosCatalogo() {
   const { data: me } = useGetMe();
   const isAdmin = !!me?.isAdmin;
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("productName");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<PhytoProduct | null>(null);
@@ -61,6 +111,39 @@ export default function FitosanitariosCatalogo() {
       (p.pests ?? "").toLowerCase().includes(q) ||
       (p.registryNumber ?? "").toLowerCase().includes(q),
   );
+
+  // Ordenación por cabecera: clic alterna ascendente/descendente.
+  const sortValue = (p: PhytoProduct, key: SortKey): string | number | null => {
+    switch (key) {
+      case "productName":
+        return p.productName;
+      case "registryNumber":
+        return p.registryNumber ?? null;
+      case "activeIngredient":
+        return p.activeIngredient ?? null;
+      case "maxApplicationsYear":
+        return p.maxApplicationsYear ?? null;
+      case "safetyDays":
+        return p.safetyDays ?? null;
+      case "expiryDate":
+        return p.expiryDate ?? null;
+    }
+  };
+  const sorted = filtered
+    ? [...filtered].sort((a, b) => {
+        const va = sortValue(a, sortKey);
+        const vb = sortValue(b, sortKey);
+        // Los valores vacíos siempre al final, sea cual sea el sentido.
+        if (va === null && vb === null) return 0;
+        if (va === null) return 1;
+        if (vb === null) return -1;
+        const cmp =
+          typeof va === "number" && typeof vb === "number"
+            ? va - vb
+            : String(va).localeCompare(String(vb), "es", { numeric: true, sensitivity: "base" });
+        return sortDir === "asc" ? cmp : -cmp;
+      })
+    : filtered;
 
   const canEdit = !!(me?.isAdmin || me?.role === "owner" || me?.role === "technician");
 
@@ -159,14 +242,14 @@ export default function FitosanitariosCatalogo() {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[240px]">Producto</TableHead>
-                <TableHead>Nº registro</TableHead>
-                <TableHead>Materia activa</TableHead>
+                <SortableHead label="Producto" k="productName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="w-[240px]" />
+                <SortableHead label="Nº registro" k="registryNumber" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableHead label="Materia activa" k="activeIngredient" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <TableHead className="hidden lg:table-cell">Plagas</TableHead>
                 <TableHead className="hidden md:table-cell">Dosis</TableHead>
-                <TableHead className="text-center hidden md:table-cell">Máx/año</TableHead>
-                <TableHead className="text-center hidden md:table-cell">Plazo seg.</TableHead>
-                <TableHead>Autorización</TableHead>
+                <SortableHead label="Máx/año" k="maxApplicationsYear" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-center hidden md:table-cell" />
+                <SortableHead label="Plazo seg." k="safetyDays" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-center hidden md:table-cell" />
+                <SortableHead label="Autorización" k="expiryDate" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <TableHead className="text-right"></TableHead>
               </TableRow>
             </TableHeader>
@@ -181,8 +264,8 @@ export default function FitosanitariosCatalogo() {
                     ))}
                   </TableRow>
                 ))
-              ) : filtered && filtered.length > 0 ? (
-                filtered.map((p) => (
+              ) : sorted && sorted.length > 0 ? (
+                sorted.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2 flex-wrap">
