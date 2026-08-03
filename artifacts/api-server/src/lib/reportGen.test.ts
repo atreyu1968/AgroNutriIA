@@ -6,7 +6,7 @@ import path from "node:path";
 import JSZip from "jszip";
 import { PDFParse } from "pdf-parse";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
-import { generatePdf, generateDocx, type ReportData } from "./reportGen";
+import { generatePdf, generateDocx, pdfSafe, type ReportData } from "./reportGen";
 
 const now = new Date("2026-01-15T10:00:00Z");
 
@@ -137,6 +137,51 @@ async function extractPdf(buf: Buffer): Promise<{ text: string; pages: string[] 
   const result = await parser.getText();
   return { text: result.text, pages: result.pages.map((p) => p.text) };
 }
+
+test("pdfSafe conserva la mu (µ) como micro sign de WinAnsi", () => {
+  assert.equal(pdfSafe("14 \u00B5g/g"), "14 \u00B5g/g", "micro sign se conserva");
+  assert.equal(pdfSafe("14 \u03BCg/g"), "14 \u00B5g/g", "mu griega se convierte a micro sign");
+  assert.equal(pdfSafe("\u00B5S/cm"), "\u00B5S/cm");
+});
+
+test("pdfSafe normaliza guiones tipográficos y signo menos a guion ASCII", () => {
+  assert.equal(pdfSafe("pH 6,5\u20137,5"), "pH 6,5-7,5", "en dash");
+  assert.equal(pdfSafe("rango \u2014 amplio"), "rango - amplio", "em dash");
+  assert.equal(pdfSafe("\u22120,5"), "-0,5", "signo menos Unicode");
+  assert.equal(pdfSafe("\u2010\u2011\u2012\u2013\u2014\u2015"), "------", "toda la gama de guiones");
+});
+
+test("pdfSafe normaliza comillas tipográficas", () => {
+  assert.equal(pdfSafe("\u2018foliar\u2019"), "'foliar'", "comillas simples curvas");
+  assert.equal(pdfSafe("\u201Csorriba\u201D"), '"sorriba"', "comillas dobles curvas");
+  assert.equal(pdfSafe("\u201Abaja\u201E"), "'baja\"", "comillas bajas");
+});
+
+test("pdfSafe convierte puntos suspensivos y espacios especiales", () => {
+  assert.equal(pdfSafe("etc\u2026"), "etc...", "elipsis");
+  assert.equal(pdfSafe("2,5\u00A0kg"), "2,5 kg", "espacio no separable");
+  assert.equal(pdfSafe("a\u2009b\u200Ac\u200Bd"), "a b c d", "espacios finos y de ancho cero");
+});
+
+test("pdfSafe elimina caracteres fuera de Latin-1 sin romper el resto", () => {
+  assert.equal(pdfSafe("K\u2082O"), "KO", "subíndice fuera de WinAnsi se elimina");
+  assert.equal(pdfSafe("N \u2192 P"), "N  P", "flecha se elimina");
+  assert.equal(pdfSafe("valor \u4E2D 12"), "valor  12", "CJK se elimina");
+  assert.equal(pdfSafe("café con emoji \u{1F34C} ok"), "café con emoji  ok", "emoji se elimina");
+});
+
+test("pdfSafe conserva Latin-1 y las excepciones de WinAnsi (€, œ, š, ž)", () => {
+  const latin = "Análisis: pH 7,8 ±0,1 — ñÑ çÇ áéíóú ºª ½ 25 kg";
+  assert.equal(pdfSafe(latin), "Análisis: pH 7,8 ±0,1 - ñÑ çÇ áéíóú ºª ½ 25 kg");
+  assert.equal(pdfSafe("coste 12\u20AC"), "coste 12\u20AC", "símbolo del euro se conserva");
+  assert.equal(pdfSafe("\u0153uvre \u0161 \u017E \u0152 \u0160 \u0178 \u017D"), "\u0153uvre \u0161 \u017E \u0152 \u0160 \u0178 \u017D");
+  assert.equal(pdfSafe(""), "", "cadena vacía");
+});
+
+test("pdfSafe con texto realista de laboratorio", () => {
+  const raw = "Zn: 14 \u03BCg/g \u2013 \u201Cmuy bajo\u201D (ref. 18\u201350)\u2026";
+  assert.equal(pdfSafe(raw), 'Zn: 14 \u00B5g/g - "muy bajo" (ref. 18-50)...');
+});
 
 test("generatePdf crea un PDF válido, no vacío y estructuralmente completo", async () => {
   const filePath = path.join(tmpDir, "informe.pdf");

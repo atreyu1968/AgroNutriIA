@@ -126,7 +126,7 @@ const CELL_PAD = 5;
  * Analyses imported from lab PDFs often carry Greek mu, special dashes, etc.,
  * which would render as mojibake. Normalize to safe equivalents.
  */
-function pdfSafe(text: string): string {
+export function pdfSafe(text: string): string {
   return text
     .replace(/[\u03BC\u00B5]/g, "\u00B5") // Greek mu → micro sign (WinAnsi)
     .replace(/[\u2010-\u2015\u2212]/g, "-") // dashes/minus → hyphen
