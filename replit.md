@@ -1,45 +1,20 @@
-# [Project name]
+# AgroNutri AI
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Plataforma de gestión de fertirrigación para fincas de platanera en Canarias.
 
-## Run & Operate
-
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
-
-## Stack
-
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
-
-## Where things live
-
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+## Overview
+- **Frontend** (`artifacts/agronutri`): React + Vite + shadcn, UI 100 % en español, wouter routing, TanStack Query with Orval-generated hooks from `@workspace/api-client-react`.
+- **Backend** (`artifacts/api-server`): Express 5 + Drizzle + PostgreSQL (Replit-managed). OpenAPI contract in `lib/api-spec/openapi.yaml`; codegen via `pnpm --filter @workspace/api-spec run codegen`.
+- **Auth**: local email/password (bcrypt), DB-backed session tokens in HTTP-only cookie `agronutri_session` (30-day TTL).
+- **AI**: per-user OpenAI keys, AES-256-GCM encrypted (key derived from `SESSION_SECRET` via scrypt, `src/lib/crypto.ts`), masked in UI; per-farm override via api-config; monthly cost limits enforced.
+- **Engine**: deterministic fertigation calculator in `artifacts/api-server/src/lib/engine.ts` (water volume, nutrient kg, EC/SAR estimates, incompatibilities, Spanish warnings).
+- **Reports**: PDF (pdfkit) and DOCX (docx) generated synchronously into `artifacts/api-server/storage/reports/`; download route `/api/farms/:farmId/reports/:reportId/download`.
+- **Seed data**: `artifacts/api-server/src/seed.ts` (run with `npx tsx`). Demo user `demo@agronutri.es` / `agronutri2026` (AGROSABINA SL, finca Bajo Cuadras with real analyses and validated program).
 
 ## User preferences
+- Communicate with the user in Spanish, non-technical register. No emojis.
+- Application UI entirely in Spanish (es-ES).
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+## Notes
+- `pdfkit`/`fontkit` must stay in the esbuild `external` list in `artifacts/api-server/build.mjs` (bundling breaks @swc/helpers resolution).
+- Recommendation workflow: draft → pending_review → validated → applying → finished / rejected; approve/reject restricted to owner/technician.

@@ -3,20 +3,31 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AgroNutri AI API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: farms
+  - name: sectors
+  - name: members
+  - name: analyses
+  - name: fertilizers
+  - name: recommendations
+  - name: settings
+  - name: conversations
+  - name: reports
+  - name: usage
+  - name: audit
+  - name: dashboard
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +35,1444 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      responses:
+        "204":
+          description: Logged out
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    patch:
+      operationId: updateMe
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /farms:
+    get:
+      operationId: listFarms
+      tags: [farms]
+      responses:
+        "200":
+          description: Farms visible to the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Farm"
+    post:
+      operationId: createFarm
+      tags: [farms]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farm"
+  /farms/{farmId}:
+    get:
+      operationId: getFarm
+      tags: [farms]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Farm detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farm"
+    patch:
+      operationId: updateFarm
+      tags: [farms]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farm"
+    delete:
+      operationId: deleteFarm
+      tags: [farms]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "204":
+          description: Deleted
+  /farms/{farmId}/summary:
+    get:
+      operationId: getFarmSummary
+      tags: [farms]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Farm context panel summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmSummary"
+
+  /farms/{farmId}/sectors:
+    get:
+      operationId: listSectors
+      tags: [sectors]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Sectors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sector"
+    post:
+      operationId: createSector
+      tags: [sectors]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectorInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sector"
+  /farms/{farmId}/sectors/{sectorId}:
+    patch:
+      operationId: updateSector
+      tags: [sectors]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/SectorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectorUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sector"
+    delete:
+      operationId: deleteSector
+      tags: [sectors]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/SectorId"
+      responses:
+        "204":
+          description: Deleted
+
+  /farms/{farmId}/members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FarmMember"
+    post:
+      operationId: addMember
+      tags: [members]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmMemberInput"
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmMember"
+  /farms/{farmId}/members/{memberId}:
+    patch:
+      operationId: updateMember
+      tags: [members]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/MemberId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmMemberUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmMember"
+    delete:
+      operationId: removeMember
+      tags: [members]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "204":
+          description: Removed
+
+  /farms/{farmId}/analyses:
+    get:
+      operationId: listAnalyses
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Analyses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Analysis"
+    post:
+      operationId: createAnalysis
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
+  /farms/{farmId}/analyses/{analysisId}:
+    get:
+      operationId: getAnalysis
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/AnalysisId"
+      responses:
+        "200":
+          description: Analysis detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
+    delete:
+      operationId: deleteAnalysis
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/AnalysisId"
+      responses:
+        "204":
+          description: Deleted
+
+  /fertilizers:
+    get:
+      operationId: listFertilizers
+      tags: [fertilizers]
+      responses:
+        "200":
+          description: Fertilizer catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Fertilizer"
+    post:
+      operationId: createFertilizer
+      tags: [fertilizers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FertilizerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fertilizer"
+  /fertilizers/{fertilizerId}:
+    patch:
+      operationId: updateFertilizer
+      tags: [fertilizers]
+      parameters:
+        - $ref: "#/components/parameters/FertilizerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FertilizerUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fertilizer"
+    delete:
+      operationId: deleteFertilizer
+      tags: [fertilizers]
+      parameters:
+        - $ref: "#/components/parameters/FertilizerId"
+      responses:
+        "204":
+          description: Deleted
+
+  /farms/{farmId}/recommendations:
+    get:
+      operationId: listRecommendations
+      tags: [recommendations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Recommendations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recommendation"
+    post:
+      operationId: createRecommendation
+      tags: [recommendations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationInput"
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
+  /farms/{farmId}/recommendations/{recommendationId}:
+    get:
+      operationId: getRecommendation
+      tags: [recommendations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/RecommendationId"
+      responses:
+        "200":
+          description: Recommendation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
+    patch:
+      operationId: updateRecommendation
+      tags: [recommendations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/RecommendationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
+  /farms/{farmId}/recommendations/{recommendationId}/status:
+    post:
+      operationId: changeRecommendationStatus
+      tags: [recommendations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/RecommendationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationStatusChange"
+      responses:
+        "200":
+          description: Status changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
+  /farms/{farmId}/calculations:
+    post:
+      operationId: runCalculation
+      tags: [recommendations]
+      summary: Run the deterministic fertigation engine
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalculationRequest"
+      responses:
+        "200":
+          description: Calculation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalculationResult"
+
+  /settings/openai:
+    get:
+      operationId: listCredentials
+      tags: [settings]
+      responses:
+        "200":
+          description: Masked credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Credential"
+    post:
+      operationId: createCredential
+      tags: [settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialInput"
+      responses:
+        "201":
+          description: Stored (masked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credential"
+  /settings/openai/{credentialId}:
+    patch:
+      operationId: updateCredential
+      tags: [settings]
+      parameters:
+        - $ref: "#/components/parameters/CredentialId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialUpdate"
+      responses:
+        "200":
+          description: Updated (masked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credential"
+    delete:
+      operationId: deleteCredential
+      tags: [settings]
+      parameters:
+        - $ref: "#/components/parameters/CredentialId"
+      responses:
+        "204":
+          description: Deleted
+  /settings/openai/{credentialId}/test:
+    post:
+      operationId: testCredential
+      tags: [settings]
+      parameters:
+        - $ref: "#/components/parameters/CredentialId"
+      responses:
+        "200":
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialTestResult"
+  /farms/{farmId}/api-config:
+    get:
+      operationId: getFarmApiConfig
+      tags: [settings]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Farm-specific credential override
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmApiConfig"
+    put:
+      operationId: setFarmApiConfig
+      tags: [settings]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmApiConfigInput"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmApiConfig"
+
+  /farms/{farmId}/conversations:
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+  /farms/{farmId}/conversations/{conversationId}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+    delete:
+      operationId: deleteConversation
+      tags: [conversations]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "204":
+          description: Deleted
+  /farms/{farmId}/conversations/{conversationId}/messages:
+    post:
+      operationId: sendMessage
+      tags: [conversations]
+      summary: Send a message to the virtual agronomist and receive its reply
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "200":
+          description: Assistant reply (includes the stored user message and assistant message)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+
+  /farms/{farmId}/reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+    post:
+      operationId: createReport
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /usage:
+    get:
+      operationId: getUsage
+      tags: [usage]
+      parameters:
+        - name: month
+          in: query
+          required: false
+          description: Month in YYYY-MM format; defaults to current month
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Monthly AI usage summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageSummary"
+
+  /audit:
+    get:
+      operationId: listAuditLog
+      tags: [audit]
+      parameters:
+        - name: farmId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit entries (admin sees all; others see own farms)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Global dashboard for current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
+  parameters:
+    FarmId:
+      name: farmId
+      in: path
+      required: true
+      schema:
+        type: integer
+    SectorId:
+      name: sectorId
+      in: path
+      required: true
+      schema:
+        type: integer
+    MemberId:
+      name: memberId
+      in: path
+      required: true
+      schema:
+        type: integer
+    AnalysisId:
+      name: analysisId
+      in: path
+      required: true
+      schema:
+        type: integer
+    FertilizerId:
+      name: fertilizerId
+      in: path
+      required: true
+      schema:
+        type: integer
+    RecommendationId:
+      name: recommendationId
+      in: path
+      required: true
+      schema:
+        type: integer
+    CredentialId:
+      name: credentialId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    RegisterInput:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        name: { type: string, minLength: 1 }
+        company: { type: string }
+        phone: { type: string }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    UserProfile:
+      type: object
+      required: [id, email, name, role, isAdmin]
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        name: { type: string }
+        company: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        role: { type: string }
+        isAdmin: { type: boolean }
+        unitsPreference: { type: ["string", "null"] }
+        reportLanguage: { type: ["string", "null"] }
+        aiMonthlyLimitEur: { type: ["number", "null"] }
+        aiResponseStyle: { type: ["string", "null"] }
+    UserProfileUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        company: { type: string }
+        phone: { type: string }
+        unitsPreference: { type: string }
+        reportLanguage: { type: string }
+        aiMonthlyLimitEur: { type: ["number", "null"] }
+        aiResponseStyle: { type: string }
+        password: { type: string, minLength: 8 }
+
+    Farm:
+      type: object
+      required: [id, ownerId, name, myRole]
+      properties:
+        id: { type: integer }
+        ownerId: { type: integer }
+        name: { type: string }
+        companyName: { type: ["string", "null"] }
+        cif: { type: ["string", "null"] }
+        island: { type: ["string", "null"] }
+        municipality: { type: ["string", "null"] }
+        latitude: { type: ["number", "null"] }
+        longitude: { type: ["number", "null"] }
+        altitudeM: { type: ["number", "null"] }
+        surfaceHa: { type: ["number", "null"] }
+        mainCrop: { type: ["string", "null"] }
+        variety: { type: ["string", "null"] }
+        plantCount: { type: ["integer", "null"] }
+        phenologicalStage: { type: ["string", "null"] }
+        cropSystem: { type: ["string", "null"] }
+        soilType: { type: ["string", "null"] }
+        hasDrainage: { type: ["boolean", "null"] }
+        foliarAllowed: { type: ["boolean", "null"] }
+        hasDesalinatedWater: { type: ["boolean", "null"] }
+        desalinatedWaterPct: { type: ["number", "null"] }
+        weeklyLitresPerPlant: { type: ["number", "null"] }
+        maxEcDsM: { type: ["number", "null"] }
+        managementNotes: { type: ["string", "null"] }
+        responsibleTechnician: { type: ["string", "null"] }
+        myRole: { type: string, description: "owner | technician | manager | viewer" }
+        sectorCount: { type: ["integer", "null"] }
+    FarmInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        companyName: { type: string }
+        cif: { type: string }
+        island: { type: string }
+        municipality: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        altitudeM: { type: number }
+        surfaceHa: { type: number }
+        mainCrop: { type: string }
+        variety: { type: string }
+        plantCount: { type: integer }
+        phenologicalStage: { type: string }
+        cropSystem: { type: string }
+        soilType: { type: string }
+        hasDrainage: { type: boolean }
+        foliarAllowed: { type: boolean }
+        hasDesalinatedWater: { type: boolean }
+        desalinatedWaterPct: { type: number }
+        weeklyLitresPerPlant: { type: number }
+        maxEcDsM: { type: number }
+        managementNotes: { type: string }
+        responsibleTechnician: { type: string }
+    FarmUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        companyName: { type: string }
+        cif: { type: string }
+        island: { type: string }
+        municipality: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        altitudeM: { type: number }
+        surfaceHa: { type: number }
+        mainCrop: { type: string }
+        variety: { type: string }
+        plantCount: { type: integer }
+        phenologicalStage: { type: string }
+        cropSystem: { type: string }
+        soilType: { type: string }
+        hasDrainage: { type: boolean }
+        foliarAllowed: { type: boolean }
+        hasDesalinatedWater: { type: boolean }
+        desalinatedWaterPct: { type: number }
+        weeklyLitresPerPlant: { type: number }
+        maxEcDsM: { type: number }
+        managementNotes: { type: string }
+        responsibleTechnician: { type: string }
+    FarmSummary:
+      type: object
+      required: [farm]
+      properties:
+        farm:
+          $ref: "#/components/schemas/Farm"
+        weeklyWaterM3: { type: ["number", "null"] }
+        latestSoilAnalysis:
+          oneOf:
+            - $ref: "#/components/schemas/Analysis"
+            - type: "null"
+        latestLeafAnalysis:
+          oneOf:
+            - $ref: "#/components/schemas/Analysis"
+            - type: "null"
+        latestWaterAnalysis:
+          oneOf:
+            - $ref: "#/components/schemas/Analysis"
+            - type: "null"
+        activeRecommendation:
+          oneOf:
+            - $ref: "#/components/schemas/Recommendation"
+            - type: "null"
+        alerts:
+          type: array
+          items:
+            type: string
+        aiAvailable: { type: boolean }
+
+    Sector:
+      type: object
+      required: [id, farmId, name]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        name: { type: string }
+        plantCount: { type: ["integer", "null"] }
+        surfaceHa: { type: ["number", "null"] }
+        weeklyLitresPerPlant: { type: ["number", "null"] }
+        phenologicalStage: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+    SectorInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        plantCount: { type: integer }
+        surfaceHa: { type: number }
+        weeklyLitresPerPlant: { type: number }
+        phenologicalStage: { type: string }
+        notes: { type: string }
+    SectorUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        plantCount: { type: integer }
+        surfaceHa: { type: number }
+        weeklyLitresPerPlant: { type: number }
+        phenologicalStage: { type: string }
+        notes: { type: string }
+
+    FarmMember:
+      type: object
+      required: [id, farmId, userId, role, name, email]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        userId: { type: integer }
+        role: { type: string, description: "technician | manager | viewer" }
+        name: { type: string }
+        email: { type: string }
+    FarmMemberInput:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string, format: email }
+        role: { type: string, enum: [technician, manager, viewer] }
+    FarmMemberUpdate:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [technician, manager, viewer] }
+
+    Analysis:
+      type: object
+      required: [id, farmId, type, sampleDate, parameters]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        sectorId: { type: ["integer", "null"] }
+        type: { type: string, enum: [soil, leaf, water] }
+        reference: { type: ["string", "null"] }
+        laboratory: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        sampleDate: { type: string, description: "YYYY-MM-DD" }
+        parameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisParameter"
+        notes: { type: ["string", "null"] }
+        createdAt: { type: ["string", "null"] }
+    AnalysisParameter:
+      type: object
+      required: [name, value]
+      properties:
+        name: { type: string }
+        value: { type: number }
+        unit: { type: ["string", "null"] }
+        refLow: { type: ["number", "null"] }
+        refHigh: { type: ["number", "null"] }
+        status: { type: ["string", "null"], description: "muy_bajo | bajo | normal | alto | muy_alto" }
+    AnalysisInput:
+      type: object
+      required: [type, sampleDate, parameters]
+      properties:
+        sectorId: { type: integer }
+        type: { type: string, enum: [soil, leaf, water] }
+        reference: { type: string }
+        laboratory: { type: string }
+        description: { type: string }
+        sampleDate: { type: string }
+        parameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisParameter"
+        notes: { type: string }
+
+    Fertilizer:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        formulaType: { type: ["string", "null"], description: "solid | liquid" }
+        nPct: { type: ["number", "null"] }
+        nNitricPct: { type: ["number", "null"] }
+        nAmmoniacalPct: { type: ["number", "null"] }
+        nUreicPct: { type: ["number", "null"] }
+        p2o5Pct: { type: ["number", "null"] }
+        k2oPct: { type: ["number", "null"] }
+        caoPct: { type: ["number", "null"] }
+        mgoPct: { type: ["number", "null"] }
+        so3Pct: { type: ["number", "null"] }
+        boronPct: { type: ["number", "null"] }
+        densityKgL: { type: ["number", "null"] }
+        ecContribution: { type: ["number", "null"], description: "dS/m per g/L approx" }
+        incompatibleWith:
+          type: array
+          items:
+            type: string
+        notes: { type: ["string", "null"] }
+        isActive: { type: ["boolean", "null"] }
+    FertilizerInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        formulaType: { type: string }
+        nPct: { type: number }
+        nNitricPct: { type: number }
+        nAmmoniacalPct: { type: number }
+        nUreicPct: { type: number }
+        p2o5Pct: { type: number }
+        k2oPct: { type: number }
+        caoPct: { type: number }
+        mgoPct: { type: number }
+        so3Pct: { type: number }
+        boronPct: { type: number }
+        densityKgL: { type: number }
+        ecContribution: { type: number }
+        incompatibleWith:
+          type: array
+          items:
+            type: string
+        notes: { type: string }
+        isActive: { type: boolean }
+    FertilizerUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        formulaType: { type: string }
+        nPct: { type: number }
+        nNitricPct: { type: number }
+        nAmmoniacalPct: { type: number }
+        nUreicPct: { type: number }
+        p2o5Pct: { type: number }
+        k2oPct: { type: number }
+        caoPct: { type: number }
+        mgoPct: { type: number }
+        so3Pct: { type: number }
+        boronPct: { type: number }
+        densityKgL: { type: number }
+        ecContribution: { type: number }
+        incompatibleWith:
+          type: array
+          items:
+            type: string
+        notes: { type: string }
+        isActive: { type: boolean }
+
+    RecommendationItem:
+      type: object
+      required: [fertilizerName, weeklyDose, unit]
+      properties:
+        fertilizerId: { type: ["integer", "null"] }
+        fertilizerName: { type: string }
+        weeklyDose: { type: number }
+        unit: { type: string, description: "kg | L" }
+        previousDose: { type: ["number", "null"] }
+        reason: { type: ["string", "null"] }
+    Recommendation:
+      type: object
+      required: [id, farmId, status, items, createdAt]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        sectorId: { type: ["integer", "null"] }
+        title: { type: ["string", "null"] }
+        status: { type: string, description: "draft | pending_review | validated | applying | finished | rejected" }
+        source: { type: ["string", "null"], description: "manual | ai" }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationItem"
+        rationale: { type: ["string", "null"] }
+        estimatedEcDsM: { type: ["number", "null"] }
+        estimatedWeeklyNKg: { type: ["number", "null"] }
+        warnings:
+          type: array
+          items:
+            type: string
+        createdByName: { type: ["string", "null"] }
+        validatedByName: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: ["string", "null"] }
+    RecommendationInput:
+      type: object
+      required: [items]
+      properties:
+        sectorId: { type: integer }
+        title: { type: string }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationItem"
+        rationale: { type: string }
+    RecommendationUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationItem"
+        rationale: { type: string }
+    RecommendationStatusChange:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [submit, approve, reject, start_application, finish] }
+        comment: { type: string }
+
+    CalculationRequest:
+      type: object
+      required: [items]
+      properties:
+        sectorId: { type: integer }
+        weeklyLitresPerPlant: { type: number }
+        plantCount: { type: integer }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationItem"
+    CalculationResult:
+      type: object
+      required: [weeklyWaterLitres, weeklyWaterM3, nutrients, warnings, compatibilityIssues]
+      properties:
+        weeklyWaterLitres: { type: number }
+        weeklyWaterM3: { type: number }
+        nutrients:
+          type: object
+          description: "Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b"
+          additionalProperties:
+            type: number
+        estimatedEcDsM: { type: ["number", "null"] }
+        waterContribution:
+          type: object
+          description: "Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity"
+          additionalProperties:
+            type: number
+        sar: { type: ["number", "null"] }
+        warnings:
+          type: array
+          items:
+            type: string
+        compatibilityIssues:
+          type: array
+          items:
+            type: string
+
+    Credential:
+      type: object
+      required: [id, provider, name, maskedKey, isDefault, isActive]
+      properties:
+        id: { type: integer }
+        provider: { type: string }
+        name: { type: string }
+        maskedKey: { type: string }
+        selectedModel: { type: ["string", "null"] }
+        monthlyLimitEur: { type: ["number", "null"] }
+        isDefault: { type: boolean }
+        isActive: { type: boolean }
+        lastValidatedAt: { type: ["string", "null"] }
+        status: { type: ["string", "null"] }
+    CredentialInput:
+      type: object
+      required: [name, apiKey]
+      properties:
+        name: { type: string, minLength: 1 }
+        apiKey: { type: string, minLength: 10 }
+        selectedModel: { type: string }
+        monthlyLimitEur: { type: number }
+        isDefault: { type: boolean }
+    CredentialUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        apiKey: { type: string, minLength: 10 }
+        selectedModel: { type: string }
+        monthlyLimitEur: { type: ["number", "null"] }
+        isDefault: { type: boolean }
+        isActive: { type: boolean }
+    CredentialTestResult:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+    FarmApiConfig:
+      type: object
+      required: [farmId]
+      properties:
+        farmId: { type: integer }
+        credentialId: { type: ["integer", "null"] }
+        credentialName: { type: ["string", "null"] }
+    FarmApiConfigInput:
+      type: object
+      properties:
+        credentialId: { type: ["integer", "null"], description: "null = use user's default credential" }
+
+    Conversation:
+      type: object
+      required: [id, farmId, title, createdAt]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        sectorId: { type: ["integer", "null"] }
+        title: { type: string }
+        status: { type: ["string", "null"] }
+        messageCount: { type: ["integer", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: ["string", "null"] }
+    ConversationInput:
+      type: object
+      properties:
+        sectorId: { type: integer }
+        title: { type: string }
+    Message:
+      type: object
+      required: [id, conversationId, role, content, createdAt]
+      properties:
+        id: { type: integer }
+        conversationId: { type: integer }
+        role: { type: string, description: "user | assistant | system" }
+        content: { type: string }
+        toolsUsed:
+          type: array
+          items:
+            type: string
+        sources:
+          type: array
+          items:
+            type: string
+        estimatedCostEur: { type: ["number", "null"] }
+        createdAt: { type: string }
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1 }
+    ConversationDetail:
+      type: object
+      required: [conversation, messages]
+      properties:
+        conversation:
+          $ref: "#/components/schemas/Conversation"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+
+    Report:
+      type: object
+      required: [id, farmId, title, format, status, createdAt]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        title: { type: string }
+        format: { type: string, description: "pdf | docx" }
+        status: { type: string, description: "generating | ready | error" }
+        downloadUrl: { type: ["string", "null"] }
+        createdByName: { type: ["string", "null"] }
+        createdAt: { type: string }
+    ReportInput:
+      type: object
+      required: [format]
+      properties:
+        title: { type: string }
+        format: { type: string, enum: [pdf, docx] }
+        recommendationId: { type: integer }
+
+    UsageSummary:
+      type: object
+      required: [month, queries, reports, inputTokens, outputTokens, estimatedCostEur, entries]
+      properties:
+        month: { type: string }
+        queries: { type: integer }
+        reports: { type: integer }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        estimatedCostEur: { type: number }
+        monthlyLimitEur: { type: ["number", "null"] }
+        limitUsedPct: { type: ["number", "null"] }
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/UsageEntry"
+    UsageEntry:
+      type: object
+      required: [id, model, operation, createdAt]
+      properties:
+        id: { type: integer }
+        farmId: { type: ["integer", "null"] }
+        farmName: { type: ["string", "null"] }
+        model: { type: string }
+        operation: { type: string }
+        inputTokens: { type: ["integer", "null"] }
+        outputTokens: { type: ["integer", "null"] }
+        estimatedCostEur: { type: ["number", "null"] }
+        durationMs: { type: ["integer", "null"] }
+        result: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    AuditEntry:
+      type: object
+      required: [id, action, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: ["integer", "null"] }
+        userName: { type: ["string", "null"] }
+        farmId: { type: ["integer", "null"] }
+        farmName: { type: ["string", "null"] }
+        action: { type: string }
+        entityType: { type: ["string", "null"] }
+        entityId: { type: ["integer", "null"] }
+        detail: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    DashboardSummary:
+      type: object
+      required: [farmCount, pendingRecommendations, recentActivity, alerts]
+      properties:
+        farmCount: { type: integer }
+        sectorCount: { type: ["integer", "null"] }
+        totalPlants: { type: ["integer", "null"] }
+        pendingRecommendations: { type: integer }
+        analysesThisYear: { type: ["integer", "null"] }
+        aiCostThisMonthEur: { type: ["number", "null"] }
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+        alerts:
+          type: array
+          items:
+            type: string

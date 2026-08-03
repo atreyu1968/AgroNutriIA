@@ -1,0 +1,88 @@
+import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
+
+function analysisBlock(label: string, a: Analysis | null): string {
+  if (!a) return `${label}: sin datos.`;
+  const params = a.parameters
+    .map((p) => {
+      const ref =
+        p.refLow != null || p.refHigh != null
+          ? ` (ref ${p.refLow ?? "-"}–${p.refHigh ?? "-"})`
+          : "";
+      const status = p.status ? ` [${p.status}]` : "";
+      return `  - ${p.name}: ${p.value}${p.unit ? " " + p.unit : ""}${ref}${status}`;
+    })
+    .join("\n");
+  return `${label} (${a.sampleDate}${a.laboratory ? ", " + a.laboratory : ""}${a.reference ? ", ref " + a.reference : ""}):\n${params}${a.notes ? "\n  Notas: " + a.notes : ""}`;
+}
+
+export function buildFarmContext(input: {
+  farm: Farm;
+  sectors: Sector[];
+  soil: Analysis | null;
+  leaf: Analysis | null;
+  water: Analysis | null;
+  active: Recommendation | null;
+}): string {
+  const f = input.farm;
+  const lines: string[] = [];
+  lines.push(
+    `Finca: ${f.name}${f.companyName ? " (" + f.companyName + ")" : ""}, ${f.municipality ?? ""} ${f.island ?? ""}`.trim(),
+  );
+  lines.push(
+    `Cultivo: ${f.mainCrop ?? "platanera"}${f.variety ? ", variedad " + f.variety : ""}. Fase fenológica: ${f.phenologicalStage ?? "no indicada"}.`,
+  );
+  lines.push(
+    `Plantas: ${f.plantCount ?? "?"}. Superficie: ${f.surfaceHa ?? "?"} ha. Riego: ${f.weeklyLitresPerPlant ?? "?"} L/planta/semana${
+      f.plantCount && f.weeklyLitresPerPlant
+        ? ` (≈ ${Math.round((f.plantCount * f.weeklyLitresPerPlant) / 1000)} m³/semana)`
+        : ""
+    }.`,
+  );
+  if (f.hasDesalinatedWater) {
+    lines.push(`Agua: mezcla con ${f.desalinatedWaterPct ?? "?"} % de agua desalada.`);
+  }
+  if (f.maxEcDsM != null) lines.push(`CE máxima admisible de la solución: ${f.maxEcDsM} dS/m.`);
+  if (f.soilType) lines.push(`Suelo: ${f.soilType}.`);
+  if (f.managementNotes) lines.push(`Notas de manejo: ${f.managementNotes}`);
+  if (input.sectors.length) {
+    lines.push(
+      "Sectores: " +
+        input.sectors
+          .map((s) => `${s.name} (${s.plantCount ?? "?"} plantas${s.phenologicalStage ? ", " + s.phenologicalStage : ""})`)
+          .join("; "),
+    );
+  }
+  lines.push("");
+  lines.push(analysisBlock("ANALÍTICA DE AGUA", input.water));
+  lines.push("");
+  lines.push(analysisBlock("ANALÍTICA DE SUELO", input.soil));
+  lines.push("");
+  lines.push(analysisBlock("ANALÍTICA FOLIAR", input.leaf));
+  lines.push("");
+  if (input.active) {
+    lines.push(
+      `PROGRAMA DE ABONADO VIGENTE (estado ${input.active.status}): ` +
+        input.active.items
+          .map((i) => `${i.fertilizerName} ${i.weeklyDose} ${i.unit}/semana`)
+          .join("; "),
+    );
+    if (input.active.rationale) lines.push(`Justificación: ${input.active.rationale}`);
+  } else {
+    lines.push("PROGRAMA DE ABONADO VIGENTE: ninguno validado actualmente.");
+  }
+  return lines.join("\n");
+}
+
+export function contextSources(input: {
+  soil: Analysis | null;
+  leaf: Analysis | null;
+  water: Analysis | null;
+  active: Recommendation | null;
+}): string[] {
+  const sources: string[] = [];
+  if (input.water) sources.push(`Analítica de agua ${input.water.reference ?? ""} (${input.water.sampleDate})`.trim());
+  if (input.soil) sources.push(`Analítica de suelo ${input.soil.reference ?? ""} (${input.soil.sampleDate})`.trim());
+  if (input.leaf) sources.push(`Analítica foliar ${input.leaf.reference ?? ""} (${input.leaf.sampleDate})`.trim());
+  if (input.active) sources.push(`Recomendación vigente «${input.active.title ?? "programa semanal"}»`);
+  return sources;
+}

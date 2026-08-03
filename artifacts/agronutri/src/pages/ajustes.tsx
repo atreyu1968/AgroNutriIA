@@ -1,0 +1,385 @@
+import { useGetMe, useUpdateMe, useListCredentials, useCreateCredential, useUpdateCredential, useDeleteCredential, useTestCredential, getListCredentialsQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useEffect } from "react";
+import { Key, User, Shield, CheckCircle2, XCircle, Trash2, Edit2, Play, Plus } from "lucide-react";
+
+export default function Ajustes() {
+  const { data: user } = useGetMe();
+
+  if (!user) return null;
+
+  return (
+    <div className="space-y-8 max-w-5xl animate-in fade-in duration-500">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Ajustes</h1>
+        <p className="text-muted-foreground mt-1">Gestiona tu perfil y credenciales de inteligencia artificial.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-1">
+          <h2 className="text-lg font-semibold mb-2">Perfil de Usuario</h2>
+          <p className="text-sm text-muted-foreground">Actualiza tu información personal y preferencias.</p>
+        </div>
+        <div className="md:col-span-2">
+          <ProfileForm user={user} />
+        </div>
+      </div>
+
+      <div className="h-px bg-border my-4" />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-1">
+          <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+            <Key className="w-5 h-5 text-primary" /> Credenciales AI
+          </h2>
+          <p className="text-sm text-muted-foreground">Configura tus claves de API de OpenAI para usar el asistente y generar informes.</p>
+        </div>
+        <div className="md:col-span-2">
+          <CredentialsManager />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const profileSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido"),
+  company: z.string().optional(),
+  phone: z.string().optional(),
+  unitsPreference: z.string().optional(),
+});
+
+function ProfileForm({ user }: { user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const form = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: user.name || "",
+      company: user.company || "",
+      phone: user.phone || "",
+      unitsPreference: user.unitsPreference || "metric",
+    },
+  });
+
+  const updateMutation = useUpdateMe({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Perfil actualizado correctamente" });
+        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      }
+    }
+  });
+
+  function onSubmit(values: z.infer<typeof profileSchema>) {
+    updateMutation.mutate({ data: values });
+  }
+
+  return (
+    <Card>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardHeader>
+            <CardTitle>Información Personal</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl><Input value={user.email} disabled className="bg-muted" /></FormControl>
+              </FormItem>
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Empresa</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="unitsPreference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sistema de Unidades</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="metric">Métrico (Kg, L, Ha)</SelectItem>
+                        <SelectItem value="imperial">Imperial (lb, gal, ac)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormItem>
+                <FormLabel>Rol</FormLabel>
+                <div><Badge variant="outline" className="mt-2">{user.role}</Badge></div>
+              </FormItem>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end border-t p-4 bg-muted/20">
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          </CardFooter>
+        </form>
+      </Form>
+    </Card>
+  );
+}
+
+function CredentialsManager() {
+  const { data: credentials, isLoading } = useListCredentials();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      {isLoading ? (
+        <Card><CardContent className="p-6">Cargando credenciales...</CardContent></Card>
+      ) : credentials && credentials.length > 0 ? (
+        <div className="space-y-4">
+          {credentials.map(cred => (
+            <CredentialItem key={cred.id} credential={cred} />
+          ))}
+        </div>
+      ) : (
+        <Card className="border-dashed bg-muted/10">
+          <CardContent className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <Key className="w-8 h-8 mb-2 opacity-20" />
+            <p>No tienes credenciales configuradas.</p>
+            <p className="text-sm">Necesitas una API Key de OpenAI para habilitar las funciones de IA.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <CredentialDialog open={open} onOpenChange={setOpen} />
+    </div>
+  );
+}
+
+function CredentialItem({ credential }: { credential: any }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const testMutation = useTestCredential({
+    mutation: {
+      onSuccess: (data) => {
+        if (data.ok) {
+          toast({ title: "Conexión exitosa", description: data.message, variant: "default" });
+          queryClient.invalidateQueries({ queryKey: getListCredentialsQueryKey() });
+        } else {
+          toast({ title: "Error de conexión", description: data.message, variant: "destructive" });
+        }
+      }
+    }
+  });
+
+  const deleteMutation = useDeleteCredential({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Credencial eliminada" });
+        queryClient.invalidateQueries({ queryKey: getListCredentialsQueryKey() });
+      }
+    }
+  });
+
+  return (
+    <Card className={credential.isDefault ? "border-primary shadow-sm" : ""}>
+      <CardContent className="p-4 flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold">{credential.name}</h3>
+            {credential.isDefault && <Badge className="text-[10px] px-1.5 py-0">Predeterminada</Badge>}
+            {credential.status === 'valid' ? (
+              <Badge variant="success" className="text-[10px] px-1.5 py-0 flex gap-1"><CheckCircle2 className="w-3 h-3"/> Válida</Badge>
+            ) : credential.status === 'invalid' ? (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex gap-1"><XCircle className="w-3 h-3"/> Inválida</Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">Sin probar</Badge>
+            )}
+          </div>
+          <div className="text-sm font-mono bg-muted px-2 py-1 rounded inline-block text-muted-foreground">
+            {credential.maskedKey}
+          </div>
+          <div className="text-xs text-muted-foreground mt-2 flex gap-4">
+            <span>Modelo: {credential.selectedModel || 'Por defecto'}</span>
+            {credential.monthlyLimitEur && <span>Límite: {credential.monthlyLimitEur}€/mes</span>}
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 shrink-0">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => testMutation.mutate({ credentialId: credential.id })}
+            disabled={testMutation.isPending}
+            className="w-full justify-start"
+          >
+            <Play className="w-3.5 h-3.5 mr-2" /> Probar
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => deleteMutation.mutate({ credentialId: credential.id })}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-2" /> Eliminar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const credentialSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido"),
+  apiKey: z.string().min(10, "API Key inválida"),
+  selectedModel: z.string().optional(),
+  monthlyLimitEur: z.coerce.number().optional(),
+  isDefault: z.boolean().default(true),
+});
+
+function CredentialDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const form = useForm<z.infer<typeof credentialSchema>>({
+    resolver: zodResolver(credentialSchema),
+    defaultValues: {
+      name: "OpenAI Clave Principal",
+      apiKey: "",
+      selectedModel: "gpt-4o",
+      monthlyLimitEur: 20,
+      isDefault: true,
+    }
+  });
+
+  const createMutation = useCreateCredential({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Credencial guardada" });
+        queryClient.invalidateQueries({ queryKey: getListCredentialsQueryKey() });
+        form.reset();
+        onOpenChange(false);
+      },
+      onError: () => {
+        toast({ title: "Error al guardar", variant: "destructive" });
+      }
+    }
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button className="w-full"><Plus className="w-4 h-4 mr-2" /> Añadir Credencial OpenAI</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Añadir API Key de OpenAI</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((v) => createMutation.mutate({ data: v }))} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre identificativo</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="apiKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>API Key (sk-...)</FormLabel>
+                  <FormControl><Input type="password" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="selectedModel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modelo Preferido</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="gpt-4o">GPT-4o (Recomendado)</SelectItem>
+                        <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="monthlyLimitEur"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Límite Mensual (€)</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? "Guardando..." : "Guardar Credencial"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

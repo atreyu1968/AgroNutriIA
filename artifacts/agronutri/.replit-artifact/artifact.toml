@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "AgroNutri AI"
+description = "Plataforma de fertirrigación para fincas agrícolas: gestión de usuarios y roles, fincas y sectores, analíticas de suelo/foliar/agua, motor determinista de cálculo agronómico, técnico agrícola virtual con OpenAI (clave por usuario, cifrada), recomendaciones con flujo de aprobación, informes DOCX/PDF, auditoría y control de costes."
+version = "1.0.0"
+id = "artifacts/agronutri"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25987
+
+[services.development]
+run = "pnpm --filter @workspace/agronutri run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/agronutri", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/agronutri/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25987"
+BASE_PATH = "/"
