@@ -1831,6 +1831,67 @@ export const RefreshPhytoProductsResponse = zod.object({
 
 
 /**
+ * @summary Update a catalog product in place (admin or creator)
+ */
+export const UpdatePhytoProductParams = zod.object({
+  "productId": zod.coerce.number().int()
+})
+
+export const updatePhytoProductBodyProductNameMax = 200;
+
+export const updatePhytoProductBodyRegistryNumberMax = 50;
+
+export const updatePhytoProductBodyActiveIngredientMax = 200;
+
+export const updatePhytoProductBodyPestsMax = 500;
+
+export const updatePhytoProductBodyDoseInfoMax = 500;
+
+export const updatePhytoProductBodyMaxApplicationsYearMin = 0;
+
+export const updatePhytoProductBodySafetyDaysMin = 0;
+
+export const updatePhytoProductBodyExpiryDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updatePhytoProductBodyNotesMax = 2000;
+
+export const updatePhytoProductBodySourceUrlMax = 500;
+
+
+
+export const UpdatePhytoProductBody = zod.object({
+  "productName": zod.string().min(1).max(updatePhytoProductBodyProductNameMax),
+  "registryNumber": zod.string().max(updatePhytoProductBodyRegistryNumberMax).nullish(),
+  "activeIngredient": zod.string().max(updatePhytoProductBodyActiveIngredientMax).nullish(),
+  "pests": zod.string().max(updatePhytoProductBodyPestsMax).nullish(),
+  "doseInfo": zod.string().max(updatePhytoProductBodyDoseInfoMax).nullish(),
+  "maxApplicationsYear": zod.number().int().min(updatePhytoProductBodyMaxApplicationsYearMin).nullish(),
+  "safetyDays": zod.number().int().min(updatePhytoProductBodySafetyDaysMin).nullish(),
+  "expiryDate": zod.string().regex(updatePhytoProductBodyExpiryDateRegExp).nullish(),
+  "exceptional": zod.boolean().optional(),
+  "notes": zod.string().max(updatePhytoProductBodyNotesMax).nullish(),
+  "sourceUrl": zod.string().max(updatePhytoProductBodySourceUrlMax).nullish()
+})
+
+export const UpdatePhytoProductResponse = zod.object({
+  "id": zod.number().int(),
+  "productName": zod.string(),
+  "registryNumber": zod.string().nullable(),
+  "activeIngredient": zod.string().nullable(),
+  "pests": zod.string().nullable(),
+  "doseInfo": zod.string().nullable(),
+  "maxApplicationsYear": zod.number().int().nullable(),
+  "safetyDays": zod.number().int().nullable(),
+  "expiryDate": zod.string().nullable().describe('YYYY-MM-DD end of authorization'),
+  "exceptional": zod.boolean(),
+  "notes": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "lastVerifiedAt": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Remove a product from the catalog (admin or creator)
  */
 export const DeletePhytoProductParams = zod.object({

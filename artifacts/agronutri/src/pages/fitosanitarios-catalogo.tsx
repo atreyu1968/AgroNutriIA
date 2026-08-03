@@ -4,8 +4,11 @@ import {
   getListPhytoProductsQueryKey,
   useDeletePhytoProduct,
   useRefreshPhytoProducts,
+  useCreatePhytoProduct,
+  useUpdatePhytoProduct,
   useGetMe,
   type PhytoProduct,
+  type PhytoProductCreate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,8 +23,20 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from "@/components/ui/form";
+import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw, Plus, Pencil, CalendarIcon, X } from "lucide-react";
+import { formatDate, cn } from "@/lib/utils";
 
 function isExpired(p: PhytoProduct): boolean {
   return !!p.expiryDate && p.expiryDate < new Date().toISOString().slice(0, 10);
@@ -33,6 +48,8 @@ export default function FitosanitariosCatalogo() {
   const isAdmin = !!me?.isAdmin;
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<PhytoProduct | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -118,6 +135,15 @@ export default function FitosanitariosCatalogo() {
               {refreshMutation.isPending ? "Actualizando..." : "Actualizar con IA"}
             </Button>
           )}
+          <Button
+            className="shrink-0 gap-2"
+            onClick={() => {
+              setEditProduct(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" /> Nuevo producto
+          </Button>
         </div>
       </div>
 
@@ -197,7 +223,18 @@ export default function FitosanitariosCatalogo() {
                         <span className="text-muted-foreground text-sm">Sin fecha</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditProduct(p);
+                          setFormOpen(true);
+                        }}
+                        aria-label={`Editar ${p.productName}`}
+                      >
+                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                      </Button>
                       {isAdmin && (
                         <Button variant="ghost" size="icon" onClick={() => setDeleteId(p.id)} aria-label={`Eliminar ${p.productName}`}>
                           <Trash2 className="w-4 h-4 text-destructive" />
@@ -219,6 +256,16 @@ export default function FitosanitariosCatalogo() {
           </Table>
         </CardContent>
       </Card>
+
+      <ProductFormDialog
+        key={editProduct?.id ?? "new"}
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditProduct(null);
+        }}
+        product={editProduct}
+      />
 
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
@@ -243,6 +290,24 @@ export default function FitosanitariosCatalogo() {
   );
 }
 
+const productSchema = z.object({
+  productName: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+  registryNumber: z.string().trim().max(50).optional(),
+  activeIngredient: z.string().trim().max(200).optional(),
+  pests: z.string().trim().max(500).optional(),
+  doseInfo: z.string().trim().max(500).optional(),
+  maxApplicationsYear: z.union([z.coerce.number().int().min(0), z.literal("")]).optional(),
+  safetyDays: z.union([z.coerce.number().int().min(0), z.literal("")]).optional(),
+  expiryDate: z.date().optional(),
+  exceptional: z.boolean(),
+  notes: z.string().trim().max(2000).optional(),
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .refine((v) => !v || /^https?:\/\/\S+$/.test(v), "Debe ser una URL http(s) válida"),
+});
 function ProductInfo({ product: p }: { product: PhytoProduct }) {
   return (
     <Popover>
@@ -270,4 +335,266 @@ function ProductInfo({ product: p }: { product: PhytoProduct }) {
       </PopoverContent>
     </Popover>
   );
+}
+
+function toLocalIsoDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function ProductFormDialog({
+  open,
+  onOpenChange,
+  product,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  product: PhytoProduct | null;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isEdit = product != null;
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      productName: product?.productName ?? "",
+      registryNumber: product?.registryNumber ?? "",
+      activeIngredient: product?.activeIngredient ?? "",
+      pests: product?.pests ?? "",
+      doseInfo: product?.doseInfo ?? "",
+      maxApplicationsYear: product?.maxApplicationsYear ?? "",
+      safetyDays: product?.safetyDays ?? "",
+      expiryDate: product?.expiryDate ? parseLocalDate(product.expiryDate) : undefined,
+      exceptional: product?.exceptional ?? false,
+      notes: product?.notes ?? "",
+      sourceUrl: product?.sourceUrl ?? "",
+    },
+  });
+
+  const onSaved = (title: string) => {
+    queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+    toast({ title });
+    form.reset();
+    onOpenChange(false);
+  };
+  const onError = (err: unknown) => {
+    const msg = (err as { data?: { error?: string } })?.data?.error;
+    toast({ title: "No se pudo guardar el producto", description: msg, variant: "destructive" });
+  };
+
+  const createMutation = useCreatePhytoProduct({
+    mutation: { onSuccess: () => onSaved("Producto añadido al catálogo"), onError },
+  });
+  const updateMutation = useUpdatePhytoProduct({
+    mutation: { onSuccess: () => onSaved("Producto actualizado"), onError },
+  });
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const onSubmit = (v: ProductFormValues) => {
+    const data: PhytoProductCreate = {
+      productName: v.productName,
+      registryNumber: v.registryNumber || null,
+      activeIngredient: v.activeIngredient || null,
+      pests: v.pests || null,
+      doseInfo: v.doseInfo || null,
+      maxApplicationsYear: v.maxApplicationsYear === "" || v.maxApplicationsYear == null ? null : v.maxApplicationsYear,
+      safetyDays: v.safetyDays === "" || v.safetyDays == null ? null : v.safetyDays,
+      expiryDate: v.expiryDate ? toLocalIsoDate(v.expiryDate) : null,
+      exceptional: v.exceptional,
+      notes: v.notes || null,
+      sourceUrl: v.sourceUrl || null,
+    };
+    if (isEdit) {
+      updateMutation.mutate({ productId: product.id, data });
+    } else {
+      createMutation.mutate({ data });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? `Editar ${product.productName}` : "Nuevo producto fitosanitario"}</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FormField
+                control={form.control} name="productName"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Nombre comercial *</FormLabel>
+                    <FormControl><Input {...field} placeholder="Ej. Fungicida XYZ" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control} name="registryNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nº registro MAPA</FormLabel>
+                    <FormControl><Input {...field} placeholder="Ej. 25519" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control} name="activeIngredient"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Materia activa</FormLabel>
+                  <FormControl><Input {...field} placeholder="Ej. Azoxistrobin 25%" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control} name="pests"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Plagas autorizadas</FormLabel>
+                  <FormControl><Input {...field} placeholder="Ej. Sigatoka, picudo, araña roja" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FormField
+                control={form.control} name="doseInfo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dosis</FormLabel>
+                    <FormControl><Input {...field} placeholder="Ej. 150 ml/hl" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control} name="maxApplicationsYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Máx. aplicaciones/año</FormLabel>
+                    <FormControl><Input type="number" min={0} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control} name="safetyDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plazo de seguridad (días)</FormLabel>
+                    <FormControl><Input type="number" min={0} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <FormField
+                control={form.control} name="expiryDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Fin de autorización</FormLabel>
+                    <div className="flex items-center gap-1">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? formatDate(toLocalIsoDate(field.value)) : "Sin fecha"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                        </PopoverContent>
+                      </Popover>
+                      {field.value && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={() => field.onChange(undefined)}
+                          aria-label="Quitar fecha"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control} name="exceptional"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-2 space-y-0 pb-2">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={(c) => field.onChange(c === true)} />
+                    </FormControl>
+                    <FormLabel className="font-normal cursor-pointer">Autorización excepcional (Canarias)</FormLabel>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control} name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notas</FormLabel>
+                  <FormControl><Textarea {...field} rows={3} placeholder="Condiciones, limitaciones, islas, intervalos..." /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control} name="sourceUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL de la fuente oficial</FormLabel>
+                  <FormControl><Input {...field} placeholder="https://www.mapa.gob.es/..." /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {!isEdit && (
+              <p className="text-xs text-muted-foreground">
+                Si ya existe un producto con el mismo nº de registro o nombre, se actualizarán sus datos.
+              </p>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type ProductFormValues = z.infer<typeof productSchema>;
+
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }

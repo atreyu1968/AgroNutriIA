@@ -1088,6 +1088,29 @@ paths:
                 $ref: "#/components/schemas/PhytoRefreshResult"
 
   /phyto/products/{productId}:
+    put:
+      operationId: updatePhytoProduct
+      tags: [phyto]
+      summary: Update a catalog product in place (admin or creator)
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhytoProductCreate"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhytoProduct"
     delete:
       operationId: deletePhytoProduct
       tags: [phyto]

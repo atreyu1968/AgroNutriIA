@@ -23,6 +23,8 @@ import {
   ListPhytoProductsResponse,
   CreatePhytoProductBody,
   CreatePhytoProductResponse,
+  UpdatePhytoProductBody,
+  UpdatePhytoProductResponse,
   RefreshPhytoProductsBody,
   RefreshPhytoProductsResponse,
   PhytoConsultBody,
@@ -378,6 +380,70 @@ router.post("/phyto/products", async (req, res): Promise<void> => {
   res
     .status(201)
     .json(CreatePhytoProductResponse.parse(serializeProduct(product, await userName(product.createdBy))));
+});
+
+// Edición en sitio por id: evita que renombrar un producto sin nº de registro
+// cree un duplicado (el upsert del POST solo casa por nº de registro o nombre).
+router.put("/phyto/products/:productId", async (req, res): Promise<void> => {
+  const productId = parseIntParam(req.params.productId);
+  const [existing] = await db
+    .select()
+    .from(phytoProductsTable)
+    .where(eq(phytoProductsTable.id, productId));
+  if (!existing) {
+    res.status(404).json({ error: "Producto no encontrado" });
+    return;
+  }
+  if (!canMutateProduct(req.user!, existing)) {
+    res.status(403).json({ error: "Solo el administrador o quien lo añadió puede modificarlo" });
+    return;
+  }
+  const parsed = UpdatePhytoProductBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const data = parsed.data;
+  if (data.sourceUrl && !isValidSourceUrl(data.sourceUrl)) {
+    res.status(400).json({ error: "La URL de la fuente debe ser una dirección http(s) válida" });
+    return;
+  }
+  // Evita que la edición choque con otro producto que ya use ese nº de
+  // registro o nombre (índices únicos del catálogo).
+  const clash = (await findExistingProduct(data)).find((p) => p.id !== productId);
+  if (clash) {
+    res.status(409).json({ error: `Ya existe otro producto con ese ${data.registryNumber ? "nº de registro" : "nombre"}: ${clash.productName}` });
+    return;
+  }
+  const [product] = await db
+    .update(phytoProductsTable)
+    .set({
+      productName: data.productName.trim(),
+      registryNumber: data.registryNumber ?? null,
+      activeIngredient: data.activeIngredient ?? null,
+      pests: data.pests ?? null,
+      doseInfo: data.doseInfo ?? null,
+      maxApplicationsYear: data.maxApplicationsYear ?? null,
+      safetyDays: data.safetyDays ?? null,
+      expiryDate: data.expiryDate ?? null,
+      exceptional: data.exceptional ? 1 : 0,
+      notes: data.notes ?? null,
+      sourceUrl: data.sourceUrl ?? null,
+      // Una corrección manual no equivale a verificar en el Registro.
+      lastVerifiedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(phytoProductsTable.id, productId))
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId: null,
+    action: "phyto_product_updated",
+    entityType: "phyto_product",
+    entityId: product.id,
+    detail: product.productName,
+  });
+  res.json(UpdatePhytoProductResponse.parse(serializeProduct(product, await userName(product.createdBy))));
 });
 
 router.delete("/phyto/products/:productId", async (req, res): Promise<void> => {

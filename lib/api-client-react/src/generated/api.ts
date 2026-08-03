@@ -4787,6 +4787,78 @@ export const useRefreshPhytoProducts = <TError = ErrorType<unknown>,
       return useMutation(getRefreshPhytoProductsMutationOptions(options));
     }
 
+export const getUpdatePhytoProductUrl = (productId: number,) => {
+
+
+
+
+  return `/api/phyto/products/${productId}`
+}
+
+/**
+ * @summary Update a catalog product in place (admin or creator)
+ */
+export const updatePhytoProduct = async (productId: number,
+    phytoProductCreate: PhytoProductCreate, options?: Parameters<typeof customFetch>[1]): Promise<PhytoProduct> => {
+
+  return customFetch<PhytoProduct>(getUpdatePhytoProductUrl(productId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(phytoProductCreate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePhytoProductMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePhytoProduct>>, TError,{productId: number;data: BodyType<PhytoProductCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePhytoProduct>>, TError,{productId: number;data: BodyType<PhytoProductCreate>}, TContext> => {
+
+const mutationKey = ['updatePhytoProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePhytoProduct>>, {productId: number;data: BodyType<PhytoProductCreate>}> = (props) => {
+          const {productId,data} = props ?? {};
+
+          return  updatePhytoProduct(productId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePhytoProductMutationResult = NonNullable<Awaited<ReturnType<typeof updatePhytoProduct>>>
+    export type UpdatePhytoProductMutationBody = BodyType<PhytoProductCreate>
+    export type UpdatePhytoProductMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a catalog product in place (admin or creator)
+ */
+export const useUpdatePhytoProduct = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePhytoProduct>>, TError,{productId: number;data: BodyType<PhytoProductCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePhytoProduct>>,
+        TError,
+        {productId: number;data: BodyType<PhytoProductCreate>},
+        TContext
+      > => {
+      return useMutation(getUpdatePhytoProductMutationOptions(options));
+    }
+
 export const getDeletePhytoProductUrl = (productId: number,) => {
 
 
