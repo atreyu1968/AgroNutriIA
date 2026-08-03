@@ -1104,7 +1104,12 @@ export function ReportsTab({ farmId }: { farmId: number }) {
               reports.map(r => (
                 <TableRow key={r.id}>
                   <TableCell>{formatDateTime(r.createdAt)}</TableCell>
-                  <TableCell className="font-medium">{r.title}</TableCell>
+                  <TableCell className="font-medium">
+                    {r.title}
+                    {r.reportType === 'plan_fitosanitario' && (
+                      <Badge variant="secondary" className="ml-2">Plan fitosanitario</Badge>
+                    )}
+                  </TableCell>
                   <TableCell><Badge variant="outline" className="uppercase">{r.format}</Badge></TableCell>
                   <TableCell>
                     {r.status === 'ready' ? <span className="text-green-600 font-medium">Listo</span> : 

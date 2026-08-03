@@ -1,3 +1,5 @@
+import path from "node:path";
+import fs from "node:fs";
 import { Router, type IRouter } from "express";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import OpenAI from "openai";
@@ -7,6 +9,7 @@ import {
   farmMembersTable,
   phytoTreatmentsTable,
   phytoProductsTable,
+  reportsTable,
   sectorsTable,
   type PhytoTreatment,
   type PhytoProduct,
@@ -28,7 +31,7 @@ import { requireAuth, farmAccess, canEdit, parseIntParam } from "../middlewares/
 import { resolveCredential, userName } from "../lib/farmContext";
 import { clientFor, checkMonthlyLimit, estimateCostEur, recordUsage } from "../lib/openai";
 import { audit } from "../lib/audit";
-import { generatePhytoPlanPdf } from "../lib/reportGen";
+import { generatePhytoPlanPdf, REPORTS_DIR } from "../lib/reportGen";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -494,6 +497,41 @@ router.post("/farms/:farmId/phyto/plan-pdf", async (req, res): Promise<void> => 
     answer: parsed.data.answer,
     sources: parsed.data.sources ?? [],
   });
+  // Guarda el plan como informe para poder volver a descargarlo desde la
+  // pestaña Informes sin repetir (y pagar) la consulta al asesor IA.
+  try {
+    const pests = parsed.data.pests ?? [];
+    const title = `Plan fitosanitario${pests.length ? ` (${pests.join(", ")})` : ""} — ${access.farm.name}`;
+    const [report] = await db
+      .insert(reportsTable)
+      .values({
+        farmId,
+        title,
+        reportType: "plan_fitosanitario",
+        format: "pdf",
+        status: "generating",
+        createdBy: req.user!.id,
+      })
+      .returning();
+    const filePath = path.join(REPORTS_DIR, `informe-${farmId}-${report.id}.pdf`);
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+    fs.writeFileSync(filePath, pdf);
+    await db
+      .update(reportsTable)
+      .set({ status: "ready", filePath })
+      .where(eq(reportsTable.id, report.id));
+    await audit({
+      userId: req.user!.id,
+      farmId,
+      action: "report_generated",
+      entityType: "report",
+      entityId: report.id,
+      detail: `${title} (pdf)`,
+    });
+  } catch (err) {
+    // La descarga inmediata no debe fallar por un problema al archivarlo.
+    req.log.error({ err: (err as Error).message }, "Failed to archive phyto plan PDF as report");
+  }
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",

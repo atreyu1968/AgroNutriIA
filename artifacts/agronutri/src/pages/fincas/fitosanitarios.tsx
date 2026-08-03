@@ -10,6 +10,7 @@ import {
   getListSectorsQueryKey,
   useListPhytoProducts,
   getListPhytoProductsQueryKey,
+  getListReportsQueryKey,
   useCreatePhytoProduct,
   useDeletePhytoProduct,
 } from "@workspace/api-client-react";
@@ -101,6 +102,12 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
       a.download = "plan-tratamiento-fitosanitario.pdf";
       a.click();
       URL.revokeObjectURL(url);
+      // El plan queda archivado en la pestaña Informes; refresca su lista.
+      queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(farmId) });
+      toast({
+        title: "Plan descargado y guardado",
+        description: "También puedes volver a descargarlo desde la pestaña Informes.",
+      });
     } catch {
       toast({
         title: "No se pudo generar el PDF",
