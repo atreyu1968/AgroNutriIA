@@ -664,11 +664,14 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
   const { data: analyses, isLoading } = useListAnalyses(farmId);
   const [selected, setSelected] = useState<AnalysisRow | null>(null);
   const [onlyOutOfRange, setOnlyOutOfRange] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'soil' | 'leaf' | 'water'>('all');
   const filteredAnalyses = useMemo(() => {
     if (!analyses) return analyses;
-    if (!onlyOutOfRange) return analyses;
-    return analyses.filter(a => (a.parameters ?? []).some(p => p.status && p.status !== 'normal'));
-  }, [analyses, onlyOutOfRange]);
+    return analyses.filter(a =>
+      (typeFilter === 'all' || a.type === typeFilter) &&
+      (!onlyOutOfRange || (a.parameters ?? []).some(p => p.status && p.status !== 'normal'))
+    );
+  }, [analyses, onlyOutOfRange, typeFilter]);
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center flex-wrap gap-2">
@@ -684,6 +687,26 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
             <Label htmlFor="only-out-of-range" className="text-sm font-normal text-muted-foreground cursor-pointer">
               Solo fuera de rango
             </Label>
+          </div>
+          <div className="flex items-center gap-1">
+            {([
+              ['all', 'Todas'],
+              ['soil', 'Suelo'],
+              ['leaf', 'Foliar'],
+              ['water', 'Agua'],
+            ] as const).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={typeFilter === value ? 'secondary' : 'ghost'}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setTypeFilter(value)}
+                data-testid={`filter-type-${value}`}
+              >
+                {label}
+              </Button>
+            ))}
           </div>
         </div>
         <div className="flex gap-2">
@@ -744,7 +767,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{onlyOutOfRange && analyses && analyses.length > 0 ? "No hay analíticas con parámetros fuera de rango." : "No hay analíticas registradas."}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{(onlyOutOfRange || typeFilter !== 'all') && analyses && analyses.length > 0 ? "No hay analíticas que coincidan con los filtros." : "No hay analíticas registradas."}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
