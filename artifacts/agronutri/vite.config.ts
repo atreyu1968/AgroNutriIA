@@ -2,6 +2,7 @@ import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -33,6 +34,46 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    // PWA: permite "instalar" la web desde el navegador (móvil y escritorio)
+    // como si fuera una app nativa, con icono y pantalla completa.
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.png', 'logo.png', 'logo-blanco.png'],
+      manifest: {
+        name: 'AgroNutri AI',
+        short_name: 'AgroNutri',
+        description:
+          'Gestión de fertirrigación y sanidad vegetal para platanera',
+        lang: 'es',
+        start_url: basePath,
+        scope: basePath,
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#136c40',
+        icons: [
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'pwa-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        // La API nunca se cachea: siempre datos frescos y sin riesgo de servir
+        // respuestas de otra sesión.
+        navigateFallbackDenylist: [/\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: /\/api\//,
+            handler: 'NetworkOnly',
+          },
+        ],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
+    }),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
       ? [

@@ -68,6 +68,8 @@ import type {
   PhytoPlanPdfInput,
   PhytoProduct,
   PhytoProductCreate,
+  PhytoRefreshBody,
+  PhytoRefreshResult,
   PhytoTreatment,
   PhytoTreatmentCreate,
   ProductSheet,
@@ -4712,6 +4714,77 @@ export const useCreatePhytoProduct = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreatePhytoProductMutationOptions(options));
+    }
+
+export const getRefreshPhytoProductsUrl = () => {
+
+
+
+
+  return `/api/phyto/products/refresh`
+}
+
+/**
+ * @summary Use the AI to look up official sources and fill missing catalog data
+ */
+export const refreshPhytoProducts = async (phytoRefreshBody?: PhytoRefreshBody, options?: Parameters<typeof customFetch>[1]): Promise<PhytoRefreshResult> => {
+
+  return customFetch<PhytoRefreshResult>(getRefreshPhytoProductsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(phytoRefreshBody)
+  }
+);}
+
+
+
+
+
+export const getRefreshPhytoProductsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshPhytoProducts>>, TError,{data?: BodyType<PhytoRefreshBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshPhytoProducts>>, TError,{data?: BodyType<PhytoRefreshBody>}, TContext> => {
+
+const mutationKey = ['refreshPhytoProducts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshPhytoProducts>>, {data?: BodyType<PhytoRefreshBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  refreshPhytoProducts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshPhytoProductsMutationResult = NonNullable<Awaited<ReturnType<typeof refreshPhytoProducts>>>
+    export type RefreshPhytoProductsMutationBody = BodyType<PhytoRefreshBody> | undefined
+    export type RefreshPhytoProductsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Use the AI to look up official sources and fill missing catalog data
+ */
+export const useRefreshPhytoProducts = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshPhytoProducts>>, TError,{data?: BodyType<PhytoRefreshBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshPhytoProducts>>,
+        TError,
+        {data?: BodyType<PhytoRefreshBody>},
+        TContext
+      > => {
+      return useMutation(getRefreshPhytoProductsMutationOptions(options));
     }
 
 export const getDeletePhytoProductUrl = (productId: number,) => {

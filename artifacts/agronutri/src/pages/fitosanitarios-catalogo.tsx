@@ -3,6 +3,7 @@ import {
   useListPhytoProducts,
   getListPhytoProductsQueryKey,
   useDeletePhytoProduct,
+  useRefreshPhytoProducts,
   useGetMe,
   type PhytoProduct,
 } from "@workspace/api-client-react";
@@ -19,7 +20,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink } from "lucide-react";
+import { SprayCan, Search, Trash2, Info, AlertTriangle, ExternalLink, RefreshCw } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 function isExpired(p: PhytoProduct): boolean {
@@ -43,6 +44,34 @@ export default function FitosanitariosCatalogo() {
       (p.pests ?? "").toLowerCase().includes(q) ||
       (p.registryNumber ?? "").toLowerCase().includes(q),
   );
+
+  const canEdit = !!(me?.isAdmin || me?.role === "owner" || me?.role === "technician");
+
+  const refreshMutation = useRefreshPhytoProducts({
+    mutation: {
+      onSuccess: (r) => {
+        queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+        if (r.processed === 0) {
+          toast({ title: "Catálogo al día", description: "No hay productos con datos pendientes de completar." });
+        } else {
+          const parts = [`${r.updated} actualizado(s)`];
+          if (r.skipped) parts.push(`${r.skipped} omitido(s)`);
+          toast({
+            title: "Catálogo actualizado",
+            description:
+              parts.join(", ") +
+              (r.remaining > 0
+                ? `. Quedan ${r.remaining} por completar: pulsa de nuevo para continuar.`
+                : ". Todos los productos están completos."),
+          });
+        }
+      },
+      onError: (err) => {
+        const msg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "No se pudo actualizar", description: msg, variant: "destructive" });
+      },
+    },
+  });
 
   const deleteMutation = useDeletePhytoProduct({
     mutation: {
@@ -68,16 +97,36 @@ export default function FitosanitariosCatalogo() {
             Productos con autorización verificada en platanera. El asesor IA lo alimenta y lo consulta al recomendar tratamientos.
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar producto, materia, plaga..."
-            className="pl-9 bg-background"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar producto, materia, plaga..."
+              className="pl-9 bg-background"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {canEdit && (
+            <Button
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={() => refreshMutation.mutate({ data: {} })}
+              disabled={refreshMutation.isPending}
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+              {refreshMutation.isPending ? "Actualizando..." : "Actualizar con IA"}
+            </Button>
+          )}
         </div>
       </div>
+
+      {canEdit && (
+        <p className="text-sm text-muted-foreground -mt-2">
+          "Actualizar con IA" busca en el Registro del MAPA y en Sanidad Vegetal de Canarias los datos que faltan
+          (nº de registro, fin de autorización, dosis y plazo de seguridad) y completa la tabla por tandas.
+        </p>
+      )}
 
       <Card>
         <CardContent className="p-0">

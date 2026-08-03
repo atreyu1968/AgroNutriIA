@@ -1805,6 +1805,32 @@ export const CreatePhytoProductResponse = zod.object({
 
 
 /**
+ * @summary Use the AI to look up official sources and fill missing catalog data
+ */
+export const refreshPhytoProductsBodyLimitMax = 15;
+
+
+
+export const RefreshPhytoProductsBody = zod.object({
+  "limit": zod.number().int().min(1).max(refreshPhytoProductsBodyLimitMax).optional().describe('Máximo de productos a completar en esta pasada (por defecto 6)'),
+  "productIds": zod.array(zod.number().int()).optional().describe('Si se indica, solo se actualizan estos productos')
+})
+
+export const RefreshPhytoProductsResponse = zod.object({
+  "processed": zod.number().int(),
+  "updated": zod.number().int(),
+  "skipped": zod.number().int(),
+  "remaining": zod.number().int().describe('Productos con datos aún incompletos tras esta pasada'),
+  "sources": zod.array(zod.string()),
+  "details": zod.array(zod.object({
+  "productName": zod.string(),
+  "status": zod.enum(['updated', 'skipped', 'error']),
+  "message": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Remove a product from the catalog (admin or creator)
  */
 export const DeletePhytoProductParams = zod.object({

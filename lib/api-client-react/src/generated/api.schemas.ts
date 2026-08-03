@@ -249,6 +249,42 @@ export interface PhytoProductCreate {
   sourceUrl?: string | null;
 }
 
+export interface PhytoRefreshBody {
+  /**
+     * Máximo de productos a completar en esta pasada (por defecto 6)
+     * @minimum 1
+     * @maximum 15
+     */
+  limit?: number;
+  /** Si se indica, solo se actualizan estos productos */
+  productIds?: number[];
+}
+
+export type PhytoRefreshResultDetailsItemStatus = typeof PhytoRefreshResultDetailsItemStatus[keyof typeof PhytoRefreshResultDetailsItemStatus];
+
+
+export const PhytoRefreshResultDetailsItemStatus = {
+  updated: 'updated',
+  skipped: 'skipped',
+  error: 'error',
+} as const;
+
+export type PhytoRefreshResultDetailsItem = {
+  productName: string;
+  status: PhytoRefreshResultDetailsItemStatus;
+  message?: string | null;
+};
+
+export interface PhytoRefreshResult {
+  processed: number;
+  updated: number;
+  skipped: number;
+  /** Productos con datos aún incompletos tras esta pasada */
+  remaining: number;
+  sources: string[];
+  details: PhytoRefreshResultDetailsItem[];
+}
+
 export interface AuthConfig {
   registrationEnabled: boolean;
 }

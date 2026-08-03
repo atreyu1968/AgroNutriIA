@@ -69,6 +69,15 @@ export async function resolveCredential(
   return creds.find((c) => c.isDefault) ?? creds[0] ?? null;
 }
 
+/** Resolve the user's default active OpenAI credential, independent of any farm. */
+export async function resolveUserCredential(user: User): Promise<Credential | null> {
+  const creds = await db
+    .select()
+    .from(credentialsTable)
+    .where(and(eq(credentialsTable.userId, user.id), eq(credentialsTable.isActive, true)));
+  return creds.find((c) => c.isDefault) ?? creds[0] ?? null;
+}
+
 export function farmAlerts(input: {
   farm: Farm;
   soil: Analysis | null;

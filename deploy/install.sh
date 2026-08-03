@@ -76,6 +76,27 @@ if [[ -n "$RESEND_API_KEY" && -z "$EMAIL_FROM" ]]; then
 fi
 
 # ----------------------------------------------------------------------------
+# Túnel de Cloudflare (opcional): publica la app en Internet con HTTPS sin abrir
+# puertos ni necesitar IP pública ni dominio propio en el servidor. Crea el túnel
+# en el panel Zero Trust de Cloudflare (Networks > Tunnels), copia el TOKEN del
+# conector y, en "Public hostname", apunta el servicio a http://localhost:80.
+# Puede darse por variables de entorno para instalaciones desatendidas:
+#   CLOUDFLARE_TUNNEL_TOKEN, TUNNEL_HOSTNAME
+if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]]; then
+  # Se lee sin eco: el token es una credencial y no debe quedar en pantalla.
+  read -rsp "Token del túnel de Cloudflare (opcional, Enter para omitir): " CLOUDFLARE_TUNNEL_TOKEN || true
+  echo
+fi
+TUNNEL_HOSTNAME="${TUNNEL_HOSTNAME:-}"
+if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+  # El dominio público es obligatorio con túnel: sin él, los enlaces de email y
+  # la comprobación de origen (CSRF/CORS) apuntarían a una URL equivocada.
+  while [[ ! "$TUNNEL_HOSTNAME" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]; do
+    read -rp "Dominio público del túnel (obligatorio, p. ej. agronutri.midominio.com): " TUNNEL_HOSTNAME || true
+  done
+fi
+
+# ----------------------------------------------------------------------------
 log "Actualizando el sistema e instalando utilidades básicas"
 apt-get update -y
 apt-get upgrade -y
@@ -153,7 +174,11 @@ if [[ -f /etc/agronutri/api.env ]] && grep -q '^SESSION_SECRET=' /etc/agronutri/
 else
   SESSION_SECRET="$(openssl rand -hex 32)"
 fi
-if [[ "$DOMAIN" == "_" ]]; then
+if [[ -n "$TUNNEL_HOSTNAME" ]]; then
+  # Con túnel de Cloudflare, la URL pública es el dominio del túnel (HTTPS lo
+  # aporta Cloudflare en el borde).
+  APP_URL="https://${TUNNEL_HOSTNAME}"
+elif [[ "$DOMAIN" == "_" ]]; then
   APP_URL="https://$(hostname -I | awk '{print $1}')"
 else
   APP_URL="https://${DOMAIN}"
@@ -246,39 +271,77 @@ if ! systemctl is-active --quiet ${SERVICE_NAME}; then
 fi
 
 # ----------------------------------------------------------------------------
-log "Instalando y configurando nginx (HTTPS obligatorio)"
+if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+  log "Instalando y configurando nginx (modo túnel Cloudflare: HTTP local, TLS en el borde)"
+else
+  log "Instalando y configurando nginx (HTTPS obligatorio)"
+fi
 apt-get install -y nginx
 
-# Certificado: Let's Encrypt si hay dominio; autofirmado si se instala por IP.
-SSL_CERT=""
-SSL_KEY=""
-if [[ "$DOMAIN" != "_" ]]; then
-  apt-get install -y certbot python3-certbot-nginx
-  # Certificado real de Let's Encrypt (renovación automática vía systemd timer).
-  if certbot certonly --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" 2>/dev/null \
-     || certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN"; then
-    SSL_CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
-    SSL_KEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
-  else
-    echo "AVISO: no se pudo emitir el certificado de Let's Encrypt (¿el dominio apunta a este servidor?)." >&2
-    echo "       Se usará un certificado autofirmado; vuelve a ejecutar el instalador cuando el DNS esté listo." >&2
-  fi
-fi
-if [[ -z "$SSL_CERT" ]]; then
-  # Autofirmado: el navegador mostrará un aviso, pero la sesión viaja cifrada
-  # y las cookies Secure funcionan. Sustituible por certbot cuando haya dominio.
-  install -d -m 750 /etc/agronutri/ssl
-  if [[ ! -f /etc/agronutri/ssl/selfsigned.crt ]]; then
-    openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
-      -keyout /etc/agronutri/ssl/selfsigned.key \
-      -out /etc/agronutri/ssl/selfsigned.crt \
-      -subj "/CN=${DOMAIN}" >/dev/null 2>&1
-  fi
-  SSL_CERT="/etc/agronutri/ssl/selfsigned.crt"
-  SSL_KEY="/etc/agronutri/ssl/selfsigned.key"
-fi
+if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+  # Modo túnel de Cloudflare: nginx sirve la app por HTTP en el puerto 80 (solo
+  # accesible por el conector cloudflared). El cifrado HTTPS lo proporciona
+  # Cloudflare en su borde, por lo que aquí no hacen falta certificados ni
+  # redirección a HTTPS (evita bucles de redirección a través del túnel).
+  cat > /etc/nginx/sites-available/agronutri <<NGINX
+server {
+    # Solo loopback: únicamente el conector cloudflared (local) puede llegar
+    # aquí; el puerto 80 no queda expuesto en texto plano hacia la red.
+    listen 127.0.0.1:80;
+    listen [::1]:80;
+    server_name ${TUNNEL_HOSTNAME:-_};
 
-cat > /etc/nginx/sites-available/agronutri <<NGINX
+    root ${APP_DIR}/artifacts/agronutri/dist/public;
+    index index.html;
+    client_max_body_size 15m;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        # Cloudflare entrega la petición original por HTTPS; se propaga para que
+        # la app genere URLs y compruebe el origen correctamente.
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 300s;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+NGINX
+else
+  # Certificado: Let's Encrypt si hay dominio; autofirmado si se instala por IP.
+  SSL_CERT=""
+  SSL_KEY=""
+  if [[ "$DOMAIN" != "_" ]]; then
+    apt-get install -y certbot python3-certbot-nginx
+    # Certificado real de Let's Encrypt (renovación automática vía systemd timer).
+    if certbot certonly --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" 2>/dev/null \
+       || certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN"; then
+      SSL_CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+      SSL_KEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+    else
+      echo "AVISO: no se pudo emitir el certificado de Let's Encrypt (¿el dominio apunta a este servidor?)." >&2
+      echo "       Se usará un certificado autofirmado; vuelve a ejecutar el instalador cuando el DNS esté listo." >&2
+    fi
+  fi
+  if [[ -z "$SSL_CERT" ]]; then
+    # Autofirmado: el navegador mostrará un aviso, pero la sesión viaja cifrada
+    # y las cookies Secure funcionan. Sustituible por certbot cuando haya dominio.
+    install -d -m 750 /etc/agronutri/ssl
+    if [[ ! -f /etc/agronutri/ssl/selfsigned.crt ]]; then
+      openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+        -keyout /etc/agronutri/ssl/selfsigned.key \
+        -out /etc/agronutri/ssl/selfsigned.crt \
+        -subj "/CN=${DOMAIN}" >/dev/null 2>&1
+    fi
+    SSL_CERT="/etc/agronutri/ssl/selfsigned.crt"
+    SSL_KEY="/etc/agronutri/ssl/selfsigned.key"
+  fi
+
+  cat > /etc/nginx/sites-available/agronutri <<NGINX
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -312,11 +375,65 @@ server {
     }
 }
 NGINX
+fi
 ln -sf /etc/nginx/sites-available/agronutri /etc/nginx/sites-enabled/agronutri
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
+
+# ----------------------------------------------------------------------------
+# Túnel de Cloudflare: instala cloudflared y lo registra como servicio con el
+# token del conector. La ruta pública (hostname -> http://localhost:80) se
+# configura en el panel Zero Trust de Cloudflare.
+if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+  log "Instalando cloudflared y registrando el túnel de Cloudflare"
+  install -d -m 755 /usr/share/keyrings
+  curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+    -o /usr/share/keyrings/cloudflare-main.gpg
+  echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" \
+    > /etc/apt/sources.list.d/cloudflared.list
+  apt-get update -y
+  apt-get install -y cloudflared
+  # El token se guarda en un fichero solo legible por root y se pasa por
+  # variable de entorno: nunca aparece en la línea de comandos ni en la unidad
+  # systemd (visibles para otros usuarios del sistema).
+  install -d -m 750 /etc/agronutri
+  umask 077
+  cat > /etc/agronutri/cloudflared.env <<ENV
+TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+ENV
+  umask 022
+  chmod 600 /etc/agronutri/cloudflared.env
+  # Se elimina el servicio que pudiera haber instalado `cloudflared service install`
+  # (guardaría el token en la unidad) y se usa una unidad propia.
+  cloudflared service uninstall >/dev/null 2>&1 || true
+  cat > /etc/systemd/system/cloudflared.service <<UNIT
+[Unit]
+Description=Cloudflare Tunnel (AgroNutri AI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=/etc/agronutri/cloudflared.env
+ExecStart=$(command -v cloudflared) --no-autoupdate tunnel run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --now cloudflared
+  systemctl restart cloudflared
+  sleep 2
+  if systemctl is-active --quiet cloudflared; then
+    echo "Túnel de Cloudflare activo."
+  else
+    echo "AVISO: el servicio cloudflared no está activo. Revisa: journalctl -u cloudflared -n 30" >&2
+  fi
+fi
 
 # ----------------------------------------------------------------------------
 log "Comprobación final"
@@ -346,5 +463,20 @@ cat <<FIN
 
  La clave de OpenAI se configura después dentro de la app (Ajustes).
  Si configuraste Resend, la recuperación de contraseña por email ya funciona.
-============================================================
 FIN
+
+if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+cat <<FIN
+
+ Túnel de Cloudflare: ACTIVO.
+   - En el panel Zero Trust de Cloudflare (Networks > Tunnels), en el túnel que
+     creaste, añade un "Public hostname":
+        Hostname: ${TUNNEL_HOSTNAME:-<tu dominio>}
+        Service:  http://localhost:80
+   - La app quedará accesible en: ${APP_URL}
+   - Estado del túnel:  systemctl status cloudflared
+   - Logs del túnel:    journalctl -u cloudflared -f
+FIN
+fi
+
+echo "============================================================"
