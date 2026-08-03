@@ -245,6 +245,8 @@ log "Compilando la web"
 # Acceso a la cooperativa de pruebas en la landing (opcional): define
 # DEMO_URL (p. ej. https://prueba.tudominio.es) y, si quieres mostrar las
 # credenciales, DEMO_EMAIL y DEMO_PASSWORD antes de ejecutar este script.
+# Para que la demo se reinicie sola cada noche, tras aprovisionarla ejecuta
+# "sudo bash deploy/demo-reset.sh setup <sub>" (ver deploy/README.md).
 BASE_PATH=/ PORT=3000 \
   VITE_DEMO_URL="${DEMO_URL:-}" \
   VITE_DEMO_EMAIL="${DEMO_EMAIL:-}" \
