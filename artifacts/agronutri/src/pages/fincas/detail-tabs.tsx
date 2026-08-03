@@ -28,6 +28,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -570,10 +572,29 @@ function ParameterTrendCard({ analyses }: { analyses: AnalysisRow[] }) {
 export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEdit?: boolean }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
   const [selected, setSelected] = useState<AnalysisRow | null>(null);
+  const [onlyOutOfRange, setOnlyOutOfRange] = useState(false);
+  const filteredAnalyses = useMemo(() => {
+    if (!analyses) return analyses;
+    if (!onlyOutOfRange) return analyses;
+    return analyses.filter(a => (a.parameters ?? []).some(p => p.status && p.status !== 'normal'));
+  }, [analyses, onlyOutOfRange]);
   return (
     <div className="space-y-4 mt-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Analíticas</h3>
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <div className="flex items-center gap-4">
+          <h3 className="text-lg font-semibold">Analíticas</h3>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="only-out-of-range"
+              checked={onlyOutOfRange}
+              onCheckedChange={setOnlyOutOfRange}
+              data-testid="switch-only-out-of-range"
+            />
+            <Label htmlFor="only-out-of-range" className="text-sm font-normal text-muted-foreground cursor-pointer">
+              Solo fuera de rango
+            </Label>
+          </div>
+        </div>
         <div className="flex gap-2">
           <ImportAnalysisButton farmId={farmId} />
           <NewAnalysisButton farmId={farmId} />
@@ -597,8 +618,8 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
-            ) : analyses && analyses.length > 0 ? (
-              analyses.map(a => (
+            ) : filteredAnalyses && filteredAnalyses.length > 0 ? (
+              filteredAnalyses.map(a => (
                 <TableRow key={a.id} className="cursor-pointer" onClick={() => setSelected(a)}>
                   <TableCell>{formatDate(a.sampleDate)}</TableCell>
                   <TableCell>
@@ -632,7 +653,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay analíticas registradas.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{onlyOutOfRange && analyses && analyses.length > 0 ? "No hay analíticas con parámetros fuera de rango." : "No hay analíticas registradas."}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
