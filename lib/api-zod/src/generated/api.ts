@@ -19,8 +19,6 @@ export const HealthCheckResponse = zod.object({
 export const registerBodyPasswordMin = 8;
 
 
-
-
 export const RegisterBody = zod.object({
   "email": zod.string().email(),
   "password": zod.string().min(registerBodyPasswordMin),
@@ -73,9 +71,7 @@ export const ForgotPasswordBody = zod.object({
 export const ForgotPasswordResponse = zod.void()
 
 
-
 export const resetPasswordBodyPasswordMin = 8;
-
 
 
 export const ResetPasswordBody = zod.object({
@@ -106,7 +102,6 @@ export const GetMeResponse = zod.object({
 
 
 export const updateMeBodyPasswordMin = 8;
-
 
 
 export const UpdateMeBody = zod.object({
@@ -166,9 +161,6 @@ export const ListFarmsResponseItem = zod.object({
   "sectorCount": zod.number().int().nullish()
 })
 export const ListFarmsResponse = zod.array(ListFarmsResponseItem)
-
-
-
 
 
 export const CreateFarmBody = zod.object({
@@ -266,8 +258,6 @@ export const GetFarmResponse = zod.object({
 export const UpdateFarmParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateFarmBody = zod.object({
@@ -481,8 +471,6 @@ export const CreateSectorParams = zod.object({
 })
 
 
-
-
 export const CreateSectorBody = zod.object({
   "name": zod.string().min(1),
   "plantCount": zod.number().int().optional(),
@@ -508,8 +496,6 @@ export const UpdateSectorParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "sectorId": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateSectorBody = zod.object({
@@ -807,9 +793,6 @@ export const ListFertilizersResponseItem = zod.object({
 export const ListFertilizersResponse = zod.array(ListFertilizersResponseItem)
 
 
-
-
-
 export const CreateFertilizerBody = zod.object({
   "name": zod.string().min(1),
   "formulaType": zod.string().optional(),
@@ -857,8 +840,6 @@ export const CreateFertilizerResponse = zod.object({
 export const UpdateFertilizerParams = zod.object({
   "fertilizerId": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateFertilizerBody = zod.object({
@@ -1231,9 +1212,7 @@ export const ListCredentialsResponseItem = zod.object({
 export const ListCredentialsResponse = zod.array(ListCredentialsResponseItem)
 
 
-
 export const createCredentialBodyApiKeyMin = 10;
-
 
 
 export const CreateCredentialBody = zod.object({
@@ -1263,7 +1242,6 @@ export const UpdateCredentialParams = zod.object({
 })
 
 export const updateCredentialBodyApiKeyMin = 10;
-
 
 
 export const UpdateCredentialBody = zod.object({
@@ -1415,8 +1393,6 @@ export const SendMessageParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "conversationId": zod.coerce.number().int()
 })
-
-
 
 
 export const SendMessageBody = zod.object({
@@ -1620,7 +1596,6 @@ export const createPhytoTreatmentBodySafetyDaysMin = 0;
 export const createPhytoTreatmentBodyNotesMax = 2000;
 
 
-
 export const CreatePhytoTreatmentBody = zod.object({
   "sectorId": zod.number().int().nullish(),
   "applicationDate": zod.string().regex(createPhytoTreatmentBodyApplicationDateRegExp).describe('YYYY-MM-DD'),
@@ -1678,7 +1653,6 @@ export const PhytoConsultParams = zod.object({
 export const phytoConsultBodyQuestionMax = 4000;
 
 
-
 export const PhytoConsultBody = zod.object({
   "question": zod.string().min(1).max(phytoConsultBodyQuestionMax),
   "targetPest": zod.string().nullish(),
@@ -1711,7 +1685,6 @@ export const phytoPlanPdfBodySourcesItemMax = 600;
 
 export const phytoPlanPdfBodySourcesItemRegExp = new RegExp('^https?:/');
 export const phytoPlanPdfBodySourcesMax = 30;
-
 
 
 export const PhytoPlanPdfBody = zod.object({
@@ -1768,7 +1741,6 @@ export const createPhytoProductBodyExpiryDateRegExp = new RegExp('^\\d{4}-\\d{2}
 export const createPhytoProductBodyNotesMax = 2000;
 
 export const createPhytoProductBodySourceUrlMax = 500;
-
 
 
 export const CreatePhytoProductBody = zod.object({
@@ -1920,7 +1892,6 @@ export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
 export const adminCreateUserBodyPasswordMin = 8;
 
 
-
 export const AdminCreateUserBody = zod.object({
   "email": zod.string().email(),
   "name": zod.string().min(1),
@@ -1956,7 +1927,6 @@ export const AdminUpdateUserParams = zod.object({
 export const adminUpdateUserBodyAiMonthlyLimitEurMin = 0;
 
 export const adminUpdateUserBodyPasswordMin = 8;
-
 
 
 export const AdminUpdateUserBody = zod.object({
@@ -2041,7 +2011,6 @@ export const adminUpdateEmailSettingsBodyResendApiKeyMax = 200;
 export const adminUpdateEmailSettingsBodyEmailFromMax = 200;
 
 
-
 export const AdminUpdateEmailSettingsBody = zod.object({
   "resendApiKey": zod.string().max(adminUpdateEmailSettingsBodyResendApiKeyMax).nullish().describe('Clave de API de Resend; null o vacío la borra'),
   "emailFrom": zod.string().max(adminUpdateEmailSettingsBodyEmailFromMax).nullish().describe('Remitente, p. ej. \"AgroNutri <no-reply@midominio.com>\"; null o vacío lo borra')
@@ -2053,5 +2022,3 @@ export const AdminUpdateEmailSettingsResponse = zod.object({
   "apiKeyMasked": zod.string().nullish().describe('Clave guardada en BD'),
   "emailFrom": zod.string().nullish().describe('Remitente configurado en BD')
 })
-
-
