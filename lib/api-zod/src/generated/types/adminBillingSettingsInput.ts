@@ -38,4 +38,6 @@ export interface AdminBillingSettingsInput {
      * @nullable
      */
   taxName?: string | null;
+  /** @nullable */
+  autoSendEmail?: boolean | null;
 }

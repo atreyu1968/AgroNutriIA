@@ -2446,7 +2446,8 @@ export const AdminGetBillingSettingsResponse = zod.object({
   "issuerAddress": zod.string().nullish(),
   "series": zod.string().describe('Serie de facturación'),
   "taxRateBps": zod.number().int().describe('Tipo impositivo en centésimas de punto (700 = 7'),
-  "taxName": zod.string().describe('IGIC')
+  "taxName": zod.string().describe('IGIC'),
+  "autoSendEmail": zod.boolean().describe('Enviar por email cada factura emitida automáticamente')
 })
 
 
@@ -2474,7 +2475,8 @@ export const AdminUpdateBillingSettingsBody = zod.object({
   "issuerAddress": zod.string().max(adminUpdateBillingSettingsBodyIssuerAddressMax).nullish(),
   "series": zod.string().max(adminUpdateBillingSettingsBodySeriesMax).nullish(),
   "taxRateBps": zod.number().int().min(adminUpdateBillingSettingsBodyTaxRateBpsMin).max(adminUpdateBillingSettingsBodyTaxRateBpsMax).nullish(),
-  "taxName": zod.string().max(adminUpdateBillingSettingsBodyTaxNameMax).nullish()
+  "taxName": zod.string().max(adminUpdateBillingSettingsBodyTaxNameMax).nullish(),
+  "autoSendEmail": zod.boolean().nullish()
 })
 
 export const AdminUpdateBillingSettingsResponse = zod.object({
@@ -2484,7 +2486,8 @@ export const AdminUpdateBillingSettingsResponse = zod.object({
   "issuerAddress": zod.string().nullish(),
   "series": zod.string().describe('Serie de facturación'),
   "taxRateBps": zod.number().int().describe('Tipo impositivo en centésimas de punto (700 = 7'),
-  "taxName": zod.string().describe('IGIC')
+  "taxName": zod.string().describe('IGIC'),
+  "autoSendEmail": zod.boolean().describe('Enviar por email cada factura emitida automáticamente')
 })
 
 

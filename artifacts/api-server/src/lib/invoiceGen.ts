@@ -14,6 +14,7 @@ export const SETTING_BILLING_ISSUER_ADDRESS = "billing_issuer_address";
 export const SETTING_BILLING_SERIES = "billing_series";
 export const SETTING_BILLING_TAX_RATE_BPS = "billing_tax_rate_bps";
 export const SETTING_BILLING_TAX_NAME = "billing_tax_name";
+export const SETTING_BILLING_AUTO_SEND = "billing_auto_send";
 
 export const BILLING_SETTING_KEYS = [
   SETTING_BILLING_ISSUER_NAME,
@@ -22,6 +23,7 @@ export const BILLING_SETTING_KEYS = [
   SETTING_BILLING_SERIES,
   SETTING_BILLING_TAX_RATE_BPS,
   SETTING_BILLING_TAX_NAME,
+  SETTING_BILLING_AUTO_SEND,
 ];
 
 export type BillingSettings = {
@@ -32,6 +34,8 @@ export type BillingSettings = {
   taxRateBps: number;
   taxName: string;
   configured: boolean;
+  /** Enviar automáticamente por email cada factura emitida sin intervención manual. */
+  autoSendEmail: boolean;
 };
 
 export async function getBillingSettings(): Promise<BillingSettings> {
@@ -52,6 +56,7 @@ export async function getBillingSettings(): Promise<BillingSettings> {
     taxRateBps: rate,
     taxName: get(SETTING_BILLING_TAX_NAME) ?? "IGIC",
     configured: Boolean(issuerName && issuerTaxId),
+    autoSendEmail: get(SETTING_BILLING_AUTO_SEND) === "1",
   };
 }
 

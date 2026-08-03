@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   db,
   installationsTable,
@@ -20,10 +20,9 @@ import { audit } from "../lib/audit";
 import { setEmailSetting } from "../lib/email";
 import {
   getBillingSettings,
-  invoiceHash,
-  INVOICE_ISSUE_LOCK_KEY,
   renderInvoicePdf,
   formatEuros,
+  SETTING_BILLING_AUTO_SEND,
   SETTING_BILLING_ISSUER_NAME,
   SETTING_BILLING_ISSUER_TAX_ID,
   SETTING_BILLING_ISSUER_ADDRESS,
@@ -31,6 +30,7 @@ import {
   SETTING_BILLING_TAX_RATE_BPS,
   SETTING_BILLING_TAX_NAME,
 } from "../lib/invoiceGen";
+import { issueInvoiceForCharge } from "../lib/invoiceIssuer";
 import { sendInvoiceEmail } from "../lib/email";
 
 const router: IRouter = Router();
@@ -62,6 +62,7 @@ async function billingSettingsPayload() {
     series: s.series,
     taxRateBps: s.taxRateBps,
     taxName: s.taxName,
+    autoSendEmail: s.autoSendEmail,
   };
 }
 
@@ -84,6 +85,9 @@ router.put("/admin/settings/billing", async (req, res): Promise<void> => {
   if ("series" in d) await setEmailSetting(SETTING_BILLING_SERIES, d.series?.trim().toUpperCase() || null);
   if ("taxRateBps" in d) await setEmailSetting(SETTING_BILLING_TAX_RATE_BPS, d.taxRateBps == null ? null : String(d.taxRateBps));
   if ("taxName" in d) await setEmailSetting(SETTING_BILLING_TAX_NAME, d.taxName?.trim() || null);
+  if ("autoSendEmail" in d) {
+    await setEmailSetting(SETTING_BILLING_AUTO_SEND, d.autoSendEmail ? "1" : null);
+  }
   await audit({
     userId: req.user!.id,
     action: "admin_billing_settings_updated",
@@ -205,70 +209,9 @@ router.post(
       return;
     }
 
-    const issueDate = new Date();
-    const year = issueDate.getFullYear();
-    const subtotalCents = charge.totalCents;
-    const taxCents = Math.round((subtotalCents * settings.taxRateBps) / 10000);
-    const totalCents = subtotalCents + taxCents;
-
-    // La numeración correlativa y el encadenado de huellas se serializan con
-    // un advisory lock dentro de la misma transacción, para que dos emisiones
-    // concurrentes no dupliquen números ni bifurquen la cadena.
-    const inv = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${INVOICE_ISSUE_LOCK_KEY})`);
-      const [maxRow] = await tx
-        .select()
-        .from(invoicesTable)
-        .where(and(eq(invoicesTable.series, settings.series), eq(invoicesTable.year, year)))
-        .orderBy(desc(invoicesTable.number))
-        .limit(1);
-      const number = (maxRow?.number ?? 0) + 1;
-      const fullNumber = `${settings.series}-${year}-${String(number).padStart(4, "0")}`;
-      const [lastInv] = await tx
-        .select()
-        .from(invoicesTable)
-        .orderBy(desc(invoicesTable.id))
-        .limit(1);
-      const prevHash = lastInv?.hash ?? null;
-      const record = {
-        prevHash,
-        fullNumber,
-        issueDate,
-        period,
-        issuerName: settings.issuerName!,
-        issuerTaxId: settings.issuerTaxId!,
-        issuerAddress: settings.issuerAddress ?? "",
-        customerName: inst.name,
-        customerTaxId: inst.taxId!,
-        customerAddress: inst.billingAddress,
-        baseCents: charge.baseCents,
-        farmCount: charge.farmCount,
-        variableCents: charge.variableCents,
-        subtotalCents,
-        taxRateBps: settings.taxRateBps,
-        taxName: settings.taxName,
-        taxCents,
-        totalCents,
-      };
-      const hash = invoiceHash(record);
-      const [created] = await tx
-        .insert(invoicesTable)
-        .values({
-          installationId: inst.id,
-          chargeId: charge.id,
-          series: settings.series,
-          year,
-          number,
-          ...record,
-          hash,
-        })
-        .returning();
-      await tx
-        .update(billingChargesTable)
-        .set({ status: "invoiced", updatedAt: new Date() })
-        .where(eq(billingChargesTable.id, charge.id));
-      return created;
-    });
+    // La emisión (numeración correlativa + huella encadenada) es la misma
+    // lógica que usa la facturación automática mensual.
+    const inv = await issueInvoiceForCharge({ inst, charge, settings });
     await audit({
       userId: req.user!.id,
       action: "admin_invoice_issued",

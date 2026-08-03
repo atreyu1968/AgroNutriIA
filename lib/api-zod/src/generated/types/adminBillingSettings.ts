@@ -21,4 +21,6 @@ export interface AdminBillingSettings {
   taxRateBps: number;
   /** IGIC */
   taxName: string;
+  /** Enviar por email cada factura emitida automáticamente */
+  autoSendEmail: boolean;
 }

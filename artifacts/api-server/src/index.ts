@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { startReportSweeper } from "./lib/reportSweeper";
 import { startUsageReporter } from "./lib/usageReporter";
 import { ensureInvoiceGuards } from "./lib/invoiceGuard";
+import { startAutoInvoicer } from "./lib/autoInvoicer";
 
 const rawPort = process.env["PORT"];
 
@@ -36,6 +37,7 @@ ensureInvoiceGuards()
       logger.info({ port }, "Server listening");
       startReportSweeper();
       startUsageReporter();
+      startAutoInvoicer();
     });
   })
   .catch((err) => {

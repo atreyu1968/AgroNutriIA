@@ -618,6 +618,8 @@ export interface AdminBillingSettings {
   taxRateBps: number;
   /** IGIC */
   taxName: string;
+  /** Enviar por email cada factura emitida automáticamente */
+  autoSendEmail: boolean;
 }
 
 export interface AdminBillingSettingsInput {
@@ -652,6 +654,8 @@ export interface AdminBillingSettingsInput {
      * @nullable
      */
   taxName?: string | null;
+  /** @nullable */
+  autoSendEmail?: boolean | null;
 }
 
 export interface AdminBackup {

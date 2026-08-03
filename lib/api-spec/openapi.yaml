@@ -2238,7 +2238,7 @@ components:
         billingAddress: { type: ["string", "null"], maxLength: 300 }
     AdminBillingSettings:
       type: object
-      required: [configured, series, taxRateBps, taxName]
+      required: [configured, series, taxRateBps, taxName, autoSendEmail]
       properties:
         configured: { type: boolean, description: True si hay emisor con nombre y NIF }
         issuerName: { type: ["string", "null"] }
@@ -2247,6 +2247,7 @@ components:
         series: { type: string, description: Serie de facturación }
         taxRateBps: { type: integer, description: Tipo impositivo en centésimas de punto (700 = 7,00 %) }
         taxName: { type: string, description: IGIC, IVA… }
+        autoSendEmail: { type: boolean, description: Enviar por email cada factura emitida automáticamente }
     AdminBillingSettingsInput:
       type: object
       properties:
@@ -2256,6 +2257,7 @@ components:
         series: { type: ["string", "null"], maxLength: 10 }
         taxRateBps: { type: ["integer", "null"], minimum: 0, maximum: 3000 }
         taxName: { type: ["string", "null"], maxLength: 20 }
+        autoSendEmail: { type: ["boolean", "null"] }
     AdminBackup:
       type: object
       required: [fileName, sizeBytes, createdAt]

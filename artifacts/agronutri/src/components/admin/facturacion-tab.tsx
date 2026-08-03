@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -140,6 +141,22 @@ function IssuerSettingsCard() {
         <Button onClick={save} disabled={update.isPending} data-testid="button-save-billing-settings">
           {update.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Guardar
         </Button>
+        <div className="flex items-start justify-between gap-4 border-t pt-4">
+          <div className="space-y-1">
+            <Label>Enviar facturas por email automáticamente</Label>
+            <p className="text-sm text-muted-foreground">
+              Cada mes, al cerrarse el periodo, la factura del cargo (cuota base + fincas
+              activas) se emite sola. Con esta opción, además se envía por email a la
+              cooperativa sin intervención manual.
+            </p>
+          </div>
+          <Switch
+            checked={settings?.autoSendEmail ?? false}
+            onCheckedChange={(checked) => update.mutate({ data: { autoSendEmail: checked } })}
+            disabled={update.isPending}
+            data-testid="switch-auto-send-email"
+          />
+        </div>
       </CardContent>
     </Card>
   );
