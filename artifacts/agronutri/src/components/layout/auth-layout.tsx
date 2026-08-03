@@ -1,4 +1,4 @@
-import plantacionImg from "@/assets/plataneras-canarias.jpg";
+import plantacionImg from "@/assets/plataneras-canarias-2.jpg";
 
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const logoBlancoUrl = `${import.meta.env.BASE_URL}logo-blanco.png`;
