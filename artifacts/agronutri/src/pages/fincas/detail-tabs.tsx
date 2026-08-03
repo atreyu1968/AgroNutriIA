@@ -222,92 +222,25 @@ function toEditableDraft(input: AnalysisInput): EditableDraft {
 const isNumeric = (s: string) => s.trim() !== "" && !Number.isNaN(Number(s.trim().replace(",", ".")));
 const parseNum = (s: string) => Number(s.trim().replace(",", "."));
 
+const emptyDraft = (): EditableDraft => ({
+  type: "soil",
+  sampleDate: "",
+  reference: "",
+  laboratory: "",
+  parameters: [{ name: "", value: "", unit: "", refLow: "", refHigh: "" }],
+});
 export function ImportAnalysisButton({ farmId }: { farmId: number }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [draft, setDraft] = useState<EditableDraft | null>(null);
-  const [showErrors, setShowErrors] = useState(false);
-
-  const errorDescription = (err: unknown) => {
-    const anyErr = err as { response?: { data?: { error?: string } }; data?: { error?: string }; message?: string };
-    return anyErr?.response?.data?.error ?? anyErr?.data?.error ?? anyErr?.message ?? "Inténtalo de nuevo.";
-  };
 
   const importPdf = useImportAnalysisPdf({
     mutation: {
-      onSuccess: (extracted) => { setShowErrors(false); setDraft(toEditableDraft(extracted)); },
+      onSuccess: (extracted) => setDraft(toEditableDraft(extracted)),
       onError: (err: unknown) =>
         toast({ title: "No se pudo importar el PDF", description: errorDescription(err), variant: "destructive" }),
     },
   });
-
-  const saveAnalysis = useCreateAnalysis({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
-        setDraft(null);
-        toast({
-          title: "Analítica guardada",
-          description: "La analítica importada ya se usa en la calculadora y en las recomendaciones.",
-        });
-      },
-      onError: (err: unknown) =>
-        toast({ title: "No se pudo guardar la analítica", description: errorDescription(err), variant: "destructive" }),
-    },
-  });
-
-  const updateParam = (i: number, patch: Partial<EditableParam>) =>
-    setDraft((d) => d && { ...d, parameters: d.parameters.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
-  const removeParam = (i: number) =>
-    setDraft((d) => d && { ...d, parameters: d.parameters.filter((_, j) => j !== i) });
-  const addParam = () =>
-    setDraft((d) => d && { ...d, parameters: [...d.parameters, { name: "", value: "", unit: "", refLow: "", refHigh: "" }] });
-
-  const paramErrors = (p: EditableParam) => ({
-    name: p.name.trim() === "",
-    value: !isNumeric(p.value),
-    refLow: p.refLow.trim() !== "" && !isNumeric(p.refLow),
-    refHigh: p.refHigh.trim() !== "" && !isNumeric(p.refHigh),
-  });
-  const draftErrors = draft
-    ? {
-        sampleDate: draft.sampleDate.trim() === "",
-        noParams: draft.parameters.length === 0,
-        params: draft.parameters.some((p) => {
-          const e = paramErrors(p);
-          return e.name || e.value || e.refLow || e.refHigh;
-        }),
-      }
-    : null;
-  const hasErrors = !!draftErrors && (draftErrors.sampleDate || draftErrors.noParams || draftErrors.params);
-
-  const handleSave = () => {
-    if (!draft) return;
-    if (hasErrors) {
-      setShowErrors(true);
-      toast({
-        title: "Revisa los datos antes de guardar",
-        description: "Todos los parámetros necesitan nombre y un valor numérico, y la fecha de muestreo es obligatoria.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const payload: AnalysisInput = {
-      type: draft.type,
-      sampleDate: draft.sampleDate.trim(),
-      ...(draft.reference.trim() ? { reference: draft.reference.trim() } : {}),
-      ...(draft.laboratory.trim() ? { laboratory: draft.laboratory.trim() } : {}),
-      parameters: draft.parameters.map((p) => ({
-        name: p.name.trim(),
-        value: parseNum(p.value),
-        ...(p.unit.trim() ? { unit: p.unit.trim() } : {}),
-        ...(isNumeric(p.refLow) ? { refLow: parseNum(p.refLow) } : {}),
-        ...(isNumeric(p.refHigh) ? { refHigh: parseNum(p.refHigh) } : {}),
-      })),
-    };
-    saveAnalysis.mutate({ farmId, data: payload });
-  };
 
   return (
     <>
@@ -329,126 +262,36 @@ export function ImportAnalysisButton({ farmId }: { farmId: number }) {
           <><Upload className="w-4 h-4 mr-2" /> Importar PDF</>
         )}
       </Button>
-
-      <Dialog open={draft !== null} onOpenChange={(open) => { if (!open) setDraft(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Revisa los datos extraídos</DialogTitle>
-          </DialogHeader>
-          {draft && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                El técnico virtual ha extraído estos datos del PDF. Corrige lo que necesites antes de guardar.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Tipo</label>
-                  <Select value={draft.type} onValueChange={(v) => setDraft({ ...draft, type: v as EditableDraft["type"] })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="soil">Suelo</SelectItem>
-                      <SelectItem value="leaf">Foliar</SelectItem>
-                      <SelectItem value="water">Agua de riego</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Fecha de muestreo</label>
-                  <Input
-                    type="date"
-                    value={draft.sampleDate}
-                    onChange={(e) => setDraft({ ...draft, sampleDate: e.target.value })}
-                    className={showErrors && draftErrors?.sampleDate ? "border-destructive" : undefined}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Referencia</label>
-                  <Input value={draft.reference} onChange={(e) => setDraft({ ...draft, reference: e.target.value })} placeholder="Opcional" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Laboratorio</label>
-                  <Input value={draft.laboratory} onChange={(e) => setDraft({ ...draft, laboratory: e.target.value })} placeholder="Opcional" />
-                </div>
-              </div>
-              <div className="max-h-80 overflow-y-auto border rounded-md">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Parámetro</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Unidad</TableHead>
-                      <TableHead>Ref. mín</TableHead>
-                      <TableHead>Ref. máx</TableHead>
-                      <TableHead className="w-10" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {draft.parameters.map((p, i) => {
-                      const errs = paramErrors(p);
-                      const errClass = (bad: boolean) => (showErrors && bad ? "border-destructive" : undefined);
-                      return (
-                        <TableRow key={i}>
-                          <TableCell className="p-1.5">
-                            <Input className={`h-8 ${errClass(errs.name) ?? ""}`} value={p.name} onChange={(e) => updateParam(i, { name: e.target.value })} />
-                          </TableCell>
-                          <TableCell className="p-1.5">
-                            <Input className={`h-8 w-24 text-right ${errClass(errs.value) ?? ""}`} inputMode="decimal" value={p.value} onChange={(e) => updateParam(i, { value: e.target.value })} />
-                          </TableCell>
-                          <TableCell className="p-1.5">
-                            <Input className="h-8 w-24" value={p.unit} onChange={(e) => updateParam(i, { unit: e.target.value })} />
-                          </TableCell>
-                          <TableCell className="p-1.5">
-                            <Input className={`h-8 w-20 ${errClass(errs.refLow) ?? ""}`} inputMode="decimal" value={p.refLow} onChange={(e) => updateParam(i, { refLow: e.target.value })} />
-                          </TableCell>
-                          <TableCell className="p-1.5">
-                            <Input className={`h-8 w-20 ${errClass(errs.refHigh) ?? ""}`} inputMode="decimal" value={p.refHigh} onChange={(e) => updateParam(i, { refHigh: e.target.value })} />
-                          </TableCell>
-                          <TableCell className="p-1.5">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeParam(i)} aria-label="Eliminar parámetro">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {draft.parameters.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-4 text-sm">
-                          No hay parámetros. Añade al menos uno para guardar la analítica.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Button variant="outline" size="sm" onClick={addParam}>
-                <Plus className="w-4 h-4 mr-2" /> Añadir parámetro
-              </Button>
-              {showErrors && hasErrors && (
-                <p className="text-sm text-destructive">
-                  Corrige los campos marcados: cada parámetro necesita nombre y valor numérico (los rangos, si se indican, también deben ser numéricos) y la fecha de muestreo es obligatoria.
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDraft(null)} disabled={saveAnalysis.isPending}>
-                  Descartar
-                </Button>
-                <Button onClick={handleSave} disabled={saveAnalysis.isPending}>
-                  {saveAnalysis.isPending ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
-                  ) : (
-                    "Guardar analítica"
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <AnalysisDraftDialog
+        farmId={farmId}
+        draft={draft}
+        setDraft={setDraft}
+        title="Revisa los datos extraídos"
+        description="El técnico virtual ha extraído estos datos del PDF. Corrige lo que necesites antes de guardar."
+        successDescription="La analítica importada ya se usa en la calculadora y en las recomendaciones."
+      />
     </>
   );
 }
 
+export function NewAnalysisButton({ farmId }: { farmId: number }) {
+  const [draft, setDraft] = useState<EditableDraft | null>(null);
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setDraft(emptyDraft())}>
+        <Plus className="w-4 h-4 mr-2" /> Nueva Analítica
+      </Button>
+      <AnalysisDraftDialog
+        farmId={farmId}
+        draft={draft}
+        setDraft={setDraft}
+        title="Nueva analítica manual"
+        description="Introduce los datos de la analítica tal y como aparecen en el informe del laboratorio."
+        successDescription="La analítica ya se usa en la calculadora y en las recomendaciones."
+      />
+    </>
+  );
+}
 type AnalysisRow = Analysis;
 
 const paramStatusLabel: Record<string, { label: string; className: string }> = {
@@ -733,7 +576,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
         <h3 className="text-lg font-semibold">Analíticas</h3>
         <div className="flex gap-2">
           <ImportAnalysisButton farmId={farmId} />
-          <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Nueva Analítica</Button>
+          <NewAnalysisButton farmId={farmId} />
         </div>
       </div>
       <p className="text-sm text-muted-foreground -mt-2">
@@ -1054,6 +897,11 @@ export function ConfigTab({ farmId }: { farmId: number }) {
   );
 }
 
+const errorDescription = (err: unknown) => {
+  const anyErr = err as { response?: { data?: { error?: string } }; data?: { error?: string }; message?: string };
+  return anyErr?.response?.data?.error ?? anyErr?.data?.error ?? anyErr?.message ?? "Inténtalo de nuevo.";
+};
+
 const sectorSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   surfaceHa: z.string().optional(),
@@ -1068,3 +916,204 @@ const sectorSchema = z.object({
     }
   });
 });
+
+function AnalysisDraftDialog({
+  farmId,
+  draft,
+  setDraft,
+  title,
+  description,
+  successDescription,
+}: {
+  farmId: number;
+  draft: EditableDraft | null;
+  setDraft: React.Dispatch<React.SetStateAction<EditableDraft | null>>;
+  title: string;
+  description: string;
+  successDescription: string;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showErrors, setShowErrors] = useState(false);
+
+  const saveAnalysis = useCreateAnalysis({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+        setDraft(null);
+        setShowErrors(false);
+        toast({ title: "Analítica guardada", description: successDescription });
+      },
+      onError: (err: unknown) =>
+        toast({ title: "No se pudo guardar la analítica", description: errorDescription(err), variant: "destructive" }),
+    },
+  });
+
+  const updateParam = (i: number, patch: Partial<EditableParam>) =>
+    setDraft((d) => d && { ...d, parameters: d.parameters.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
+  const removeParam = (i: number) =>
+    setDraft((d) => d && { ...d, parameters: d.parameters.filter((_, j) => j !== i) });
+  const addParam = () =>
+    setDraft((d) => d && { ...d, parameters: [...d.parameters, { name: "", value: "", unit: "", refLow: "", refHigh: "" }] });
+
+  const paramErrors = (p: EditableParam) => ({
+    name: p.name.trim() === "",
+    value: !isNumeric(p.value),
+    refLow: p.refLow.trim() !== "" && !isNumeric(p.refLow),
+    refHigh: p.refHigh.trim() !== "" && !isNumeric(p.refHigh),
+  });
+  const draftErrors = draft
+    ? {
+        sampleDate: draft.sampleDate.trim() === "",
+        noParams: draft.parameters.length === 0,
+        params: draft.parameters.some((p) => {
+          const e = paramErrors(p);
+          return e.name || e.value || e.refLow || e.refHigh;
+        }),
+      }
+    : null;
+  const hasErrors = !!draftErrors && (draftErrors.sampleDate || draftErrors.noParams || draftErrors.params);
+
+  const handleSave = () => {
+    if (!draft) return;
+    if (hasErrors) {
+      setShowErrors(true);
+      toast({
+        title: "Revisa los datos antes de guardar",
+        description: "Todos los parámetros necesitan nombre y un valor numérico, y la fecha de muestreo es obligatoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const payload: AnalysisInput = {
+      type: draft.type,
+      sampleDate: draft.sampleDate.trim(),
+      ...(draft.reference.trim() ? { reference: draft.reference.trim() } : {}),
+      ...(draft.laboratory.trim() ? { laboratory: draft.laboratory.trim() } : {}),
+      parameters: draft.parameters.map((p) => ({
+        name: p.name.trim(),
+        value: parseNum(p.value),
+        ...(p.unit.trim() ? { unit: p.unit.trim() } : {}),
+        ...(isNumeric(p.refLow) ? { refLow: parseNum(p.refLow) } : {}),
+        ...(isNumeric(p.refHigh) ? { refHigh: parseNum(p.refHigh) } : {}),
+      })),
+    };
+    saveAnalysis.mutate({ farmId, data: payload });
+  };
+
+  return (
+    <Dialog open={draft !== null} onOpenChange={(open) => { if (!open) { setDraft(null); setShowErrors(false); } }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {draft && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">{description}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Tipo</label>
+                  <Select value={draft.type} onValueChange={(v) => setDraft({ ...draft, type: v as EditableDraft["type"] })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="soil">Suelo</SelectItem>
+                      <SelectItem value="leaf">Foliar</SelectItem>
+                      <SelectItem value="water">Agua de riego</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Fecha de muestreo</label>
+                  <Input
+                    type="date"
+                    value={draft.sampleDate}
+                    onChange={(e) => setDraft({ ...draft, sampleDate: e.target.value })}
+                    className={showErrors && draftErrors?.sampleDate ? "border-destructive" : undefined}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Referencia</label>
+                  <Input value={draft.reference} onChange={(e) => setDraft({ ...draft, reference: e.target.value })} placeholder="Opcional" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Laboratorio</label>
+                  <Input value={draft.laboratory} onChange={(e) => setDraft({ ...draft, laboratory: e.target.value })} placeholder="Opcional" />
+                </div>
+              </div>
+              <div className="max-h-80 overflow-y-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Parámetro</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead>Ref. mín</TableHead>
+                      <TableHead>Ref. máx</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {draft.parameters.map((p, i) => {
+                      const errs = paramErrors(p);
+                      const errClass = (bad: boolean) => (showErrors && bad ? "border-destructive" : undefined);
+                      return (
+                        <TableRow key={i}>
+                          <TableCell className="p-1.5">
+                            <Input className={`h-8 ${errClass(errs.name) ?? ""}`} value={p.name} onChange={(e) => updateParam(i, { name: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-1.5">
+                            <Input className={`h-8 w-24 text-right ${errClass(errs.value) ?? ""}`} inputMode="decimal" value={p.value} onChange={(e) => updateParam(i, { value: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-1.5">
+                            <Input className="h-8 w-24" value={p.unit} onChange={(e) => updateParam(i, { unit: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-1.5">
+                            <Input className={`h-8 w-20 ${errClass(errs.refLow) ?? ""}`} inputMode="decimal" value={p.refLow} onChange={(e) => updateParam(i, { refLow: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-1.5">
+                            <Input className={`h-8 w-20 ${errClass(errs.refHigh) ?? ""}`} inputMode="decimal" value={p.refHigh} onChange={(e) => updateParam(i, { refHigh: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-1.5">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeParam(i)} aria-label="Eliminar parámetro">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {draft.parameters.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-4 text-sm">
+                          No hay parámetros. Añade al menos uno para guardar la analítica.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <Button variant="outline" size="sm" onClick={addParam}>
+                <Plus className="w-4 h-4 mr-2" /> Añadir parámetro
+              </Button>
+              {showErrors && hasErrors && (
+                <p className="text-sm text-destructive">
+                  Corrige los campos marcados: cada parámetro necesita nombre y valor numérico (los rangos, si se indican, también deben ser numéricos) y la fecha de muestreo es obligatoria.
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDraft(null)} disabled={saveAnalysis.isPending}>
+                  Descartar
+                </Button>
+                <Button onClick={handleSave} disabled={saveAnalysis.isPending}>
+                  {saveAnalysis.isPending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
+                  ) : (
+                    "Guardar analítica"
+                  )}
+                </Button>
+              </div>
+            </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
