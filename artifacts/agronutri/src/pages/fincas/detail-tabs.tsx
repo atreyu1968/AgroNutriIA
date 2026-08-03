@@ -35,11 +35,112 @@ import { formatDateTime, formatDate, formatNumber } from "@/lib/utils";
 import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot } from "lucide-react";
 export function SectorsTab({ farmId }: { farmId: number }) {
   const { data: sectors, isLoading } = useListSectors(farmId);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof sectorSchema>>({
+    resolver: zodResolver(sectorSchema),
+    defaultValues: { name: "", surfaceHa: "", plantCount: "", phenologicalStage: "", weeklyLitresPerPlant: "" },
+  });
+
+  const createMutation = useCreateSector({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Sector añadido" });
+        queryClient.invalidateQueries({ queryKey: getListSectorsQueryKey(farmId) });
+        setOpen(false);
+        form.reset();
+      },
+      onError: () =>
+        toast({ title: "No se pudo crear el sector", description: "Inténtalo de nuevo.", variant: "destructive" }),
+    },
+  });
+
+  const deleteMutation = useDeleteSector({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Sector eliminado" });
+        queryClient.invalidateQueries({ queryKey: getListSectorsQueryKey(farmId) });
+      },
+      onError: () =>
+        toast({ title: "No se pudo eliminar el sector", description: "Inténtalo de nuevo.", variant: "destructive" }),
+    },
+  });
+
+  const onSubmit = (v: z.infer<typeof sectorSchema>) => {
+    createMutation.mutate({
+      farmId,
+      data: {
+        name: v.name.trim(),
+        ...(v.surfaceHa && isNumeric(v.surfaceHa) ? { surfaceHa: parseNum(v.surfaceHa) } : {}),
+        ...(v.plantCount && isNumeric(v.plantCount) ? { plantCount: parseNum(v.plantCount) } : {}),
+        ...(v.phenologicalStage?.trim() ? { phenologicalStage: v.phenologicalStage.trim() } : {}),
+        ...(v.weeklyLitresPerPlant && isNumeric(v.weeklyLitresPerPlant) ? { weeklyLitresPerPlant: parseNum(v.weeklyLitresPerPlant) } : {}),
+      },
+    });
+  };
+
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Sectores de Riego</h3>
-        <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Añadir Sector</Button>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) form.reset(); }}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Añadir Sector</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Añadir Sector de Riego</DialogTitle></DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl><Input placeholder="Sector 1" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={form.control} name="surfaceHa" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Superficie (Ha)</FormLabel>
+                      <FormControl><Input inputMode="decimal" placeholder="Opcional" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="plantCount" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nº plantas</FormLabel>
+                      <FormControl><Input inputMode="numeric" placeholder="Opcional" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="phenologicalStage" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fase fenológica</FormLabel>
+                      <FormControl><Input placeholder="Ej: Floración" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="weeklyLitresPerPlant" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>L/pl/sem</FormLabel>
+                      <FormControl><Input inputMode="decimal" placeholder="Opcional" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                </div>
+                <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
+                  ) : (
+                    "Crear sector"
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
       <Card>
         <Table>
@@ -50,11 +151,12 @@ export function SectorsTab({ farmId }: { farmId: number }) {
               <TableHead>Plantas</TableHead>
               <TableHead>Fase</TableHead>
               <TableHead>L/pl/sem</TableHead>
+              <TableHead className="text-right"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
             ) : sectors && sectors.length > 0 ? (
               sectors.map(s => (
                 <TableRow key={s.id}>
@@ -63,10 +165,22 @@ export function SectorsTab({ farmId }: { farmId: number }) {
                   <TableCell>{formatNumber(s.plantCount, 0)}</TableCell>
                   <TableCell>{s.phenologicalStage || '-'}</TableCell>
                   <TableCell>{s.weeklyLitresPerPlant || '-'}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Eliminar sector ${s.name}`}
+                      disabled={deleteMutation.isPending}
+                      onClick={() => { if (confirm(`¿Eliminar el sector "${s.name}"?`)) deleteMutation.mutate({ farmId, sectorId: s.id }); }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No hay sectores definidos.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No hay sectores definidos.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -800,3 +914,18 @@ export function ConfigTab({ farmId }: { farmId: number }) {
     </Card>
   );
 }
+
+const sectorSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio"),
+  surfaceHa: z.string().optional(),
+  plantCount: z.string().optional(),
+  phenologicalStage: z.string().optional(),
+  weeklyLitresPerPlant: z.string().optional(),
+}).superRefine((v, ctx) => {
+  (["surfaceHa", "plantCount", "weeklyLitresPerPlant"] as const).forEach((k) => {
+    const val = v[k];
+    if (val && val.trim() !== "" && !isNumeric(val)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [k], message: "Debe ser un número" });
+    }
+  });
+});
