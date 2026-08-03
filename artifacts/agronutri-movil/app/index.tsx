@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -15,7 +16,9 @@ import { Image } from 'expo-image';
 import { Redirect, useRouter } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import {
+  getGetAuthConfigQueryKey,
   getListFarmsQueryKey,
+  useGetAuthConfig,
   useListFarms,
   useLogout,
   type Farm,
@@ -89,6 +92,10 @@ export default function FarmsScreen() {
   const farmsQuery = useListFarms({
     query: { queryKey: getListFarmsQueryKey(), enabled: !!token },
   });
+  const authConfigQuery = useGetAuthConfig({
+    query: { queryKey: getGetAuthConfigQueryKey() },
+  });
+  const demoMode = authConfigQuery.data?.demoMode === true;
   const logout = useLogout();
 
   if (isLoading) return <LoadingView />;
@@ -141,6 +148,23 @@ export default function FarmsScreen() {
           <Feather name="log-out" size={18} color={c.foreground} />
         </Pressable>
       </View>
+
+      {demoMode && (
+        <Pressable
+          testID="banner-demo-mode"
+          accessibilityRole="link"
+          onPress={() =>
+            Linking.openURL(`https://${process.env.EXPO_PUBLIC_DOMAIN}/landing`)
+          }
+          style={[styles.demoBanner, { backgroundColor: '#fef3c7', borderBottomColor: '#fde68a' }]}
+        >
+          <Feather name="info" size={14} color="#92400e" style={{ marginTop: 2 }} />
+          <Text style={styles.demoBannerText}>
+            Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{' '}
+            <Text style={styles.demoBannerLink}>Contrata AgroNutri AI</Text>
+          </Text>
+        </Pressable>
+      )}
 
       {farmsQuery.isLoading ? (
         <LoadingView label="Cargando fincas…" />
@@ -235,6 +259,26 @@ export default function FarmsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  demoBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#92400e',
+  },
+  demoBannerLink: {
+    fontFamily: 'Inter_600SemiBold',
+    textDecorationLine: 'underline',
+    color: '#92400e',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-end',

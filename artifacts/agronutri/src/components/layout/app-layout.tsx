@@ -1,4 +1,4 @@
-import { useGetMe, useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useGetMe, useLogout, getGetMeQueryKey, useGetAuthConfig, getGetAuthConfigQueryKey } from "@workspace/api-client-react";
 import { Link, Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { 
@@ -31,6 +31,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       retry: false,
     } 
   });
+
+  const { data: authConfig } = useGetAuthConfig({ query: { queryKey: getGetAuthConfigQueryKey() } });
 
   const logout = useLogout({
     mutation: {
@@ -134,6 +136,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           />
+        )}
+        {authConfig?.demoMode && (
+          <div
+            className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm px-4 py-2 text-center"
+            data-testid="banner-demo-mode"
+          >
+            Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{" "}
+            <Link href="/landing" className="font-medium underline underline-offset-2 hover:text-amber-700">
+              Contrata AgroNutri AI
+            </Link>
+          </div>
         )}
         <div className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8">
           {children}

@@ -27,6 +27,7 @@ import { appUrl, emailConfigured, sendPasswordResetEmail } from "../lib/email";
 import { logger } from "../lib/logger";
 import { serializeUser } from "../lib/serializers";
 import { isCoopInstance } from "../lib/instance";
+import { demoMode } from "../lib/demo";
 import { audit } from "../lib/audit";
 
 const router: IRouter = Router();
@@ -58,7 +59,11 @@ export function registrationEnabled(): boolean {
 }
 
 router.get("/auth/config", (_req, res): void => {
-  res.json({ registrationEnabled: registrationEnabled(), coopInstance: isCoopInstance() });
+  res.json({
+    registrationEnabled: registrationEnabled(),
+    coopInstance: isCoopInstance(),
+    demoMode: demoMode(),
+  });
 });
 
 router.post("/auth/register", async (req, res): Promise<void> => {

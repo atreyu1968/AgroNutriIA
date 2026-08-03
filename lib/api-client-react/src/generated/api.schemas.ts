@@ -306,6 +306,7 @@ export interface PhytoRefreshResult {
 export interface AuthConfig {
   registrationEnabled: boolean;
   coopInstance: boolean;
+  demoMode: boolean;
 }
 
 export type AdminUserCreateRole = typeof AdminUserCreateRole[keyof typeof AdminUserCreateRole];
