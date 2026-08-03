@@ -16,7 +16,11 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
+// HOST=127.0.0.1 en instalaciones propias detrás de nginx; por defecto
+// escucha en todas las interfaces (necesario para el proxy de desarrollo).
+const host = process.env.HOST ?? "0.0.0.0";
+
+app.listen(port, host, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
