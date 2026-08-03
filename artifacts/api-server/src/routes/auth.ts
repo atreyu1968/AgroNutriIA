@@ -50,10 +50,10 @@ async function startSession(
   return token;
 }
 
-// El registro público puede desactivarse con PUBLIC_REGISTRATION=false
-// (en ese caso solo el administrador da de alta usuarios).
+// El registro público está desactivado por defecto (solo el administrador
+// da de alta usuarios); se habilita explícitamente con PUBLIC_REGISTRATION=true.
 export function registrationEnabled(): boolean {
-  return process.env.PUBLIC_REGISTRATION !== "false";
+  return process.env.PUBLIC_REGISTRATION === "true";
 }
 
 router.get("/auth/config", (_req, res): void => {

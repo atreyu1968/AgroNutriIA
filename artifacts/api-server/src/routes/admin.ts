@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { eq, sql } from "drizzle-orm";
-import { db, usersTable, farmsTable, farmMembersTable } from "@workspace/db";
+import { db, usersTable, farmsTable, farmMembersTable, sessionsTable } from "@workspace/db";
 import {
   AdminListUsersResponse,
   AdminCreateUserBody,
@@ -122,11 +122,19 @@ router.patch("/admin/users/:userId", async (req, res): Promise<void> => {
     res.status(400).json({ error: "No se ha indicado ningún campo para actualizar" });
     return;
   }
-  const [user] = await db
-    .update(usersTable)
-    .set(update)
-    .where(eq(usersTable.id, userId))
-    .returning();
+  // Al desactivar una cuenta se cierran también todas sus sesiones abiertas
+  // (en la misma transacción) para que un token antiguo no reviva al reactivar.
+  const [user] = await db.transaction(async (tx) => {
+    const rows = await tx
+      .update(usersTable)
+      .set(update)
+      .where(eq(usersTable.id, userId))
+      .returning();
+    if (rows[0] && parsed.data.active === false) {
+      await tx.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
+    }
+    return rows;
+  });
   if (!user) {
     res.status(404).json({ error: "Usuario no encontrado" });
     return;
