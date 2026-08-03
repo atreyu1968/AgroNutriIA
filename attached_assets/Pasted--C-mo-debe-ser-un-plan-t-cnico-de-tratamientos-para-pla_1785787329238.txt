@@ -1,0 +1,696 @@
+## Cómo debe ser un plan técnico de tratamientos para platanera
+
+Un plan fitosanitario bien planteado **no consiste en aplicar productos de forma preventiva cada cierto número de semanas**. Debe ser un sistema de **gestión integrada de plagas**, basado en vigilancia, diagnóstico, umbrales de intervención, medidas culturales y biológicas, tratamiento localizado cuando sea posible y comprobación posterior de resultados.
+
+La normativa exige priorizar las prácticas de bajo consumo de fitosanitarios y, cuando resulte viable, los métodos no químicos. También obliga a justificar la intervención mediante seguimiento, emplear productos autorizados y mantener actualizado el registro de tratamientos. ([BOE][1])
+
+Para una explotación como la tuya, con aproximadamente **5.500 plantas**, lo estructuraría de la siguiente manera.
+
+# 1. Documentos que debe contener el plan
+
+El plan técnico debería estar formado por cinco documentos relacionados:
+
+1. **Ficha general de la explotación.**
+2. **Programa de vigilancia y muestreo.**
+3. **Matriz de decisión por plaga o enfermedad.**
+4. **Protocolo de ejecución de tratamientos.**
+5. **Registro y evaluación de resultados.**
+
+El error habitual es tener únicamente una lista de productos y dosis. Eso no constituye realmente un plan técnico porque no explica:
+
+* cuándo debe tratarse;
+* por qué se trata;
+* qué zona debe recibir el tratamiento;
+* qué alternativas se han considerado;
+* cómo se comprobará el resultado;
+* cómo se evitará la aparición de resistencias.
+
+# 2. Caracterización inicial de la finca
+
+Antes de programar tratamientos debe elaborarse una ficha de situación de la explotación.
+
+## 2.1. Datos básicos
+
+Debe reflejar:
+
+* Titular y ubicación.
+* Superficie.
+* Número aproximado de plantas.
+* Referencias SIGPAC.
+* Cultivo al aire libre o bajo protección.
+* Sistema de riego.
+* Variedad o clon.
+* Edad media de las plantas.
+* Distribución por sectores de riego.
+* Altitud y orientación.
+* Presencia de cortavientos.
+* Cercanía a jardines, palmeras, aguacates u otros posibles reservorios.
+* Masas de agua, pozos, estanques y conducciones.
+* Equipos de aplicación disponibles.
+* Personal aplicador y número de carné.
+* Técnico asesor responsable.
+
+El cuaderno de explotación debe identificar las parcelas, la superficie, el sistema de cultivo, el riego, los equipos de aplicación y la proximidad a masas o puntos de captación de agua. ([BOE][1])
+
+## 2.2. División de la explotación en unidades de control
+
+No trataría las 5.500 plantas como un bloque homogéneo. Propondría dividir la explotación en **cinco sectores técnicos de unas 1.100 plantas**, ajustados a:
+
+* sectores de riego;
+* diferencias de altitud;
+* zonas más cálidas o húmedas;
+* proximidad a bordes;
+* zonas históricamente afectadas;
+* zonas bajo invernadero o malla;
+* edad y estado de las plantas.
+
+Cada sector tendría su propio código:
+
+* Sector A.
+* Sector B.
+* Sector C.
+* Sector D.
+* Sector E.
+
+Esto permite descubrir que una plaga puede estar aumentando solamente en un borde o en una zona concreta y evita tratar innecesariamente toda la explotación.
+
+# 3. Programa de vigilancia y muestreo
+
+## 3.1. Frecuencia
+
+Como punto de partida operativo:
+
+* **Inspección ordinaria semanal** durante periodos de actividad de las plagas.
+* **Inspección quincenal** cuando la presión sea baja y estable.
+* **Inspección extraordinaria** después de calimas, olas de calor, lluvias, entrada de material vegetal, trabajos intensivos o detección de un foco.
+* **Revisión posterior a cada tratamiento**, siguiendo el intervalo apropiado para el modo de acción utilizado.
+
+La frecuencia debe aumentarse cuando se detecte una tendencia ascendente, aunque todavía no se haya alcanzado el nivel de intervención.
+
+## 3.2. Tamaño de muestra propuesto
+
+Para 5.500 plantas propongo inicialmente:
+
+* Cinco sectores.
+* Veinte plantas observadas por sector.
+* Un total de **100 plantas por jornada de seguimiento**.
+* Recorrido fijo en zigzag o en forma de «W».
+* Inclusión de plantas interiores y de borde.
+* Selección estable de algunos puntos testigo.
+* Revisión adicional de cualquier foco localizado.
+
+Las 100 plantas representan una muestra operativa suficientemente amplia para detectar tendencias, pero el técnico asesor puede modificarla según la distribución de la parcela y la plaga analizada.
+
+## 3.3. Qué debe observarse
+
+En cada planta seleccionada conviene revisar:
+
+* Base y cuello de la planta.
+* Cormo visible.
+* Pseudotallo.
+* Hojas inferiores.
+* Envés de las hojas.
+* Hoja joven o «cigarro».
+* Pecíolos.
+* Racimo.
+* Raquis.
+* Dedos.
+* Bolsa.
+* Hijos.
+* Suelo próximo.
+* Presencia de hormigas.
+* Fauna auxiliar.
+* Daños, melaza, fumagina, perforaciones o galerías.
+
+No basta con indicar «hay cochinilla» o «hay mosca blanca». Debe anotarse la **intensidad y distribución**.
+
+Una escala sencilla puede ser:
+
+| Nivel | Situación observada                   |
+| ----: | ------------------------------------- |
+|     0 | Ausencia                              |
+|     1 | Presencia aislada                     |
+|     2 | Foco leve y localizado                |
+|     3 | Presencia moderada en varias plantas  |
+|     4 | Infestación alta o en expansión       |
+|     5 | Infestación grave con daño productivo |
+
+## 3.4. Registro mínimo del muestreo
+
+Cada inspección debería recoger:
+
+* Fecha.
+* Sector.
+* Número de plantas observadas.
+* Plaga o enfermedad.
+* Porcentaje de plantas con presencia.
+* Intensidad media.
+* Órgano afectado.
+* Presencia en racimos.
+* Presencia de fauna auxiliar.
+* Presencia de hormigas.
+* Tendencia respecto a la semana anterior.
+* Fotografías.
+* Decisión técnica.
+* Fecha de la próxima revisión.
+
+La gestión integrada exige realizar seguimiento mediante observaciones de campo, diagnóstico precoz y, cuando existan, sistemas de alerta y valores umbral adecuados. La decisión de intervenir debe basarse en los resultados de esa vigilancia. ([BOE][1])
+
+# 4. Matriz técnica de decisión
+
+El plan debe contener una ficha para cada problema fitosanitario relevante:
+
+* cochinilla de la platanera;
+* mosca blanca;
+* araña roja y otros ácaros;
+* trips;
+* pulgones;
+* orugas defoliadoras;
+* picudo negro;
+* nematodos;
+* enfermedades de raíz y cormo;
+* enfermedades foliares;
+* malas hierbas;
+* posibles organismos de cuarentena.
+
+La ficha de cada plaga debe seguir este modelo:
+
+| Elemento               | Contenido                                            |
+| ---------------------- | ---------------------------------------------------- |
+| Organismo              | Nombre común y científico                            |
+| Órgano observado       | Hoja, cormo, racimo, raíz, pseudotallo               |
+| Método de muestreo     | Plantas, hojas, trampas o raíces examinadas          |
+| Frecuencia             | Semanal, quincenal o extraordinaria                  |
+| Indicador              | Porcentaje de plantas, capturas, intensidad          |
+| Umbral                 | Valor establecido por la guía o por el asesor        |
+| Medidas preventivas    | Higiene, poda, control de hormigas, riego, nutrición |
+| Medidas biológicas     | Conservación o introducción de fauna auxiliar        |
+| Medidas físicas        | Trampas, limpieza, retirada de material              |
+| Tratamiento localizado | Condiciones en las que procede                       |
+| Tratamiento general    | Solo cuando el foco esté generalizado y justificado  |
+| Revisión               | Fecha y criterio de eficacia                         |
+| Alternativa por fallo  | Diferente modo de acción y nuevo diagnóstico         |
+
+La Guía de Gestión Integrada de Plagas de la platanera del MAPA establece que deben anteponerse los métodos biológicos, biotecnológicos, culturales y físicos, y que la evaluación debe considerar población de la plaga, estado de desarrollo, fauna útil, fenología y condiciones climáticas. ([Ministerio de Agricultura][2])
+
+# 5. Orden correcto de intervención
+
+Ante una detección, la secuencia debería ser siempre esta:
+
+## Nivel 1. Confirmación del diagnóstico
+
+Antes de tratar hay que confirmar:
+
+* que la plaga está correctamente identificada;
+* que se encuentra activa;
+* que el daño observado ha sido producido realmente por ella;
+* que no se confunde con una carencia, salinidad, fitotoxicidad o problema de riego;
+* que existe tendencia de crecimiento;
+* que la población de fauna auxiliar no está controlándola.
+
+Este punto es muy importante en tu explotación, porque el agua con conductividad elevada, el pH alto, los desequilibrios nutricionales y los problemas radiculares pueden producir síntomas que se confundan con daños fitosanitarios.
+
+## Nivel 2. Corrección agronómica
+
+Antes de utilizar insecticidas, acaricidas o fungicidas deben corregirse las causas que favorecen el problema:
+
+* exceso de nitrógeno;
+* exceso de humedad;
+* mal drenaje;
+* riego irregular;
+* exceso de sombreo;
+* acumulación de restos vegetales;
+* herramientas o maquinaria contaminadas;
+* bolsas mal colocadas;
+* racimos ya infestados antes del embolsado;
+* presencia de hormigas;
+* exceso de hijos;
+* malas hierbas que actúen como reservorio;
+* material vegetal de entrada sin control.
+
+La normativa incluye entre las medidas preventivas una fertilización y riego equilibrados, la utilización de material vegetal adecuado, la limpieza de equipos y la protección de organismos beneficiosos. ([BOE][1])
+
+## Nivel 3. Control físico, cultural o biológico
+
+Según la plaga:
+
+* retirada selectiva de hojas muy afectadas;
+* eliminación controlada de restos infestados;
+* embolsado correcto del racimo;
+* limpieza del pseudotallo;
+* control de hormigas;
+* colocación de trampas;
+* captura masiva;
+* conservación de depredadores y parasitoides;
+* empleo de microorganismos autorizados;
+* tratamientos dirigidos sobre focos;
+* saneamiento de zonas afectadas.
+
+## Nivel 4. Tratamiento fitosanitario localizado
+
+Cuando el problema esté limitado a uno o varios focos, se tratarán únicamente:
+
+* las plantas afectadas;
+* las plantas próximas;
+* el borde afectado;
+* el sector correspondiente;
+* el órgano vegetal en el que se encuentre la plaga.
+
+No es técnicamente razonable tratar las 5.500 plantas por la aparición de un foco reducido en cincuenta o cien plantas.
+
+## Nivel 5. Tratamiento general
+
+Solo estaría justificado cuando:
+
+* la plaga se encuentre distribuida por la mayor parte de la finca;
+* el muestreo confirme una incidencia superior al umbral;
+* exista riesgo real para la cosecha;
+* las medidas anteriores hayan sido insuficientes;
+* el producto esté expresamente autorizado;
+* la aplicación pueda realizarse sin comprometer la recolección.
+
+# 6. Selección del producto
+
+La selección nunca debe hacerse únicamente por el nombre comercial o porque «siempre se ha utilizado».
+
+Antes de aprobar un tratamiento deben comprobarse once extremos:
+
+1. Producto inscrito en el Registro Oficial.
+2. Estado de autorización vigente.
+3. Cultivo autorizado: **platanera**.
+4. Plaga concreta autorizada.
+5. Uso al aire libre o bajo protección.
+6. Dosis autorizada.
+7. Volumen de caldo.
+8. Número máximo de aplicaciones.
+9. Intervalo mínimo entre aplicaciones.
+10. Plazo de seguridad.
+11. Condiciones ambientales y medidas de mitigación.
+
+La base de datos oficial del MAPA estaba actualizada el **3 de agosto de 2026** y señala expresamente que se actualiza semanalmente. Solo pueden comercializarse y utilizarse los productos previamente autorizados e inscritos. ([Servicio Mapa][3])
+
+## 6.1. Criterios técnicos de selección
+
+Entre varios productos autorizados elegiría el que presente:
+
+* mayor selectividad sobre la plaga;
+* menor impacto sobre fauna auxiliar;
+* menor riesgo para el aplicador;
+* menor riesgo para el medio acuático;
+* menor persistencia innecesaria;
+* plazo de seguridad compatible con la cosecha;
+* modo de acción diferente al último tratamiento;
+* formulación adecuada para el equipo disponible;
+* posibilidad de aplicación localizada;
+* eficacia contrastada en la fase concreta de la plaga.
+
+La normativa establece que los productos deben ser lo más específicos posible y presentar los menores efectos secundarios para personas, organismos no objetivo y medio ambiente. ([BOE][1])
+
+# 7. Programa de prevención de resistencias
+
+Este apartado es imprescindible en un plan serio.
+
+## Reglas básicas
+
+* No repetir sistemáticamente la misma materia activa.
+* No repetir de forma continuada productos del mismo grupo de acción.
+* Registrar los códigos IRAC, FRAC o HRAC correspondientes.
+* Alternar modos de acción eficaces.
+* No reducir la dosis por debajo de la autorizada buscando abaratar el tratamiento.
+* No superar la dosis ni el número máximo de aplicaciones.
+* Evitar aplicaciones tardías sobre poblaciones muy elevadas.
+* Combinar el tratamiento con medidas culturales.
+* No repetir automáticamente un tratamiento que haya fallado.
+
+Ante un fallo debe investigarse primero:
+
+* diagnóstico incorrecto;
+* mala cobertura;
+* momento inadecuado;
+* fase poco sensible de la plaga;
+* lavado por lluvia;
+* degradación por temperatura;
+* pH o calidad del caldo;
+* equipo mal calibrado;
+* resistencia;
+* producto almacenado incorrectamente;
+* dosis calculada sobre una superficie equivocada.
+
+La gestión integrada obliga a limitar las aplicaciones a lo necesario y a evitar estrategias que aumenten el riesgo de resistencia. ([BOE][1])
+
+# 8. Orden técnica de tratamiento
+
+Antes de cada aplicación debe emitirse una orden escrita, aunque sea interna.
+
+## Modelo de orden
+
+**Identificación**
+
+* Fecha prevista.
+* Parcela y sector.
+* Superficie real que se tratará.
+* Número aproximado de plantas.
+* Cultivo y estado fenológico.
+* Cosecha próxima.
+
+**Justificación**
+
+* Plaga identificada.
+* Resultado del muestreo.
+* Tendencia.
+* Daños observados.
+* Umbral o criterio de intervención.
+* Medidas previas realizadas.
+* Justificación del tratamiento químico.
+
+**Producto**
+
+* Nombre comercial.
+* Número de registro.
+* Materia activa.
+* Formulación.
+* Grupo de modo de acción.
+* Dosis autorizada.
+* Volumen de caldo.
+* Cantidad total de producto.
+* Cantidad total de agua.
+* Número de aplicación dentro de la campaña.
+* Plazo de seguridad.
+* Plazo de reentrada.
+
+**Aplicación**
+
+* Equipo.
+* Boquillas.
+* Presión.
+* Velocidad.
+* Volumen real por hectárea.
+* Zona objetivo.
+* Medidas antideriva.
+* Aplicador responsable.
+* EPI requerido.
+
+**Verificación**
+
+* Fecha de primera revisión.
+* Fecha de segunda revisión.
+* Indicador de eficacia.
+* Criterio para considerar controlada la plaga.
+
+# 9. Calibración y cálculo del caldo
+
+La dosis nunca debe calcularse «a ojo».
+
+## Procedimiento
+
+1. Medir la superficie real que se tratará.
+2. Llenar el equipo solo con agua.
+3. Trabajar durante un tiempo conocido.
+4. Medir el agua consumida.
+5. Calcular el volumen de caldo por hectárea o por número de plantas.
+6. Comprobar uniformidad de boquillas.
+7. Sustituir boquillas con caudales anormales.
+8. Calcular producto y agua antes de preparar la mezcla.
+9. Preparar únicamente el volumen necesario.
+10. Registrar los datos.
+
+La normativa exige calcular previamente la cantidad de producto y el volumen de agua, ajustándolos a la dosis y superficie para evitar sobrantes. ([BOE][1])
+
+## Ejemplo
+
+Supongamos que, después de calibrar:
+
+* Se tratarán 1.100 plantas.
+* El equipo consume 600 litros en ese sector.
+* La etiqueta autoriza una dosis de «X» por cada 100 litros.
+
+La cantidad se calcularía sobre los **600 litros reales**, no sobre la capacidad máxima del depósito ni sobre el número total de plantas de la finca.
+
+No debe utilizarse este ejemplo para fijar una dosis concreta: la dosis válida será exclusivamente la que figure en la autorización y etiqueta vigentes.
+
+# 10. Condiciones meteorológicas de aplicación
+
+La orden de tratamiento debe establecer una ventana de aplicación.
+
+Debe evitarse tratar con:
+
+* viento elevado;
+* lluvia inminente;
+* hojas mojadas, salvo que la etiqueta permita esa condición;
+* temperaturas extremas;
+* fuerte insolación cuando perjudique al producto;
+* cultivo sometido a estrés hídrico severo;
+* inversión térmica o riesgo de deriva;
+* trabajadores dentro de la zona;
+* abejas u otros polinizadores activos, cuando el producto pueda afectarlos.
+
+La norma prohíbe los tratamientos con vientos superiores a **3 metros por segundo** y exige priorizar técnicas de baja deriva, especialmente en cultivos altos. ([BOE][1])
+
+En la práctica, conviene realizar la aplicación en las horas de menor viento y temperatura, siempre que sea compatible con la etiqueta y con el comportamiento de la plaga.
+
+# 11. Preparación de la mezcla
+
+La preparación debe hacerse inmediatamente antes del tratamiento.
+
+## Secuencia
+
+1. Leer nuevamente la etiqueta.
+2. Colocarse el EPI.
+3. Comprobar el equipo.
+4. Medir el producto con utensilios exclusivos.
+5. Llenar parcialmente el depósito con agua.
+6. Incorporar los productos según su formulación y compatibilidad.
+7. Mantener la agitación.
+8. Completar el llenado.
+9. No abandonar el equipo durante la carga.
+10. Cerrar inmediatamente los envases.
+
+Las operaciones de mezcla y carga deben mantenerse alejadas de masas de agua. La distancia general es de al menos **25 metros**, que puede reducirse a 10 metros cuando el equipo dispone de mezclador-incorporador. También deben evitarse lugares con riesgo de encharcamiento, escorrentía o lixiviación. ([BOE][1])
+
+No recomendaría mezclar dos o tres productos simplemente para «aprovechar el viaje». Toda mezcla debe responder a:
+
+* necesidad simultánea real;
+* compatibilidad física;
+* compatibilidad química;
+* compatibilidad biológica;
+* autorización y etiqueta;
+* ausencia de incremento inaceptable del riesgo;
+* ausencia de antagonismo;
+* ausencia de fitotoxicidad.
+
+# 12. Seguridad del aplicador
+
+Debe elaborarse una ficha de seguridad para cada tratamiento.
+
+Como mínimo:
+
+* mono o ropa de protección adecuada;
+* guantes resistentes al producto;
+* botas;
+* protección ocular;
+* protección respiratoria cuando proceda;
+* protección de cabeza y cuello;
+* agua limpia disponible;
+* teléfono operativo;
+* procedimiento ante derrames;
+* procedimiento ante intoxicación;
+* ficha de datos de seguridad;
+* teléfono del Instituto Nacional de Toxicología.
+
+El EPI exacto no debe decidirse genéricamente: se utilizará el indicado en la etiqueta y en la ficha de datos de seguridad.
+
+También deben identificarse:
+
+* plazo de reentrada;
+* tareas que no pueden realizarse tras el tratamiento;
+* trabajadores vulnerables;
+* zonas tratadas;
+* fecha y hora a partir de la cual se permite el acceso.
+
+# 13. Protección de agua y entorno
+
+Como regla general debe mantenerse una banda mínima de **cinco metros respecto de las masas de agua superficial**, salvo que la etiqueta exija una distancia superior. ([BOE][1])
+
+Además:
+
+* no dirigir las boquillas hacia estanques o canales;
+* cerrar boquillas al girar;
+* evitar escorrentías;
+* utilizar boquillas antideriva;
+* tratar solamente la vegetación objetivo;
+* no llenar el equipo directamente desde un pozo sin dispositivo antirretorno;
+* no atravesar cauces con el equipo cargado cuando exista una alternativa;
+* no almacenar productos cerca de fertilizantes, alimentos o piensos.
+
+# 14. Limpieza y gestión de envases
+
+Después del tratamiento:
+
+1. Consumir el caldo en la superficie autorizada.
+2. Diluir y aplicar los restos según las condiciones legales y de etiqueta.
+3. Limpiar el circuito.
+4. Lavar el equipo en zona segura.
+5. Revisar filtros y boquillas.
+6. Guardar el equipo protegido de la lluvia.
+7. Realizar el triple enjuague de los envases líquidos.
+8. Incorporar el agua del enjuague al depósito.
+9. Perforar o inutilizar los envases cuando corresponda.
+10. Entregarlos en un punto autorizado.
+11. Conservar el justificante.
+
+No se pueden lavar los equipos a menos de **50 metros de masas de agua superficial o pozos**. Los envases líquidos deben enjuagarse tres veces o mediante dispositivo a presión y conservarse hasta su entrega en el sistema autorizado. ([BOE][1])
+
+# 15. Evaluación posterior
+
+Un tratamiento no termina cuando se apaga la máquina. Debe evaluarse.
+
+## Primera revisión
+
+Como criterio operativo, puede programarse una primera observación entre tres y siete días después, ajustándola al producto y organismo.
+
+Debe comprobarse:
+
+* mortalidad o reducción de la plaga;
+* presencia de estadios nuevos;
+* paralización de la expansión;
+* cobertura alcanzada;
+* fitotoxicidad;
+* afección a fauna auxiliar;
+* estado de los racimos;
+* persistencia de focos.
+
+## Segunda revisión
+
+Normalmente entre siete y catorce días, según el modo de acción y ciclo de la plaga:
+
+* porcentaje de plantas todavía afectadas;
+* evolución respecto al muestreo previo;
+* necesidad o no de nueva intervención;
+* recolonización desde bordes;
+* aparición de nuevas generaciones;
+* recuperación de fauna auxiliar.
+
+## Indicador de eficacia
+
+Puede utilizarse:
+
+[
+\text{Eficacia aparente} =
+\frac{\text{incidencia previa}-\text{incidencia posterior}}
+{\text{incidencia previa}}
+\times 100
+]
+
+También conviene valorar:
+
+* eficacia inferior al 40 %: insuficiente;
+* entre 40 y 70 %: parcial;
+* entre 70 y 90 %: buena;
+* superior al 90 %: muy buena.
+
+Estos porcentajes son una propuesta de gestión interna, no sustituyen los criterios de eficacia del registro ni el juicio del técnico.
+
+# 16. Registro del tratamiento
+
+Para cada tratamiento deben anotarse, como mínimo:
+
+* fecha;
+* parcela;
+* sector;
+* cultivo;
+* superficie tratada;
+* plaga;
+* producto;
+* número de registro;
+* cantidad aplicada;
+* dosis;
+* volumen de caldo;
+* aplicador;
+* equipo;
+* justificación;
+* plazo de seguridad;
+* fecha prevista de recolección;
+* condiciones meteorológicas;
+* resultado posterior;
+* incidencias.
+
+El registro de tratamientos debe mantenerse actualizado. La regulación vigente permite mantenerlo en papel en determinados casos hasta el **31 de diciembre de 2026**, aunque debe prepararse la transición al sistema digital correspondiente. ([BOE][1])
+
+# 17. Propuesta de organización para tus 5.500 plantas
+
+## Seguimiento semanal
+
+| Sector    | Plantas aproximadas | Plantas muestreadas |
+| --------- | ------------------: | ------------------: |
+| A         |               1.100 |                  20 |
+| B         |               1.100 |                  20 |
+| C         |               1.100 |                  20 |
+| D         |               1.100 |                  20 |
+| E         |               1.100 |                  20 |
+| **Total** |           **5.500** |             **100** |
+
+## Rutina mensual
+
+**Todas las semanas**
+
+* Muestreo de plagas.
+* Revisión de fauna auxiliar.
+* Revisión de focos.
+* Comprobación de trampas.
+* Registro fotográfico.
+
+**Una vez al mes**
+
+* Mapa actualizado de focos.
+* Revisión de hormigas.
+* Revisión de malas hierbas.
+* Comprobación de equipos.
+* Revisión del historial de modos de acción.
+* Comprobación de productos almacenados.
+
+**Cada tres meses**
+
+* Análisis de tendencias.
+* Evaluación de eficacia de tratamientos.
+* Revisión del programa de resistencias.
+* Revisión de existencias y caducidades.
+* Actualización de productos autorizados.
+* Reunión con el técnico asesor.
+
+**Una vez al año**
+
+* Revisión integral del plan.
+* Inventario del almacén.
+* Revisión documental.
+* Verificación de carnés.
+* Comprobación de inspecciones del equipo.
+* Análisis de los costes de tratamientos.
+* Comparación entre sectores.
+* Definición de objetivos para la campaña siguiente.
+
+# 18. Regla práctica fundamental
+
+Antes de cada aplicación deben poder responderse claramente estas diez preguntas:
+
+1. ¿Qué organismo estoy tratando?
+2. ¿Cómo se ha identificado?
+3. ¿Qué porcentaje de plantas está afectado?
+4. ¿Está aumentando o disminuyendo?
+5. ¿Hay fauna auxiliar?
+6. ¿Puedo corregir el problema sin tratamiento químico?
+7. ¿Debo tratar toda la finca o únicamente un sector?
+8. ¿Está autorizado el producto hoy para platanera y esa plaga?
+9. ¿He usado recientemente el mismo modo de acción?
+10. ¿Cómo y cuándo comprobaré el resultado?
+
+Cuando alguna de estas preguntas no tenga respuesta, el tratamiento todavía no está técnicamente justificado.
+
+## Conclusión
+
+Para tu explotación, plantearía un plan basado en **cinco sectores, cien plantas muestreadas semanalmente, tratamiento por focos, seguimiento de fauna auxiliar, control específico de hormigas y un registro de modos de acción**. El calendario marcaría las inspecciones, revisiones y operaciones preventivas, pero **no fijaría insecticidas o fungicidas de antemano**.
+
+Los productos concretos deben incorporarse a la orden de tratamiento únicamente después de identificar la plaga, comprobar el umbral, revisar el Registro Oficial y considerar la situación de la cosecha. Eso convierte el plan en una herramienta técnica real y evita tratamientos innecesarios, resistencias, residuos y pérdidas de fauna beneficiosa.
+
+[1]: https://www.boe.es/buscar/act.php?id=BOE-A-2012-11605 "BOE-A-2012-11605 Real Decreto 1311/2012, de 14 de septiembre, por el que se establece el marco de actuación para conseguir un uso sostenible de los productos fitosanitarios."
+[2]: https://www.mapa.gob.es/es/agricultura/temas/sanidad-vegetal/guiagipplatanera_tcm30-57944.pdf?utm_source=chatgpt.com "GUÍA DE GESTIÓN INTEGRADA"
+[3]: https://servicio.mapa.gob.es/regfiweb "Inicio - Consultas Fitosanitarios"
