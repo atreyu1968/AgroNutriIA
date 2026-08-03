@@ -24,4 +24,9 @@ export interface UserProfile {
   aiMonthlyLimitEur?: number | null;
   /** @nullable */
   aiResponseStyle?: string | null;
+  /**
+     * Session token for Bearer auth (returned by login/register; used by the mobile app)
+     * @nullable
+     */
+  token?: string | null;
 }

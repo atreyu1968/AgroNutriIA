@@ -1020,6 +1020,9 @@ components:
         reportLanguage: { type: ["string", "null"] }
         aiMonthlyLimitEur: { type: ["number", "null"] }
         aiResponseStyle: { type: ["string", "null"] }
+        token:
+          type: ["string", "null"]
+          description: "Session token for Bearer auth (returned by login/register; used by the mobile app)"
     UserProfileUpdate:
       type: object
       properties:

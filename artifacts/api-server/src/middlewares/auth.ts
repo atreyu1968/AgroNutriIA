@@ -22,8 +22,16 @@ declare global {
   }
 }
 
+export function sessionToken(req: Request): string | null {
+  const cookieToken = req.cookies?.[SESSION_COOKIE];
+  if (cookieToken && typeof cookieToken === "string") return cookieToken;
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) return header.slice(7).trim() || null;
+  return null;
+}
+
 export async function loadUser(req: Request): Promise<User | null> {
-  const token = req.cookies?.[SESSION_COOKIE];
+  const token = sessionToken(req);
   if (!token || typeof token !== "string") return null;
   const rows = await db
     .select({ user: usersTable })

@@ -40,7 +40,8 @@ export const RegisterResponse = zod.object({
   "unitsPreference": zod.string().nullish(),
   "reportLanguage": zod.string().nullish(),
   "aiMonthlyLimitEur": zod.number().nullish(),
-  "aiResponseStyle": zod.string().nullish()
+  "aiResponseStyle": zod.string().nullish(),
+  "token": zod.string().nullish().describe('Session token for Bearer auth (returned by login\/register; used by the mobile app)')
 })
 
 
@@ -60,7 +61,8 @@ export const LoginResponse = zod.object({
   "unitsPreference": zod.string().nullish(),
   "reportLanguage": zod.string().nullish(),
   "aiMonthlyLimitEur": zod.number().nullish(),
-  "aiResponseStyle": zod.string().nullish()
+  "aiResponseStyle": zod.string().nullish(),
+  "token": zod.string().nullish().describe('Session token for Bearer auth (returned by login\/register; used by the mobile app)')
 })
 
 
@@ -78,7 +80,8 @@ export const GetMeResponse = zod.object({
   "unitsPreference": zod.string().nullish(),
   "reportLanguage": zod.string().nullish(),
   "aiMonthlyLimitEur": zod.number().nullish(),
-  "aiResponseStyle": zod.string().nullish()
+  "aiResponseStyle": zod.string().nullish(),
+  "token": zod.string().nullish().describe('Session token for Bearer auth (returned by login\/register; used by the mobile app)')
 })
 
 
@@ -108,7 +111,8 @@ export const UpdateMeResponse = zod.object({
   "unitsPreference": zod.string().nullish(),
   "reportLanguage": zod.string().nullish(),
   "aiMonthlyLimitEur": zod.number().nullish(),
-  "aiResponseStyle": zod.string().nullish()
+  "aiResponseStyle": zod.string().nullish(),
+  "token": zod.string().nullish().describe('Session token for Bearer auth (returned by login\/register; used by the mobile app)')
 })
 
 

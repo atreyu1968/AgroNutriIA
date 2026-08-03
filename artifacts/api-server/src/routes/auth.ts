@@ -14,6 +14,7 @@ import {
 import {
   requireAuth,
   loadUser,
+  sessionToken,
   SESSION_COOKIE,
   SESSION_TTL_MS,
 } from "../middlewares/auth";
@@ -23,7 +24,10 @@ import { audit } from "../lib/audit";
 
 const router: IRouter = Router();
 
-async function startSession(res: import("express").Response, userId: number) {
+async function startSession(
+  res: import("express").Response,
+  userId: number,
+): Promise<string> {
   const token = randomToken();
   await db.insert(sessionsTable).values({
     id: token,
@@ -37,6 +41,7 @@ async function startSession(res: import("express").Response, userId: number) {
     maxAge: SESSION_TTL_MS,
     path: "/",
   });
+  return token;
 }
 
 router.post("/auth/register", async (req, res): Promise<void> => {
@@ -62,9 +67,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       phone: parsed.data.phone,
     })
     .returning();
-  await startSession(res, user.id);
+  const token = await startSession(res, user.id);
   await audit({ userId: user.id, action: "register", entityType: "user", entityId: user.id });
-  res.status(201).json(RegisterResponse.parse(serializeUser(user)));
+  res.status(201).json(RegisterResponse.parse({ ...serializeUser(user), token }));
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
@@ -79,13 +84,13 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Correo o contraseña incorrectos" });
     return;
   }
-  await startSession(res, user.id);
+  const token = await startSession(res, user.id);
   await audit({ userId: user.id, action: "login", entityType: "user", entityId: user.id });
-  res.json(LoginResponse.parse(serializeUser(user)));
+  res.json(LoginResponse.parse({ ...serializeUser(user), token }));
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {
-  const token = req.cookies?.[SESSION_COOKIE];
+  const token = sessionToken(req);
   if (token && typeof token === "string") {
     await db.delete(sessionsTable).where(eq(sessionsTable.id, token));
   }
