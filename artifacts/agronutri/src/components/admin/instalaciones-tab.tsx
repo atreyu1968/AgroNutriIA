@@ -39,6 +39,11 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   error: { label: "Error", className: "bg-red-100 text-red-800" },
 };
 
+const CHARGE_BADGES: Record<string, { label: string; className: string }> = {
+  pending: { label: "Pendiente", className: "bg-amber-100 text-amber-800" },
+  invoiced: { label: "En la próxima cuota", className: "bg-blue-100 text-blue-800" },
+  paid: { label: "Cobrado", className: "bg-green-100 text-green-800" },
+};
 function eur(cents: number): string {
   return (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 }
@@ -317,7 +322,8 @@ function PaypalSettingsCard() {
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Credenciales REST de PayPal para las suscripciones (100 €/mes por instalación). El
-          variable por fincas activas se registra en la facturación mensual de cada instalación.
+          variable por fincas activas se añade automáticamente a la cuota del mes siguiente
+          al cerrarse cada mes.
           {settings?.planId && <> Plan actual: <span className="font-mono text-xs">{settings.planId}</span></>}
         </p>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -400,12 +406,17 @@ export function InstalacionesTab() {
                     <th className="py-2 pr-4">Fincas activas</th>
                     <th className="py-2 pr-4">Mes en curso</th>
                     <th className="py-2 pr-4">Facturado total</th>
+                    <th className="py-2 pr-4">Último mes cerrado</th>
                     <th className="py-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {installations.map((i) => {
                     const badge = STATUS_BADGES[i.status] ?? { label: i.status, className: "" };
+                    const lastClosed = i.charges.find((c) => c.period !== i.currentPeriod) ?? null;
+                    const chargeBadge = lastClosed
+                      ? CHARGE_BADGES[lastClosed.status] ?? { label: lastClosed.status, className: "" }
+                      : null;
                     return (
                       <tr key={i.id} className="border-b last:border-0" data-testid={`row-installation-${i.id}`}>
                         <td className="py-3 pr-4">
@@ -423,6 +434,20 @@ export function InstalacionesTab() {
                         <td className="py-3 pr-4">{i.activeFarmCount}</td>
                         <td className="py-3 pr-4">{i.currentMonthCents != null ? eur(i.currentMonthCents) : "—"}</td>
                         <td className="py-3 pr-4">{eur(i.totalBilledCents)}</td>
+                        <td className="py-3 pr-4">
+                          {lastClosed && chargeBadge ? (
+                            <div>
+                              <Badge className={chargeBadge.className} data-testid={`badge-charge-${i.id}`}>
+                                {chargeBadge.label}
+                              </Badge>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {lastClosed.period} · {eur(lastClosed.totalCents)}
+                              </div>
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td className="py-3 text-right whitespace-nowrap">
                           <Button variant="ghost" size="sm" onClick={() => setEventsFor(i)} data-testid={`button-events-${i.id}`}>
                             Eventos

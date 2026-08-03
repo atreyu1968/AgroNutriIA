@@ -191,6 +191,53 @@ export async function ensureSubscriptionPlan(cfg: PaypalConfig, token: string): 
   return plan.id;
 }
 
+/** Formatea céntimos como importe PayPal ("102.50"). */
+export function centsToEur(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
+/**
+ * Revisa el precio de una suscripción existente: la próxima cuota pasará a
+ * cobrar el importe indicado (base + variable del mes cerrado). PayPal aplica
+ * el nuevo precio a partir del siguiente ciclo de facturación.
+ */
+export async function reviseSubscriptionPrice(
+  cfg: PaypalConfig,
+  subscriptionId: string,
+  totalEur: string,
+): Promise<void> {
+  const token = await getAccessToken(cfg);
+  const planId = await ensureSubscriptionPlan(cfg, token);
+  const res = await paypalFetch(
+    cfg,
+    `/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}/revise`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        plan_id: planId,
+        plan: {
+          billing_cycles: [
+            {
+              sequence: 1,
+              pricing_scheme: { fixed_price: { value: totalEur, currency_code: "EUR" } },
+            },
+          ],
+        },
+      }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `PayPal: no se pudo revisar el precio de la suscripción (HTTP ${res.status}): ${text.slice(0, 300)}`,
+    );
+  }
+}
+
 export type CreatedSubscription = { id: string; approvalUrl: string };
 
 export async function createSubscription(opts: {

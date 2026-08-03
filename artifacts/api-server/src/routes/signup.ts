@@ -27,6 +27,7 @@ import {
   upsertMonthlyCharge,
   installationUrl,
 } from "../lib/provisioner";
+import { markInvoicedChargesPaid } from "../lib/billingSweeper";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -241,7 +242,12 @@ router.post("/signup/confirm/:publicToken", async (req, res): Promise<void> => {
 router.post("/paypal/webhook", async (req, res): Promise<void> => {
   const event = req.body as {
     event_type?: string;
-    resource?: { id?: string; custom_id?: string; billing_agreement_id?: string };
+    resource?: {
+      id?: string;
+      custom_id?: string;
+      billing_agreement_id?: string;
+      create_time?: string;
+    };
   };
   if (!event?.event_type) {
     res.status(400).json({ error: "Evento no válido" });
@@ -286,6 +292,17 @@ router.post("/paypal/webhook", async (req, res): Promise<void> => {
     case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
       await suspendInstallation(inst, `PayPal: ${event.event_type}`);
       break;
+    case "PAYMENT.SALE.COMPLETED": {
+      // Cobro del ciclo: los cargos ya incluidos en la cuota pasan a pagados.
+      // El id del cobro y su fecha protegen frente a eventos repetidos o
+      // llegados fuera de orden (solo liquida cargos revisados antes del pago).
+      const createTime = event.resource?.create_time ? new Date(event.resource.create_time) : null;
+      await markInvoicedChargesPaid(inst.id, {
+        saleId: event.resource?.id ?? null,
+        paidAt: createTime && !Number.isNaN(createTime.getTime()) ? createTime : null,
+      });
+      break;
+    }
     case "BILLING.SUBSCRIPTION.CANCELLED":
     case "BILLING.SUBSCRIPTION.EXPIRED":
       await cancelInstallation(inst, `PayPal: ${event.event_type}`);

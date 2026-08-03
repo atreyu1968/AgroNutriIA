@@ -4,6 +4,7 @@ import { startReportSweeper } from "./lib/reportSweeper";
 import { startUsageReporter } from "./lib/usageReporter";
 import { ensureInvoiceGuards } from "./lib/invoiceGuard";
 import { startAutoInvoicer } from "./lib/autoInvoicer";
+import { startBillingSweeper } from "./lib/billingSweeper";
 
 const rawPort = process.env["PORT"];
 
@@ -38,6 +39,7 @@ ensureInvoiceGuards()
       startReportSweeper();
       startUsageReporter();
       startAutoInvoicer();
+      startBillingSweeper();
     });
   })
   .catch((err) => {

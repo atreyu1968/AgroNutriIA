@@ -72,6 +72,10 @@ export const billingChargesTable = pgTable(
     totalCents: integer("total_cents").notNull(),
     /** pending | invoiced | paid */
     status: text("status").notNull().default("pending"),
+    /** Cuándo se añadió a la cuota de PayPal (revisión de la suscripción). */
+    invoicedAt: timestamp("invoiced_at", { withTimezone: true }),
+    /** Id del cobro (sale) de PayPal que liquidó este cargo. */
+    paypalSaleId: text("paypal_sale_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

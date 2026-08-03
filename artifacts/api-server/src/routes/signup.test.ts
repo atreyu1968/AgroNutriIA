@@ -221,6 +221,34 @@ test("reporte de uso: token requerido y cálculo 100 € + 2,50 €/finca", asyn
   assert.equal(charges[0].totalCents, 10000 + 12 * 250);
 });
 
+test("webhook PAYMENT.SALE.COMPLETED marca pagados los cargos 'invoiced'", async () => {
+  const inst = await createInstallation({ subdomain: `pago-${suffix}`, status: "active" });
+  await db.insert(billingChargesTable).values({
+    installationId: inst.id,
+    period: "2026-07",
+    baseCents: 10000,
+    farmCount: 4,
+    variableCents: 1000,
+    totalCents: 11000,
+    status: "invoiced",
+    invoicedAt: new Date(Date.now() - 60_000),
+  });
+  const res = await api("POST", "/paypal/webhook", {
+    event_type: "PAYMENT.SALE.COMPLETED",
+    resource: {
+      id: `SALE-${suffix}`,
+      billing_agreement_id: inst.paypalSubscriptionId,
+      create_time: new Date().toISOString(),
+    },
+  });
+  assert.equal(res.status, 200);
+  const [charge] = await db
+    .select()
+    .from(billingChargesTable)
+    .where(eq(billingChargesTable.installationId, inst.id));
+  assert.equal(charge.status, "paid");
+});
+
 test("alta con comillas o saltos de línea en los datos → 400", async () => {
   const base = {
     contactName: "Contacto",

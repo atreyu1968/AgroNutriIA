@@ -182,7 +182,7 @@ export function currentPeriod(now = new Date()): string {
  * Crea o actualiza el cargo del mes en curso: cuota base + variable por
  * fincas activas (según el último reporte de uso de la instalación).
  */
-export async function upsertMonthlyCharge(installationId: number): Promise<void> {
+export async function upsertMonthlyCharge(installationId: number, now = new Date()): Promise<void> {
   const [inst] = await db
     .select()
     .from(installationsTable)
@@ -191,7 +191,7 @@ export async function upsertMonthlyCharge(installationId: number): Promise<void>
   const farmCount = inst.activeFarmCount;
   const variableCents = farmCount * PER_FARM_CENTS;
   const totalCents = BASE_PRICE_CENTS + variableCents;
-  const period = currentPeriod();
+  const period = currentPeriod(now);
   await db
     .insert(billingChargesTable)
     .values({
@@ -205,6 +205,9 @@ export async function upsertMonthlyCharge(installationId: number): Promise<void>
     .onConflictDoUpdate({
       target: [billingChargesTable.installationId, billingChargesTable.period],
       set: { farmCount, variableCents, totalCents, updatedAt: new Date() },
+      // Un cargo ya incluido en la cuota de PayPal (invoiced) o cobrado (paid)
+      // es inmutable: un reporte de uso tardío no puede cambiar su importe.
+      setWhere: eq(billingChargesTable.status, "pending"),
     });
 }
 
