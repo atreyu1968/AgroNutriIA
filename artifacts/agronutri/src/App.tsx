@@ -9,6 +9,7 @@ import Recuperar from '@/pages/recuperar';
 import Restablecer from '@/pages/restablecer';
 import Dashboard from '@/pages/dashboard';
 import Landing from '@/pages/landing';
+import Terminos from '@/pages/terminos';
 
 import { FincasRouter } from '@/pages/fincas/router';
 
@@ -41,6 +42,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/landing" component={Landing} />
+      <Route path="/terminos" component={Terminos} />
       <Route path="/login" component={Login} />
       <Route path="/registro" component={Register} />
       <Route path="/recuperar" component={Recuperar} />

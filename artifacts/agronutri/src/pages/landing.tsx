@@ -324,6 +324,59 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section id="precios" className="bg-gray-50 border-y border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-center">Un precio simple, pensado para cooperativas</h2>
+          <p className="mt-4 text-center text-gray-600 max-w-2xl mx-auto text-lg">
+            Cada cooperativa u OPP dispone de su propia instalación independiente, con sus datos en
+            su propio servidor.
+          </p>
+          <div className="mt-12 max-w-3xl mx-auto rounded-3xl bg-white border border-green-200 shadow-xl overflow-hidden">
+            <div className="bg-green-700 text-white px-8 py-5 text-center">
+              <span className="font-semibold tracking-wide uppercase text-sm">Plan cooperativa / OPP</span>
+            </div>
+            <div className="px-8 py-10 grid sm:grid-cols-2 gap-8 items-center">
+              <div className="text-center sm:border-r sm:border-gray-100">
+                <div className="text-5xl font-extrabold text-gray-900">100 €<span className="text-lg font-medium text-gray-500">/mes</span></div>
+                <p className="mt-2 text-gray-600">Instalación y mantenimiento: servidor dedicado, dominio, copias de seguridad, actualizaciones y soporte.</p>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl font-extrabold text-gray-900">2,50 €<span className="text-lg font-medium text-gray-500">/finca/mes</span></div>
+                <p className="mt-2 text-gray-600">Por cada finca activa, sin límite de sectores, analíticas ni usuarios técnicos.</p>
+              </div>
+            </div>
+            <div className="px-8 pb-8">
+              <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-2 text-gray-700">
+                {[
+                  "Instalación independiente para cada cooperativa",
+                  "Web + app móvil incluidas",
+                  "Usuarios y técnicos ilimitados",
+                  "Copias de seguridad diarias",
+                  "Actualizaciones y mejoras continuas",
+                  "Consumo de OpenAI aparte, con la clave de la cooperativa y límite de gasto configurable",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" /> {t}</li>
+                ))}
+              </ul>
+              <div className="mt-8 text-center">
+                <Link href="/login">
+                  <Button size="lg" className="bg-green-700 hover:bg-green-800 h-12 px-8" data-testid="button-landing-cta-pricing">
+                    Solicitar instalación <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+              <p className="mt-6 text-xs text-gray-500 text-center leading-relaxed">
+                Precios sin impuestos. Revisión de precios como máximo una vez al año, comunicada con
+                60 días de antelación y limitada a IPC + 2 puntos, con derecho a resolver el contrato
+                sin penalización si no se acepta. Consulta los{" "}
+                <Link href="/terminos" className="text-green-700 underline">términos y condiciones</Link>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="max-w-4xl mx-auto px-4 pb-24">
         <div className="rounded-3xl bg-gradient-to-br from-green-700 to-green-900 text-white px-8 py-14 text-center shadow-xl">
@@ -348,9 +401,15 @@ export default function Landing() {
           <p className="text-sm text-gray-500">
             AgroNutri AI — Fertirrigación y sanidad vegetal para platanera. © {new Date().getFullYear()}
           </p>
-          <Link href="/login" className="text-sm font-medium text-green-700 hover:underline">
-            Acceder
-          </Link>
+          <div className="flex items-center gap-5">
+            <a href="#precios" className="text-sm font-medium text-green-700 hover:underline">Precios</a>
+            <Link href="/terminos" className="text-sm font-medium text-green-700 hover:underline">
+              Términos y condiciones
+            </Link>
+            <Link href="/login" className="text-sm font-medium text-green-700 hover:underline">
+              Acceder
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
