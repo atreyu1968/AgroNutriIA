@@ -7,9 +7,12 @@ import {
   useGetConversation, 
   useCreateConversation, 
   useSendMessage,
+  useCreateDraftFromMessage,
   getGetConversationQueryKey,
-  getListConversationsQueryKey
+  getListConversationsQueryKey,
+  getListRecommendationsQueryKey
 } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Sprout, Send, ArrowLeft, Plus, MessageSquare, 
-  Settings, User, Bot, AlertCircle, Wrench, BookOpen 
+  Settings, User, Bot, AlertCircle, Wrench, BookOpen, ClipboardList, Loader2 
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -208,8 +211,30 @@ function NewConversationButton({ farmId, onCreated, showText = false, size = "ic
 
 function ChatInterface({ farmId, conversationId }: { farmId: number, conversationId: number }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [draftMessageId, setDraftMessageId] = useState<number | null>(null);
+
+  const createDraft = useCreateDraftFromMessage({
+    mutation: {
+      onSuccess: (rec) => {
+        setDraftMessageId(null);
+        queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        toast({
+          title: "Borrador de programa creado",
+          description: `«${rec.title ?? 'Programa'}» está en la pestaña Nutrición de la finca, listo para revisar y validar.`,
+        });
+      },
+      onError: (err: unknown) => {
+        setDraftMessageId(null);
+        const message =
+          (err as { error?: string })?.error ??
+          "No se ha podido crear el borrador. Inténtalo de nuevo.";
+        toast({ title: "Error al crear el borrador", description: message, variant: "destructive" });
+      },
+    }
+  });
 
   const { data: detail, isLoading } = useGetConversation(farmId, conversationId, {
     query: { queryKey: getGetConversationQueryKey(farmId, conversationId), enabled: !!conversationId }
@@ -281,6 +306,28 @@ function ChatInterface({ farmId, conversationId }: { farmId: number, conversatio
                 ))}
               </div>
                 
+                {msg.role === 'assistant' && (
+                  <div className="px-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={createDraft.isPending}
+                      onClick={() => {
+                        setDraftMessageId(msg.id);
+                        createDraft.mutate({ farmId, conversationId, messageId: msg.id });
+                      }}
+                    >
+                      {createDraft.isPending && draftMessageId === msg.id ? (
+                        <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                      ) : (
+                        <ClipboardList className="w-3 h-3 mr-1.5" />
+                      )}
+                      Crear borrador de programa
+                    </Button>
+                  </div>
+                )}
+
                 {msg.role === 'assistant' && (msg.toolsUsed?.length || msg.sources?.length) && (
                   <div className="flex flex-wrap gap-2 px-1">
                     {msg.toolsUsed?.map((tool, idx) => (

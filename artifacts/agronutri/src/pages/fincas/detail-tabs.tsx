@@ -25,10 +25,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2 } from "lucide-react";
 import { formatDateTime, formatDate, formatNumber } from "@/lib/utils";
 
 // --- Sectors Tab ---
+import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot } from "lucide-react";
 export function SectorsTab({ farmId }: { farmId: number }) {
   const { data: sectors, isLoading } = useListSectors(farmId);
   return (
@@ -263,6 +263,9 @@ export function RecommendationsTab({ farmId }: { farmId: number }) {
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-semibold">{r.title || 'Recomendación sin título'}</h4>
                     <Badge variant={r.status === 'applying' ? 'success' : r.status === 'draft' ? 'outline' : 'secondary'}>{r.status}</Badge>
+                    {r.source === 'ai' && (
+                      <Badge variant="secondary" className="gap-1"><Bot className="w-3 h-3" /> IA</Badge>
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground flex gap-4">
                     <span>{formatDate(r.createdAt)}</span>

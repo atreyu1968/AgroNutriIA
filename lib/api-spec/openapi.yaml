@@ -741,6 +741,22 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Message"
+  /farms/{farmId}/conversations/{conversationId}/messages/{messageId}/draft-recommendation:
+    post:
+      operationId: createDraftFromMessage
+      tags: [conversations]
+      summary: Turn an assistant reply into a draft fertilization program (source ai)
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/ConversationId"
+        - $ref: "#/components/parameters/MessageId"
+      responses:
+        "201":
+          description: Draft recommendation created from the assistant message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
 
   /farms/{farmId}/reports:
     get:
@@ -955,6 +971,12 @@ components:
         type: integer
     ConversationId:
       name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+    MessageId:
+      name: messageId
       in: path
       required: true
       schema:
