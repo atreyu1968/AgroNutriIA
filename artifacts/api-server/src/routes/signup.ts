@@ -29,8 +29,21 @@ import {
 } from "../lib/provisioner";
 import { markInvoicedChargesPaid } from "../lib/billingSweeper";
 import { logger } from "../lib/logger";
+import { isCoopInstance } from "../lib/instance";
 
 const router: IRouter = Router();
+// La contratación online y los webhooks de PayPal son exclusivos de la
+// instalación central: en instancias de cooperativa se deshabilitan por
+// completo (incluido POST /billing/usage, que solo acepta la central).
+// Nota: este router se monta en la raíz de /api, así que el guardián se
+// limita a sus propias rutas para no interceptar las de otros routers.
+router.use(["/signup", "/paypal/webhook", "/billing/usage"], (_req, res, next) => {
+  if (isCoopInstance()) {
+    res.status(404).json({ error: "No disponible en esta instalación" });
+    return;
+  }
+  next();
+});
 
 export const SUBDOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/;
 export const RESERVED_SUBDOMAINS = new Set([
@@ -222,7 +235,7 @@ router.post("/signup/confirm/:publicToken", async (req, res): Promise<void> => {
   }
   if (inst.status === "pending_payment" && inst.paypalSubscriptionId) {
     try {
-      const cfg = await getPaypalConfig();
+  const cfg = await getPaypalConfig();
       const sub = await getSubscription(cfg, inst.paypalSubscriptionId);
       if (sub.status === "ACTIVE" || sub.status === "APPROVED") {
         provisionInBackground(inst.id);

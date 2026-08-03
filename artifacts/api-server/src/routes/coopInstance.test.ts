@@ -94,6 +94,23 @@ test("las rutas de Facturación devuelven 404 incluso para un admin", async () =
   }
 });
 
+test("la contratación online y los webhooks de PayPal devuelven 404", async () => {
+  assert.equal(
+    (await api("GET", "/signup/subdomain?subdomain=coop")).status,
+    404,
+  );
+  for (const path of [
+    "/signup",
+    "/signup/confirm/token-falso",
+    "/paypal/webhook",
+    "/billing/usage",
+  ]) {
+    const res = await api("POST", path);
+    assert.equal(res.status, 404, `${path} debería ser 404`);
+  }
+  assert.equal((await api("GET", "/signup/status/token-falso")).status, 404);
+});
+
 test("las rutas de administración generales siguen funcionando", async () => {
   assert.equal((await api("GET", "/admin/users", adminToken)).status, 200);
   assert.equal((await api("GET", "/admin/settings/email", adminToken)).status, 200);

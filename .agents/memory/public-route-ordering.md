@@ -12,3 +12,7 @@ endpoint registered afterwards returns 401/403 despite having no auth middleware
 
 **How to apply:** register public routers immediately after the auth router; keep authenticated
 routers below them.
+
+Corollary: a 404 "feature disabled" guard added via `router.use((req,res)=>...)` in a root-mounted
+router intercepts every later router too. Scope such guards to the router's own paths:
+`router.use(["/signup", "/paypal/webhook"], guard)`.

@@ -77,8 +77,13 @@ after(async () => {
       inArray(appSettingsTable.key, [SETTING_BILLING_ISSUER_NAME, SETTING_BILLING_ISSUER_TAX_ID]),
     );
   if (createdIds.length) {
-    // Las facturas referencian instalaciones con onDelete: restrict.
-    await db.delete(invoicesTable).where(inArray(invoicesTable.installationId, createdIds));
+    // Las facturas referencian instalaciones con onDelete: restrict. Las
+    // emitidas están protegidas por trigger: se desactiva solo para limpiar.
+    await db.transaction(async (tx) => {
+      await tx.execute(`ALTER TABLE invoices DISABLE TRIGGER invoices_protect_delete`);
+      await tx.delete(invoicesTable).where(inArray(invoicesTable.installationId, createdIds));
+      await tx.execute(`ALTER TABLE invoices ENABLE TRIGGER invoices_protect_delete`);
+    });
     await db.delete(installationsTable).where(inArray(installationsTable.id, createdIds));
   }
   await pool.end();
