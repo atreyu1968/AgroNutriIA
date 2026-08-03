@@ -122,8 +122,17 @@ export function formatEuros(cents: number): string {
 const GREEN = "#166534";
 const GRAY = "#555555";
 
+export type InvoicePdfVerifactu = {
+  /** URL del servicio de cotejo de la AEAT codificada en el QR. */
+  qrUrl: string;
+  /** PNG del código QR ya generado. */
+  qrPng: Buffer;
+};
 /** Genera el PDF de la factura y lo devuelve como Buffer. */
-export async function renderInvoicePdf(inv: Invoice): Promise<Buffer> {
+export async function renderInvoicePdf(
+  inv: Invoice,
+  verifactu?: InvoicePdfVerifactu | null,
+): Promise<Buffer> {
   return await new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks: Buffer[] = [];
@@ -214,6 +223,28 @@ export async function renderInvoicePdf(inv: Invoice): Promise<Buffer> {
       `${formatEuros(inv.taxCents)} €`,
     );
     totalRow("TOTAL", `${formatEuros(inv.totalCents)} €`, true);
+
+    // QR de "factura verificable" (VeriFactu): obligatorio cuando el sistema
+    // remite los registros a la AEAT. Enlaza con el servicio de cotejo.
+    if (verifactu) {
+      const qrY = y + 20;
+      doc.image(verifactu.qrPng, 50, qrY, { width: 84, height: 84 });
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .fillColor("#000000")
+        .text("VERI*FACTU", 144, qrY + 22);
+      doc
+        .font("Helvetica")
+        .fontSize(8)
+        .fillColor(GRAY)
+        .text(
+          "Factura verificable en la sede electrónica de la AEAT",
+          144,
+          qrY + 36,
+          { width: 300 },
+        );
+    }
 
     // Pie con huella (VeriFactu-ready). Nota: poner margins.bottom a 0 antes
     // de escribir en el margen inferior, o pdfkit añade páginas en blanco.

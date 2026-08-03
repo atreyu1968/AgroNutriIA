@@ -40,6 +40,8 @@ import type {
   AdminUser,
   AdminUserCreate,
   AdminUserUpdate,
+  AdminVerifactuSettings,
+  AdminVerifactuSettingsInput,
   Analysis,
   AnalysisInput,
   AuditEntry,
@@ -6950,6 +6952,225 @@ export const useAdminUpdateBillingSettings = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAdminUpdateBillingSettingsMutationOptions(options));
+    }
+
+export const getAdminGetVerifactuSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/verifactu`
+}
+
+/**
+ * @summary Get VeriFactu (AEAT) settings (admin only)
+ */
+export const adminGetVerifactuSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminVerifactuSettings> => {
+
+  return customFetch<AdminVerifactuSettings>(getAdminGetVerifactuSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetVerifactuSettingsQueryKey = () => {
+    return [
+    `/api/admin/settings/verifactu`
+    ] as const;
+    }
+
+
+export const getAdminGetVerifactuSettingsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetVerifactuSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetVerifactuSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetVerifactuSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetVerifactuSettings>>> = ({ signal }) => adminGetVerifactuSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetVerifactuSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetVerifactuSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetVerifactuSettings>>>
+export type AdminGetVerifactuSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get VeriFactu (AEAT) settings (admin only)
+ */
+
+export function useAdminGetVerifactuSettings<TData = Awaited<ReturnType<typeof adminGetVerifactuSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetVerifactuSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetVerifactuSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminUpdateVerifactuSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/verifactu`
+}
+
+/**
+ * @summary Update VeriFactu (AEAT) settings (admin only)
+ */
+export const adminUpdateVerifactuSettings = async (adminVerifactuSettingsInput: AdminVerifactuSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVerifactuSettings> => {
+
+  return customFetch<AdminVerifactuSettings>(getAdminUpdateVerifactuSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminVerifactuSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getAdminUpdateVerifactuSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateVerifactuSettings>>, TError,{data: BodyType<AdminVerifactuSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateVerifactuSettings>>, TError,{data: BodyType<AdminVerifactuSettingsInput>}, TContext> => {
+
+const mutationKey = ['adminUpdateVerifactuSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateVerifactuSettings>>, {data: BodyType<AdminVerifactuSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminUpdateVerifactuSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateVerifactuSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateVerifactuSettings>>>
+    export type AdminUpdateVerifactuSettingsMutationBody = BodyType<AdminVerifactuSettingsInput>
+    export type AdminUpdateVerifactuSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update VeriFactu (AEAT) settings (admin only)
+ */
+export const useAdminUpdateVerifactuSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateVerifactuSettings>>, TError,{data: BodyType<AdminVerifactuSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateVerifactuSettings>>,
+        TError,
+        {data: BodyType<AdminVerifactuSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateVerifactuSettingsMutationOptions(options));
+    }
+
+export const getAdminSubmitInvoiceVerifactuUrl = (invoiceId: number,) => {
+
+
+
+
+  return `/api/admin/invoices/${invoiceId}/verifactu`
+}
+
+/**
+ * @summary Send (or retry) the VeriFactu record of an invoice to AEAT (admin only)
+ */
+export const adminSubmitInvoiceVerifactu = async (invoiceId: number, options?: Parameters<typeof customFetch>[1]): Promise<AdminInvoice> => {
+
+  return customFetch<AdminInvoice>(getAdminSubmitInvoiceVerifactuUrl(invoiceId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminSubmitInvoiceVerifactuMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSubmitInvoiceVerifactu>>, TError,{invoiceId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminSubmitInvoiceVerifactu>>, TError,{invoiceId: number}, TContext> => {
+
+const mutationKey = ['adminSubmitInvoiceVerifactu'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminSubmitInvoiceVerifactu>>, {invoiceId: number}> = (props) => {
+          const {invoiceId} = props ?? {};
+
+          return  adminSubmitInvoiceVerifactu(invoiceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminSubmitInvoiceVerifactuMutationResult = NonNullable<Awaited<ReturnType<typeof adminSubmitInvoiceVerifactu>>>
+
+    export type AdminSubmitInvoiceVerifactuMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send (or retry) the VeriFactu record of an invoice to AEAT (admin only)
+ */
+export const useAdminSubmitInvoiceVerifactu = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSubmitInvoiceVerifactu>>, TError,{invoiceId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminSubmitInvoiceVerifactu>>,
+        TError,
+        {invoiceId: number},
+        TContext
+      > => {
+      return useMutation(getAdminSubmitInvoiceVerifactuMutationOptions(options));
     }
 
 export const getAdminUpdateInstallationBillingInfoUrl = (installationId: number,) => {

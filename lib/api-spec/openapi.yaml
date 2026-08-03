@@ -1599,6 +1599,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminBillingSettings"
 
+  /admin/settings/verifactu:
+    get:
+      operationId: adminGetVerifactuSettings
+      tags: [admin]
+      summary: Get VeriFactu (AEAT) settings (admin only)
+      responses:
+        "200":
+          description: VeriFactu settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVerifactuSettings"
+    put:
+      operationId: adminUpdateVerifactuSettings
+      tags: [admin]
+      summary: Update VeriFactu (AEAT) settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminVerifactuSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVerifactuSettings"
+
+  /admin/invoices/{invoiceId}/verifactu:
+    post:
+      operationId: adminSubmitInvoiceVerifactu
+      tags: [admin]
+      summary: Send (or retry) the VeriFactu record of an invoice to AEAT (admin only)
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice with updated VeriFactu status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInvoice"
+
   /admin/installations/{installationId}/billing-info:
     put:
       operationId: adminUpdateInstallationBillingInfo
@@ -2300,6 +2349,48 @@ components:
         sentAt: { type: ["string", "null"] }
         paidAt: { type: ["string", "null"] }
         hash: { type: string }
+        verifactu:
+          oneOf:
+            - $ref: "#/components/schemas/AdminInvoiceVerifactu"
+            - type: "null"
+    AdminInvoiceVerifactu:
+      type: object
+      required: [status, attempts]
+      description: Estado del envío del registro de facturación a la AEAT (VeriFactu)
+      properties:
+        status: { type: string, enum: [pending, accepted, accepted_with_errors, rejected, error] }
+        environment: { type: ["string", "null"], enum: [sandbox, production, null] }
+        attempts: { type: integer }
+        csv: { type: ["string", "null"], description: Código seguro de verificación devuelto por la AEAT }
+        errorCode: { type: ["string", "null"] }
+        lastError: { type: ["string", "null"] }
+        sentAt: { type: ["string", "null"] }
+    AdminVerifactuSettings:
+      type: object
+      required: [enabled, environment, certConfigured, keyConfigured, ready, system]
+      properties:
+        enabled: { type: boolean }
+        environment: { type: string, enum: [sandbox, production] }
+        certConfigured: { type: boolean }
+        keyConfigured: { type: boolean }
+        ready: { type: boolean, description: True si está activado y hay certificado y clave }
+        system:
+          type: object
+          required: [providerName, systemName, systemId, version, installationNumber]
+          description: Declaración del sistema informático de facturación (alta ante la AEAT)
+          properties:
+            providerName: { type: string }
+            systemName: { type: string }
+            systemId: { type: string }
+            version: { type: string }
+            installationNumber: { type: string }
+    AdminVerifactuSettingsInput:
+      type: object
+      properties:
+        enabled: { type: ["boolean", "null"] }
+        environment: { type: ["string", "null"], enum: [sandbox, production, null] }
+        certPem: { type: ["string", "null"], maxLength: 20000, description: Certificado del emisor en PEM }
+        keyPem: { type: ["string", "null"], maxLength: 20000, description: Clave privada del certificado en PEM }
 
     AdminFarm:
       type: object

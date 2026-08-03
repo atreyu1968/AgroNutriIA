@@ -141,3 +141,36 @@ export const invoicesTable = pgTable(
   (t) => [uniqueIndex("invoices_series_year_number_unique").on(t.series, t.year, t.number)],
 );
 export type Invoice = typeof invoicesTable.$inferSelect;
+
+/**
+ * Envío del registro de facturación de cada factura a la AEAT (VeriFactu).
+ * Una fila por factura: se crea en estado `pending` al emitir (si VeriFactu
+ * está activado) y el job de envío la va actualizando con la respuesta.
+ */
+export const verifactuSubmissionsTable = pgTable("verifactu_submissions", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id")
+    .notNull()
+    .unique()
+    .references(() => invoicesTable.id, { onDelete: "restrict" }),
+  /** pending | accepted | accepted_with_errors | rejected | error */
+  status: text("status").notNull().default("pending"),
+  /** Entorno AEAT al que se envió: sandbox (pruebas) | production. */
+  environment: text("environment"),
+  /** Intentos de envío realizados. */
+  attempts: integer("attempts").notNull().default(0),
+  /** CSV (código seguro de verificación) devuelto por la AEAT al aceptar. */
+  aeatCsv: text("aeat_csv"),
+  /** Código y descripción de error devueltos por la AEAT, si los hay. */
+  aeatErrorCode: text("aeat_error_code"),
+  lastError: text("last_error"),
+  /** XML del registro enviado (para auditoría y reenvíos). */
+  requestXml: text("request_xml"),
+  /** XML de la respuesta de la AEAT. */
+  responseXml: text("response_xml"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type VerifactuSubmission = typeof verifactuSubmissionsTable.$inferSelect;

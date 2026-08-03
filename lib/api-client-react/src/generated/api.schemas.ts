@@ -679,6 +679,49 @@ export const AdminInvoiceStatus = {
   paid: 'paid',
 } as const;
 
+export type AdminInvoiceVerifactuStatus = typeof AdminInvoiceVerifactuStatus[keyof typeof AdminInvoiceVerifactuStatus];
+
+
+export const AdminInvoiceVerifactuStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  accepted_with_errors: 'accepted_with_errors',
+  rejected: 'rejected',
+  error: 'error',
+} as const;
+
+/**
+ * @nullable
+ */
+export type AdminInvoiceVerifactuEnvironment = typeof AdminInvoiceVerifactuEnvironment[keyof typeof AdminInvoiceVerifactuEnvironment] | null;
+
+
+export const AdminInvoiceVerifactuEnvironment = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+/**
+ * Estado del envío del registro de facturación a la AEAT (VeriFactu)
+ */
+export interface AdminInvoiceVerifactu {
+  status: AdminInvoiceVerifactuStatus;
+  /** @nullable */
+  environment?: AdminInvoiceVerifactuEnvironment;
+  attempts: number;
+  /**
+     * Código seguro de verificación devuelto por la AEAT
+     * @nullable
+     */
+  csv?: string | null;
+  /** @nullable */
+  errorCode?: string | null;
+  /** @nullable */
+  lastError?: string | null;
+  /** @nullable */
+  sentAt?: string | null;
+}
+
 export interface AdminInvoice {
   id: number;
   installationId: number;
@@ -701,6 +744,67 @@ export interface AdminInvoice {
   /** @nullable */
   paidAt?: string | null;
   hash: string;
+  verifactu?: AdminInvoiceVerifactu | null;
+}
+
+export type AdminVerifactuSettingsEnvironment = typeof AdminVerifactuSettingsEnvironment[keyof typeof AdminVerifactuSettingsEnvironment];
+
+
+export const AdminVerifactuSettingsEnvironment = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+/**
+ * Declaración del sistema informático de facturación (alta ante la AEAT)
+ */
+export type AdminVerifactuSettingsSystem = {
+  providerName: string;
+  systemName: string;
+  systemId: string;
+  version: string;
+  installationNumber: string;
+};
+
+export interface AdminVerifactuSettings {
+  enabled: boolean;
+  environment: AdminVerifactuSettingsEnvironment;
+  certConfigured: boolean;
+  keyConfigured: boolean;
+  /** True si está activado y hay certificado y clave */
+  ready: boolean;
+  /** Declaración del sistema informático de facturación (alta ante la AEAT) */
+  system: AdminVerifactuSettingsSystem;
+}
+
+/**
+ * @nullable
+ */
+export type AdminVerifactuSettingsInputEnvironment = typeof AdminVerifactuSettingsInputEnvironment[keyof typeof AdminVerifactuSettingsInputEnvironment] | null;
+
+
+export const AdminVerifactuSettingsInputEnvironment = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+export interface AdminVerifactuSettingsInput {
+  /** @nullable */
+  enabled?: boolean | null;
+  /** @nullable */
+  environment?: AdminVerifactuSettingsInputEnvironment;
+  /**
+     * Certificado del emisor en PEM
+     * @maxLength 20000
+     * @nullable
+     */
+  certPem?: string | null;
+  /**
+     * Clave privada del certificado en PEM
+     * @maxLength 20000
+     * @nullable
+     */
+  keyPem?: string | null;
 }
 
 export interface AdminFarm {

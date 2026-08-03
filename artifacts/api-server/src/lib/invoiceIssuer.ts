@@ -12,6 +12,7 @@ import {
   INVOICE_ISSUE_LOCK_KEY,
   type BillingSettings,
 } from "./invoiceGen";
+import { getVerifactuSettings, enqueueVerifactuSubmission } from "./verifactu";
 
 /**
  * Emisión de una factura a partir de un cargo mensual. Lógica compartida por
@@ -34,6 +35,21 @@ export async function issueInvoiceForCharge(opts: {
   if (!inst.taxId) {
     throw new Error("La instalación no tiene NIF");
   }
+  const inv = await issueInvoiceTx(opts);
+  // Si VeriFactu está activado, se encola el envío del registro a la AEAT
+  // (idempotente: si la factura ya estaba encolada no crea duplicados).
+  const vf = await getVerifactuSettings();
+  if (vf.enabled) await enqueueVerifactuSubmission(inv.id);
+  return inv;
+}
+
+async function issueInvoiceTx(opts: {
+  inst: Installation;
+  charge: BillingCharge;
+  settings: BillingSettings;
+  issueDate?: Date;
+}): Promise<Invoice> {
+  const { inst, charge, settings } = opts;
   const issueDate = opts.issueDate ?? new Date();
   const year = issueDate.getFullYear();
   const subtotalCents = charge.totalCents;

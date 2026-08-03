@@ -2492,6 +2492,96 @@ export const AdminUpdateBillingSettingsResponse = zod.object({
 
 
 /**
+ * @summary Get VeriFactu (AEAT) settings (admin only)
+ */
+export const AdminGetVerifactuSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'production']),
+  "certConfigured": zod.boolean(),
+  "keyConfigured": zod.boolean(),
+  "ready": zod.boolean().describe('True si está activado y hay certificado y clave'),
+  "system": zod.object({
+  "providerName": zod.string(),
+  "systemName": zod.string(),
+  "systemId": zod.string(),
+  "version": zod.string(),
+  "installationNumber": zod.string()
+}).describe('Declaración del sistema informático de facturación (alta ante la AEAT)')
+})
+
+
+/**
+ * @summary Update VeriFactu (AEAT) settings (admin only)
+ */
+export const adminUpdateVerifactuSettingsBodyCertPemMax = 20000;
+
+export const adminUpdateVerifactuSettingsBodyKeyPemMax = 20000;
+
+
+
+export const AdminUpdateVerifactuSettingsBody = zod.object({
+  "enabled": zod.boolean().nullish(),
+  "environment": zod.union([zod.literal('sandbox'),zod.literal('production'),zod.literal(null)]).nullish(),
+  "certPem": zod.string().max(adminUpdateVerifactuSettingsBodyCertPemMax).nullish().describe('Certificado del emisor en PEM'),
+  "keyPem": zod.string().max(adminUpdateVerifactuSettingsBodyKeyPemMax).nullish().describe('Clave privada del certificado en PEM')
+})
+
+export const AdminUpdateVerifactuSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'production']),
+  "certConfigured": zod.boolean(),
+  "keyConfigured": zod.boolean(),
+  "ready": zod.boolean().describe('True si está activado y hay certificado y clave'),
+  "system": zod.object({
+  "providerName": zod.string(),
+  "systemName": zod.string(),
+  "systemId": zod.string(),
+  "version": zod.string(),
+  "installationNumber": zod.string()
+}).describe('Declaración del sistema informático de facturación (alta ante la AEAT)')
+})
+
+
+/**
+ * @summary Send (or retry) the VeriFactu record of an invoice to AEAT (admin only)
+ */
+export const AdminSubmitInvoiceVerifactuParams = zod.object({
+  "invoiceId": zod.coerce.number().int()
+})
+
+export const AdminSubmitInvoiceVerifactuResponse = zod.object({
+  "id": zod.number().int(),
+  "installationId": zod.number().int(),
+  "installationName": zod.string(),
+  "customerTaxId": zod.string().optional(),
+  "fullNumber": zod.string(),
+  "issueDate": zod.string(),
+  "period": zod.string(),
+  "baseCents": zod.number().int().optional(),
+  "farmCount": zod.number().int().optional(),
+  "variableCents": zod.number().int().optional(),
+  "subtotalCents": zod.number().int(),
+  "taxRateBps": zod.number().int(),
+  "taxName": zod.string(),
+  "taxCents": zod.number().int(),
+  "totalCents": zod.number().int(),
+  "status": zod.enum(['issued', 'sent', 'paid']),
+  "sentAt": zod.string().nullish(),
+  "paidAt": zod.string().nullish(),
+  "hash": zod.string(),
+  "verifactu": zod.union([zod.object({
+  "status": zod.enum(['pending', 'accepted', 'accepted_with_errors', 'rejected', 'error']),
+  "environment": zod.union([zod.literal('sandbox'),zod.literal('production'),zod.literal(null)]).nullish(),
+  "attempts": zod.number().int(),
+  "csv": zod.string().nullish().describe('Código seguro de verificación devuelto por la AEAT'),
+  "errorCode": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "sentAt": zod.string().nullish()
+}).describe('Estado del envío del registro de facturación a la AEAT (VeriFactu)'),zod.null()]).optional()
+})
+
+
+/**
  * @summary Update tax id and billing address of an installation (admin only)
  */
 export const AdminUpdateInstallationBillingInfoParams = zod.object({
@@ -2581,7 +2671,16 @@ export const AdminListInvoicesResponseItem = zod.object({
   "status": zod.enum(['issued', 'sent', 'paid']),
   "sentAt": zod.string().nullish(),
   "paidAt": zod.string().nullish(),
-  "hash": zod.string()
+  "hash": zod.string(),
+  "verifactu": zod.union([zod.object({
+  "status": zod.enum(['pending', 'accepted', 'accepted_with_errors', 'rejected', 'error']),
+  "environment": zod.union([zod.literal('sandbox'),zod.literal('production'),zod.literal(null)]).nullish(),
+  "attempts": zod.number().int(),
+  "csv": zod.string().nullish().describe('Código seguro de verificación devuelto por la AEAT'),
+  "errorCode": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "sentAt": zod.string().nullish()
+}).describe('Estado del envío del registro de facturación a la AEAT (VeriFactu)'),zod.null()]).optional()
 })
 export const AdminListInvoicesResponse = zod.array(AdminListInvoicesResponseItem)
 
@@ -2613,7 +2712,16 @@ export const AdminIssueInvoiceResponse = zod.object({
   "status": zod.enum(['issued', 'sent', 'paid']),
   "sentAt": zod.string().nullish(),
   "paidAt": zod.string().nullish(),
-  "hash": zod.string()
+  "hash": zod.string(),
+  "verifactu": zod.union([zod.object({
+  "status": zod.enum(['pending', 'accepted', 'accepted_with_errors', 'rejected', 'error']),
+  "environment": zod.union([zod.literal('sandbox'),zod.literal('production'),zod.literal(null)]).nullish(),
+  "attempts": zod.number().int(),
+  "csv": zod.string().nullish().describe('Código seguro de verificación devuelto por la AEAT'),
+  "errorCode": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "sentAt": zod.string().nullish()
+}).describe('Estado del envío del registro de facturación a la AEAT (VeriFactu)'),zod.null()]).optional()
 })
 
 
@@ -2643,7 +2751,16 @@ export const AdminSendInvoiceResponse = zod.object({
   "status": zod.enum(['issued', 'sent', 'paid']),
   "sentAt": zod.string().nullish(),
   "paidAt": zod.string().nullish(),
-  "hash": zod.string()
+  "hash": zod.string(),
+  "verifactu": zod.union([zod.object({
+  "status": zod.enum(['pending', 'accepted', 'accepted_with_errors', 'rejected', 'error']),
+  "environment": zod.union([zod.literal('sandbox'),zod.literal('production'),zod.literal(null)]).nullish(),
+  "attempts": zod.number().int(),
+  "csv": zod.string().nullish().describe('Código seguro de verificación devuelto por la AEAT'),
+  "errorCode": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "sentAt": zod.string().nullish()
+}).describe('Estado del envío del registro de facturación a la AEAT (VeriFactu)'),zod.null()]).optional()
 })
 
 
@@ -2673,7 +2790,16 @@ export const AdminMarkInvoicePaidResponse = zod.object({
   "status": zod.enum(['issued', 'sent', 'paid']),
   "sentAt": zod.string().nullish(),
   "paidAt": zod.string().nullish(),
-  "hash": zod.string()
+  "hash": zod.string(),
+  "verifactu": zod.union([zod.object({
+  "status": zod.enum(['pending', 'accepted', 'accepted_with_errors', 'rejected', 'error']),
+  "environment": zod.union([zod.literal('sandbox'),zod.literal('production'),zod.literal(null)]).nullish(),
+  "attempts": zod.number().int(),
+  "csv": zod.string().nullish().describe('Código seguro de verificación devuelto por la AEAT'),
+  "errorCode": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "sentAt": zod.string().nullish()
+}).describe('Estado del envío del registro de facturación a la AEAT (VeriFactu)'),zod.null()]).optional()
 })
 
 

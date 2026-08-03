@@ -11,6 +11,10 @@ import {
   useAdminIssueInvoice,
   useAdminSendInvoice,
   useAdminMarkInvoicePaid,
+  useAdminGetVerifactuSettings,
+  getAdminGetVerifactuSettingsQueryKey,
+  useAdminUpdateVerifactuSettings,
+  useAdminSubmitInvoiceVerifactu,
   type AdminInstallation,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,8 +29,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FileText, Loader2, Send, CheckCircle2, Download, Building2, ReceiptText, Pencil,
+  ShieldCheck, RefreshCw,
 } from "lucide-react";
 
 function eur(cents: number): string {
@@ -44,6 +51,13 @@ const INVOICE_BADGES: Record<string, { label: string; className: string }> = {
   paid: { label: "Pagada", className: "bg-green-100 text-green-800" },
 };
 
+const VERIFACTU_BADGES: Record<string, { label: string; className: string }> = {
+  pending: { label: "AEAT: pendiente", className: "bg-slate-100 text-slate-700" },
+  accepted: { label: "AEAT: aceptada", className: "bg-green-100 text-green-800" },
+  accepted_with_errors: { label: "AEAT: con errores", className: "bg-amber-100 text-amber-800" },
+  rejected: { label: "AEAT: rechazada", className: "bg-red-100 text-red-800" },
+  error: { label: "AEAT: error de envío", className: "bg-red-100 text-red-800" },
+};
 function IssuerSettingsCard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -256,9 +270,22 @@ export function FacturacionTab() {
       .map((c) => ({ installation: i, charge: c })),
   );
 
+  const submitVerifactu = useAdminSubmitInvoiceVerifactu({
+    mutation: {
+      onSuccess: (inv) => {
+        invalidate();
+        const st = inv.verifactu?.status;
+        if (st === "accepted") toast({ title: `Registro de ${inv.fullNumber} aceptado por la AEAT` });
+        else toast({ title: `Envío a la AEAT: ${VERIFACTU_BADGES[st ?? ""]?.label ?? st}`, description: inv.verifactu?.lastError ?? undefined });
+      },
+      onError: (err) => toast({ title: "No se pudo enviar a la AEAT", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
   return (
     <div className="space-y-6">
       <IssuerSettingsCard />
+      <VerifactuSettingsCard />
 
       <Card>
         <CardHeader>
@@ -367,7 +394,18 @@ export function FacturacionTab() {
                         </td>
                         <td className="py-3 pr-4 font-medium">{eur(inv.totalCents)}</td>
                         <td className="py-3 pr-4">
-                          <Badge className={badge.className} data-testid={`badge-invoice-${inv.id}`}>{badge.label}</Badge>
+                          <div className="flex flex-col gap-1 items-start">
+                            <Badge className={badge.className} data-testid={`badge-invoice-${inv.id}`}>{badge.label}</Badge>
+                            {inv.verifactu && (
+                              <Badge
+                                className={VERIFACTU_BADGES[inv.verifactu.status]?.className ?? ""}
+                                data-testid={`badge-verifactu-${inv.id}`}
+                                title={inv.verifactu.lastError ?? inv.verifactu.csv ?? undefined}
+                              >
+                                {VERIFACTU_BADGES[inv.verifactu.status]?.label ?? inv.verifactu.status}
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 text-right whitespace-nowrap">
                           <Button asChild variant="ghost" size="sm" data-testid={`button-pdf-${inv.id}`}>
@@ -384,6 +422,17 @@ export function FacturacionTab() {
                           >
                             <Send className="w-3.5 h-3.5 mr-1" /> {inv.status === "issued" ? "Enviar" : "Reenviar"}
                           </Button>
+                          {inv.verifactu && ["pending", "error", "rejected"].includes(inv.verifactu.status) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => submitVerifactu.mutate({ invoiceId: inv.id })}
+                              disabled={submitVerifactu.isPending}
+                              data-testid={`button-verifactu-${inv.id}`}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5 mr-1" /> AEAT
+                            </Button>
+                          )}
                           {inv.status !== "paid" && (
                             <Button
                               variant="outline"
@@ -410,5 +459,118 @@ export function FacturacionTab() {
         <BillingInfoDialog installation={billingInfoFor} onClose={() => setBillingInfoFor(null)} />
       )}
     </div>
+  );
+}
+
+function VerifactuSettingsCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useAdminGetVerifactuSettings({
+    query: { queryKey: getAdminGetVerifactuSettingsQueryKey() },
+  });
+  const [certPem, setCertPem] = useState("");
+  const [keyPem, setKeyPem] = useState("");
+
+  const update = useAdminUpdateVerifactuSettings({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Configuración VeriFactu guardada" });
+        setCertPem("");
+        setKeyPem("");
+        queryClient.invalidateQueries({ queryKey: getAdminGetVerifactuSettingsQueryKey() });
+      },
+      onError: (err) =>
+        toast({ title: "No se pudo guardar", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldCheck className="w-4 h-4" /> VeriFactu — envío a la AEAT
+          {settings?.ready ? (
+            <Badge className="bg-green-100 text-green-800">Activo</Badge>
+          ) : settings?.certConfigured ? (
+            <Badge variant="outline" className="text-amber-700">Desactivado</Badge>
+          ) : (
+            <Badge variant="outline" className="text-amber-700">Sin certificado</Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Con VeriFactu activado, cada factura emitida se remite a la AEAT firmada con el
+          certificado digital del emisor y el PDF incluye el QR de «factura verificable».
+          Sistema declarado: {settings?.system.systemName} v{settings?.system.version} (ID{" "}
+          {settings?.system.systemId}, instalación {settings?.system.installationNumber}).
+        </p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Certificado del emisor (PEM)</Label>
+            <Textarea
+              data-testid="input-verifactu-cert"
+              value={certPem}
+              onChange={(e) => setCertPem(e.target.value)}
+              placeholder={settings?.certConfigured ? "Configurado — pega uno nuevo para sustituirlo" : "-----BEGIN CERTIFICATE-----"}
+              rows={4}
+              className="font-mono text-xs"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Clave privada (PEM)</Label>
+            <Textarea
+              data-testid="input-verifactu-key"
+              value={keyPem}
+              onChange={(e) => setKeyPem(e.target.value)}
+              placeholder={settings?.keyConfigured ? "Configurada — pega una nueva para sustituirla" : "-----BEGIN PRIVATE KEY-----"}
+              rows={4}
+              className="font-mono text-xs"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Switch
+              data-testid="switch-verifactu-enabled"
+              checked={settings?.enabled ?? false}
+              onCheckedChange={(v) => update.mutate({ data: { enabled: v } })}
+            />
+            <Label>Enviar registros a la AEAT</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              data-testid="switch-verifactu-env"
+              checked={settings?.environment === "production"}
+              onCheckedChange={(v) =>
+                update.mutate({ data: { environment: v ? "production" : "sandbox" } })
+              }
+            />
+            <Label>
+              Entorno real{" "}
+              <span className="text-muted-foreground font-normal">
+                ({settings?.environment === "production" ? "producción" : "pruebas AEAT"})
+              </span>
+            </Label>
+          </div>
+          <Button
+            onClick={() =>
+              update.mutate({
+                data: {
+                  ...(certPem.trim() ? { certPem: certPem.trim() } : {}),
+                  ...(keyPem.trim() ? { keyPem: keyPem.trim() } : {}),
+                },
+              })
+            }
+            disabled={update.isPending || (!certPem.trim() && !keyPem.trim())}
+            data-testid="button-save-verifactu"
+          >
+            {update.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Guardar certificado
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

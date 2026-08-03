@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminInvoiceStatus } from './adminInvoiceStatus';
+import type { AdminInvoiceVerifactu } from './adminInvoiceVerifactu';
 
 export interface AdminInvoice {
   id: number;
@@ -29,4 +30,5 @@ export interface AdminInvoice {
   /** @nullable */
   paidAt?: string | null;
   hash: string;
+  verifactu?: AdminInvoiceVerifactu | null;
 }
