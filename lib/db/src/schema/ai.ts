@@ -53,6 +53,7 @@ export const reportsTable = pgTable("reports", {
     .references(() => farmsTable.id, { onDelete: "cascade" }),
   recommendationId: integer("recommendation_id"),
   title: text("title").notNull(),
+  reportType: text("report_type").notNull().default("fertirrigacion"), // fertirrigacion | enmiendas
   format: text("format").notNull(), // pdf | docx
   status: text("status").notNull().default("generating"), // generating | ready | error
   warnings: text("warnings").array(),

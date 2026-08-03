@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import {
   db,
   reportsTable,
@@ -9,6 +9,7 @@ import {
   sectorsTable,
   conversationsTable,
   messagesTable,
+  phytoTreatmentsTable,
 } from "@workspace/db";
 import {
   ListReportsResponse,
@@ -23,8 +24,14 @@ import {
   latestAnalysis,
   activeRecommendation,
   userName,
+  resolveCredential,
 } from "../lib/farmContext";
 import { synthesizeTechnicianNotes } from "../lib/reportNotes";
+import {
+  synthesizeAmendmentPlan,
+  SCENARIO_LABELS,
+  type AmendmentScenario,
+} from "../lib/amendmentPlan";
 import { generatePdf, generateDocx, REPORTS_DIR } from "../lib/reportGen";
 import { audit } from "../lib/audit";
 
@@ -64,8 +71,36 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const reportType = parsed.data.reportType ?? "fertirrigacion";
+  const scenario = (parsed.data.scenario ?? null) as AmendmentScenario | null;
+  if (reportType === "enmiendas") {
+    if (!scenario) {
+      res.status(400).json({
+        error: "Indica el escenario del plan de enmiendas (arranque y siembra, o época de lluvias).",
+      });
+      return;
+    }
+    const credential = await resolveCredential(access.farm, req.user!);
+    if (!credential) {
+      res.status(400).json({
+        error:
+          "No hay ninguna clave de OpenAI configurada. Añádela en Ajustes para generar el plan de enmiendas.",
+      });
+      return;
+    }
+    const soilCheck = await latestAnalysis(farmId, "soil");
+    if (!soilCheck) {
+      res.status(422).json({
+        error:
+          "No hay ninguna analítica de suelo registrada. El plan de enmiendas se basa en las analíticas: registra al menos la de suelo antes de generar este informe.",
+      });
+      return;
+    }
+  }
   let recommendation = null;
-  if (parsed.data.recommendationId != null) {
+  if (reportType === "enmiendas") {
+    // Los informes de enmiendas no incluyen programa de fertirrigación.
+  } else if (parsed.data.recommendationId != null) {
     const [r] = await db
       .select()
       .from(recommendationsTable)
@@ -119,13 +154,17 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
     return;
   }
   const title =
-    parsed.data.title ?? `Informe técnico de fertirrigación — ${access.farm.name}`;
+    parsed.data.title ??
+    (reportType === "enmiendas"
+      ? `Informe de enmiendas del terreno (${SCENARIO_LABELS[scenario!]}) — ${access.farm.name}`
+      : `Informe técnico de fertirrigación — ${access.farm.name}`);
   const [report] = await db
     .insert(reportsTable)
     .values({
       farmId,
       recommendationId: recommendation?.id ?? null,
       title,
+      reportType,
       format: parsed.data.format,
       status: "generating",
       createdBy: req.user!.id,
@@ -142,18 +181,64 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
   const user = req.user!;
   const farm = access.farm;
   const log = req.log;
+  // Año en curso en la zona horaria de las fincas (Canarias), no la del servidor.
+  const canaryYear = (): number =>
+    Number(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Atlantic/Canary",
+        year: "numeric",
+      }).format(new Date()),
+    );
   void (async () => {
     const filePath = path.join(
       REPORTS_DIR,
       `informe-${farmId}-${report.id}.${parsed.data.format}`,
     );
     try {
-      const [soil, leaf, water, sectors] = await Promise.all([
+      const [soil, leaf, water, sectors, treatments] = await Promise.all([
         latestAnalysis(farmId, "soil"),
         latestAnalysis(farmId, "leaf"),
         latestAnalysis(farmId, "water"),
         db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId)),
+        db
+          .select()
+          .from(phytoTreatmentsTable)
+          .where(
+            and(
+              eq(phytoTreatmentsTable.farmId, farmId),
+              gte(phytoTreatmentsTable.applicationDate, `${canaryYear()}-01-01`),
+              lt(phytoTreatmentsTable.applicationDate, `${canaryYear() + 1}-01-01`),
+            ),
+          )
+          .orderBy(desc(phytoTreatmentsTable.applicationDate)),
       ]);
+      let amendment: { scenarioLabel: string; text: string } | null = null;
+      if (reportType === "enmiendas") {
+        const text = await synthesizeAmendmentPlan({
+          farm,
+          user,
+          userId,
+          farmId,
+          scenario: scenario!,
+          soil,
+          water,
+          leaf,
+          sectors,
+          log,
+        });
+        if (!text) {
+          // Sin IA no hay plan: mejor marcar error explícito que un informe vacío.
+          await db
+            .update(reportsTable)
+            .set({ status: "error" })
+            .where(eq(reportsTable.id, report.id));
+          log.error(
+            "Amendment report failed: no AI credential or synthesis error",
+          );
+          return;
+        }
+        amendment = { scenarioLabel: SCENARIO_LABELS[scenario!], text };
+      }
       let technicianNotes: string | null = null;
       if (conversation) {
         technicianNotes = await synthesizeTechnicianNotes({
@@ -174,8 +259,20 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         leaf,
         water,
         recommendation,
+        amendment,
         authorName,
         date: new Date().toLocaleDateString("es-ES"),
+        // El informe de enmiendas se centra en el suelo; el cuaderno
+        // fitosanitario solo va en el informe de fertirrigación.
+        phytoTreatments: (reportType === "enmiendas" ? [] : treatments).map((t) => ({
+          applicationDate: t.applicationDate,
+          productName: t.productName,
+          sectorName:
+            t.sectorId != null
+              ? (sectors.find((s) => s.id === t.sectorId)?.name ?? null)
+              : null,
+          safetyDays: t.safetyDays,
+        })),
       };
       const warnings =
         parsed.data.format === "pdf"

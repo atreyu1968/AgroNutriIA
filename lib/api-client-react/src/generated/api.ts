@@ -61,6 +61,9 @@ import type {
   MessageInput,
   PhytoConsultInput,
   PhytoConsultResult,
+  PhytoPlanPdfInput,
+  PhytoProduct,
+  PhytoProductCreate,
   PhytoTreatment,
   PhytoTreatmentCreate,
   ProductSheet,
@@ -4485,6 +4488,297 @@ export const usePhytoConsult = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getPhytoConsultMutationOptions(options));
+    }
+
+export const getPhytoPlanPdfUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/phyto/plan-pdf`
+}
+
+/**
+ * @summary Download the AI advisor's treatment plan as a PDF report
+ */
+export const phytoPlanPdf = async (farmId: number,
+    phytoPlanPdfInput: PhytoPlanPdfInput, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getPhytoPlanPdfUrl(farmId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(phytoPlanPdfInput)
+  }
+);}
+
+
+
+
+
+export const getPhytoPlanPdfMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof phytoPlanPdf>>, TError,{farmId: number;data: BodyType<PhytoPlanPdfInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof phytoPlanPdf>>, TError,{farmId: number;data: BodyType<PhytoPlanPdfInput>}, TContext> => {
+
+const mutationKey = ['phytoPlanPdf'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof phytoPlanPdf>>, {farmId: number;data: BodyType<PhytoPlanPdfInput>}> = (props) => {
+          const {farmId,data} = props ?? {};
+
+          return  phytoPlanPdf(farmId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PhytoPlanPdfMutationResult = NonNullable<Awaited<ReturnType<typeof phytoPlanPdf>>>
+    export type PhytoPlanPdfMutationBody = BodyType<PhytoPlanPdfInput>
+    export type PhytoPlanPdfMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Download the AI advisor's treatment plan as a PDF report
+ */
+export const usePhytoPlanPdf = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof phytoPlanPdf>>, TError,{farmId: number;data: BodyType<PhytoPlanPdfInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof phytoPlanPdf>>,
+        TError,
+        {farmId: number;data: BodyType<PhytoPlanPdfInput>},
+        TContext
+      > => {
+      return useMutation(getPhytoPlanPdfMutationOptions(options));
+    }
+
+export const getListPhytoProductsUrl = () => {
+
+
+
+
+  return `/api/phyto/products`
+}
+
+/**
+ * @summary List the shared catalog of authorized phytosanitary products
+ */
+export const listPhytoProducts = async ( options?: Parameters<typeof customFetch>[1]): Promise<PhytoProduct[]> => {
+
+  return customFetch<PhytoProduct[]>(getListPhytoProductsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPhytoProductsQueryKey = () => {
+    return [
+    `/api/phyto/products`
+    ] as const;
+    }
+
+
+export const getListPhytoProductsQueryOptions = <TData = Awaited<ReturnType<typeof listPhytoProducts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPhytoProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPhytoProductsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPhytoProducts>>> = ({ signal }) => listPhytoProducts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPhytoProducts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPhytoProductsQueryResult = NonNullable<Awaited<ReturnType<typeof listPhytoProducts>>>
+export type ListPhytoProductsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the shared catalog of authorized phytosanitary products
+ */
+
+export function useListPhytoProducts<TData = Awaited<ReturnType<typeof listPhytoProducts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPhytoProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPhytoProductsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePhytoProductUrl = () => {
+
+
+
+
+  return `/api/phyto/products`
+}
+
+/**
+ * @summary Add or update (by registry number or name) a product in the catalog
+ */
+export const createPhytoProduct = async (phytoProductCreate: PhytoProductCreate, options?: Parameters<typeof customFetch>[1]): Promise<PhytoProduct> => {
+
+  return customFetch<PhytoProduct>(getCreatePhytoProductUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(phytoProductCreate)
+  }
+);}
+
+
+
+
+
+export const getCreatePhytoProductMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPhytoProduct>>, TError,{data: BodyType<PhytoProductCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPhytoProduct>>, TError,{data: BodyType<PhytoProductCreate>}, TContext> => {
+
+const mutationKey = ['createPhytoProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPhytoProduct>>, {data: BodyType<PhytoProductCreate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPhytoProduct(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePhytoProductMutationResult = NonNullable<Awaited<ReturnType<typeof createPhytoProduct>>>
+    export type CreatePhytoProductMutationBody = BodyType<PhytoProductCreate>
+    export type CreatePhytoProductMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add or update (by registry number or name) a product in the catalog
+ */
+export const useCreatePhytoProduct = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPhytoProduct>>, TError,{data: BodyType<PhytoProductCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPhytoProduct>>,
+        TError,
+        {data: BodyType<PhytoProductCreate>},
+        TContext
+      > => {
+      return useMutation(getCreatePhytoProductMutationOptions(options));
+    }
+
+export const getDeletePhytoProductUrl = (productId: number,) => {
+
+
+
+
+  return `/api/phyto/products/${productId}`
+}
+
+/**
+ * @summary Remove a product from the catalog (admin or creator)
+ */
+export const deletePhytoProduct = async (productId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeletePhytoProductUrl(productId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePhytoProductMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePhytoProduct>>, TError,{productId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePhytoProduct>>, TError,{productId: number}, TContext> => {
+
+const mutationKey = ['deletePhytoProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePhytoProduct>>, {productId: number}> = (props) => {
+          const {productId} = props ?? {};
+
+          return  deletePhytoProduct(productId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePhytoProductMutationResult = NonNullable<Awaited<ReturnType<typeof deletePhytoProduct>>>
+
+    export type DeletePhytoProductMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove a product from the catalog (admin or creator)
+ */
+export const useDeletePhytoProduct = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePhytoProduct>>, TError,{productId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePhytoProduct>>,
+        TError,
+        {productId: number},
+        TContext
+      > => {
+      return useMutation(getDeletePhytoProductMutationOptions(options));
     }
 
 export const getGetUsageUrl = (params?: GetUsageParams,) => {

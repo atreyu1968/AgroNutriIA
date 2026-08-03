@@ -1016,6 +1016,73 @@ paths:
               schema:
                 $ref: "#/components/schemas/PhytoConsultResult"
 
+  /farms/{farmId}/phyto/plan-pdf:
+    post:
+      operationId: phytoPlanPdf
+      tags: [phyto]
+      summary: Download the AI advisor's treatment plan as a PDF report
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhytoPlanPdfInput"
+      responses:
+        "200":
+          description: PDF file with the full treatment plan
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /phyto/products:
+    get:
+      operationId: listPhytoProducts
+      tags: [phyto]
+      summary: List the shared catalog of authorized phytosanitary products
+      responses:
+        "200":
+          description: Catalog entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PhytoProduct"
+    post:
+      operationId: createPhytoProduct
+      tags: [phyto]
+      summary: Add or update (by registry number or name) a product in the catalog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhytoProductCreate"
+      responses:
+        "201":
+          description: Created or updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhytoProduct"
+
+  /phyto/products/{productId}:
+    delete:
+      operationId: deletePhytoProduct
+      tags: [phyto]
+      summary: Remove a product from the catalog (admin or creator)
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /usage:
     get:
       operationId: getUsage
@@ -1378,6 +1445,54 @@ components:
         sources:
           type: array
           items: { type: string }
+    PhytoPlanPdfInput:
+      type: object
+      required: [answer]
+      properties:
+        answer: { type: string, minLength: 1, maxLength: 40000 }
+        question: { type: string, nullable: true, maxLength: 4000 }
+        pests:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 120 }
+        sources:
+          type: array
+          maxItems: 30
+          items: { type: string, maxLength: 600, pattern: "^https?://" }
+    PhytoProduct:
+      type: object
+      required: [id, productName, registryNumber, activeIngredient, pests, doseInfo, maxApplicationsYear, safetyDays, expiryDate, exceptional, notes, sourceUrl, lastVerifiedAt, createdByName, updatedAt]
+      properties:
+        id: { type: integer }
+        productName: { type: string }
+        registryNumber: { type: string, nullable: true }
+        activeIngredient: { type: string, nullable: true }
+        pests: { type: string, nullable: true }
+        doseInfo: { type: string, nullable: true }
+        maxApplicationsYear: { type: integer, nullable: true }
+        safetyDays: { type: integer, nullable: true }
+        expiryDate: { type: string, nullable: true, description: "YYYY-MM-DD end of authorization" }
+        exceptional: { type: boolean }
+        notes: { type: string, nullable: true }
+        sourceUrl: { type: string, nullable: true }
+        lastVerifiedAt: { type: string, nullable: true }
+        createdByName: { type: string, nullable: true }
+        updatedAt: { type: string }
+    PhytoProductCreate:
+      type: object
+      required: [productName]
+      properties:
+        productName: { type: string, minLength: 1, maxLength: 200 }
+        registryNumber: { type: string, nullable: true, maxLength: 50 }
+        activeIngredient: { type: string, nullable: true, maxLength: 200 }
+        pests: { type: string, nullable: true, maxLength: 500 }
+        doseInfo: { type: string, nullable: true, maxLength: 500 }
+        maxApplicationsYear: { type: integer, nullable: true, minimum: 0 }
+        safetyDays: { type: integer, nullable: true, minimum: 0 }
+        expiryDate: { type: string, nullable: true, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        exceptional: { type: boolean }
+        notes: { type: string, nullable: true, maxLength: 2000 }
+        sourceUrl: { type: string, nullable: true, maxLength: 500 }
     AuthConfig:
       type: object
       required: [registrationEnabled]
@@ -1548,11 +1663,11 @@ components:
       type: object
       properties:
         name: { type: string, minLength: 1 }
-        plantCount: { type: integer }
-        surfaceHa: { type: number }
-        weeklyLitresPerPlant: { type: number }
-        phenologicalStage: { type: string }
-        notes: { type: string }
+        plantCount: { type: ["integer", "null"] }
+        surfaceHa: { type: ["number", "null"] }
+        weeklyLitresPerPlant: { type: ["number", "null"] }
+        phenologicalStage: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
 
     FarmMember:
       type: object
@@ -1939,6 +2054,7 @@ components:
         id: { type: integer }
         farmId: { type: integer }
         title: { type: string }
+        reportType: { type: string, description: "fertirrigacion | enmiendas" }
         format: { type: string, description: "pdf | docx" }
         status: { type: string, description: "generating | ready | error" }
         warnings:
@@ -1954,6 +2070,15 @@ components:
       properties:
         title: { type: string }
         format: { type: string, enum: [pdf, docx] }
+        reportType:
+          type: string
+          enum: [fertirrigacion, enmiendas]
+          description: Tipo de informe; por defecto fertirrigación
+        scenario:
+          type: string
+          enum: [arranque_siembra, lluvias]
+          nullable: true
+          description: Escenario del plan de enmiendas (obligatorio si reportType=enmiendas)
         recommendationId: { type: integer }
         conversationId:
           type: integer

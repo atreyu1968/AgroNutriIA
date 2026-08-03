@@ -6,10 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ReportInputFormat } from './reportInputFormat';
+import type { ReportInputReportType } from './reportInputReportType';
+import type { ReportInputScenario } from './reportInputScenario';
 
 export interface ReportInput {
   title?: string;
   format: ReportInputFormat;
+  /** Tipo de informe; por defecto fertirrigación */
+  reportType?: ReportInputReportType;
+  /** Escenario del plan de enmiendas (obligatorio si reportType=enmiendas) */
+  scenario?: ReportInputScenario;
   recommendationId?: number;
   /** Conversation with the AI technician whose notes and attachments are summarised into the report */
   conversationId?: number | null;

@@ -9,9 +9,14 @@
 export interface SectorUpdate {
   /** @minLength 1 */
   name?: string;
-  plantCount?: number;
-  surfaceHa?: number;
-  weeklyLitresPerPlant?: number;
-  phenologicalStage?: string;
-  notes?: string;
+  /** @nullable */
+  plantCount?: number | null;
+  /** @nullable */
+  surfaceHa?: number | null;
+  /** @nullable */
+  weeklyLitresPerPlant?: number | null;
+  /** @nullable */
+  phenologicalStage?: string | null;
+  /** @nullable */
+  notes?: string | null;
 }

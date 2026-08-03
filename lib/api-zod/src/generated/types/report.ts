@@ -10,6 +10,8 @@ export interface Report {
   id: number;
   farmId: number;
   title: string;
+  /** fertirrigacion | enmiendas */
+  reportType?: string;
   /** pdf | docx */
   format: string;
   /** generating | ready | error */

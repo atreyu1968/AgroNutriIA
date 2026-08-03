@@ -182,6 +182,73 @@ export interface PhytoConsultResult {
   sources: string[];
 }
 
+export interface PhytoPlanPdfInput {
+  /**
+     * @minLength 1
+     * @maxLength 40000
+     */
+  answer: string;
+  /** @maxLength 4000 */
+  question?: string | null;
+  /**
+     * @maxItems 20
+     * @items.maxLength 120
+     */
+  pests?: string[];
+  /**
+     * @maxItems 30
+     * @items.maxLength 600
+     * @items.pattern ^https?://
+     */
+  sources?: string[];
+}
+
+export interface PhytoProduct {
+  id: number;
+  productName: string;
+  registryNumber: string | null;
+  activeIngredient: string | null;
+  pests: string | null;
+  doseInfo: string | null;
+  maxApplicationsYear: number | null;
+  safetyDays: number | null;
+  /** YYYY-MM-DD end of authorization */
+  expiryDate: string | null;
+  exceptional: boolean;
+  notes: string | null;
+  sourceUrl: string | null;
+  lastVerifiedAt: string | null;
+  createdByName: string | null;
+  updatedAt: string;
+}
+
+export interface PhytoProductCreate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  productName: string;
+  /** @maxLength 50 */
+  registryNumber?: string | null;
+  /** @maxLength 200 */
+  activeIngredient?: string | null;
+  /** @maxLength 500 */
+  pests?: string | null;
+  /** @maxLength 500 */
+  doseInfo?: string | null;
+  /** @minimum 0 */
+  maxApplicationsYear?: number | null;
+  /** @minimum 0 */
+  safetyDays?: number | null;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  expiryDate?: string | null;
+  exceptional?: boolean;
+  /** @maxLength 2000 */
+  notes?: string | null;
+  /** @maxLength 500 */
+  sourceUrl?: string | null;
+}
+
 export interface AuthConfig {
   registrationEnabled: boolean;
 }
@@ -469,11 +536,16 @@ export interface SectorInput {
 export interface SectorUpdate {
   /** @minLength 1 */
   name?: string;
-  plantCount?: number;
-  surfaceHa?: number;
-  weeklyLitresPerPlant?: number;
-  phenologicalStage?: string;
-  notes?: string;
+  /** @nullable */
+  plantCount?: number | null;
+  /** @nullable */
+  surfaceHa?: number | null;
+  /** @nullable */
+  weeklyLitresPerPlant?: number | null;
+  /** @nullable */
+  phenologicalStage?: string | null;
+  /** @nullable */
+  notes?: string | null;
 }
 
 export interface FarmMember {
@@ -854,6 +926,8 @@ export interface Report {
   id: number;
   farmId: number;
   title: string;
+  /** fertirrigacion | enmiendas */
+  reportType?: string;
   /** pdf | docx */
   format: string;
   /** generating | ready | error */
@@ -878,9 +952,35 @@ export const ReportInputFormat = {
   docx: 'docx',
 } as const;
 
+/**
+ * Tipo de informe; por defecto fertirrigación
+ */
+export type ReportInputReportType = typeof ReportInputReportType[keyof typeof ReportInputReportType];
+
+
+export const ReportInputReportType = {
+  fertirrigacion: 'fertirrigacion',
+  enmiendas: 'enmiendas',
+} as const;
+
+/**
+ * Escenario del plan de enmiendas (obligatorio si reportType=enmiendas)
+ */
+export type ReportInputScenario = typeof ReportInputScenario[keyof typeof ReportInputScenario] | null;
+
+
+export const ReportInputScenario = {
+  arranque_siembra: 'arranque_siembra',
+  lluvias: 'lluvias',
+} as const;
+
 export interface ReportInput {
   title?: string;
   format: ReportInputFormat;
+  /** Tipo de informe; por defecto fertirrigación */
+  reportType?: ReportInputReportType;
+  /** Escenario del plan de enmiendas (obligatorio si reportType=enmiendas) */
+  scenario?: ReportInputScenario;
   recommendationId?: number;
   /** Conversation with the AI technician whose notes and attachments are summarised into the report */
   conversationId?: number | null;

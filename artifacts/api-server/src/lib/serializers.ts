@@ -146,6 +146,7 @@ export function serializeReport(r: Report, createdByName?: string | null) {
     id: r.id,
     farmId: r.farmId,
     title: r.title,
+    reportType: r.reportType,
     format: r.format,
     status: r.status,
     warnings: r.warnings ?? null,

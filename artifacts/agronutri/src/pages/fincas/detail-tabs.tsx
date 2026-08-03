@@ -4,7 +4,7 @@ import {
   Tooltip as RechartsTooltip, ReferenceArea, ReferenceLine,
 } from "recharts";
 import { 
-  useListSectors, useCreateSector, useDeleteSector,
+  useListSectors, useCreateSector, useUpdateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis, useUpdateAnalysis,
   useListRecommendations, useChangeRecommendationStatus, useListConversations, getListConversationsQueryKey,
   useListReports, useCreateReport, usePreviewReportNotes,
@@ -45,6 +45,7 @@ export function SectorsTab({ farmId }: { farmId: number }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editingSectorId, setEditingSectorId] = useState<number | null>(null);
 
   const form = useForm<z.infer<typeof sectorSchema>>({
     resolver: zodResolver(sectorSchema),
@@ -64,6 +65,20 @@ export function SectorsTab({ farmId }: { farmId: number }) {
     },
   });
 
+  const updateMutation = useUpdateSector({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Sector actualizado" });
+        queryClient.invalidateQueries({ queryKey: getListSectorsQueryKey(farmId) });
+        setOpen(false);
+        setEditingSectorId(null);
+        form.reset();
+      },
+      onError: () =>
+        toast({ title: "No se pudo guardar el sector", description: "Inténtalo de nuevo.", variant: "destructive" }),
+    },
+  });
+
   const deleteMutation = useDeleteSector({
     mutation: {
       onSuccess: () => {
@@ -76,6 +91,21 @@ export function SectorsTab({ farmId }: { farmId: number }) {
   });
 
   const onSubmit = (v: z.infer<typeof sectorSchema>) => {
+    if (editingSectorId != null) {
+      // Al editar, un campo vacío borra el valor guardado.
+      updateMutation.mutate({
+        farmId,
+        sectorId: editingSectorId,
+        data: {
+          name: v.name.trim(),
+          surfaceHa: v.surfaceHa && isNumeric(v.surfaceHa) ? parseNum(v.surfaceHa) : null,
+          plantCount: v.plantCount && isNumeric(v.plantCount) ? parseNum(v.plantCount) : null,
+          phenologicalStage: v.phenologicalStage?.trim() ? v.phenologicalStage.trim() : null,
+          weeklyLitresPerPlant: v.weeklyLitresPerPlant && isNumeric(v.weeklyLitresPerPlant) ? parseNum(v.weeklyLitresPerPlant) : null,
+        },
+      });
+      return;
+    }
     createMutation.mutate({
       farmId,
       data: {
@@ -88,16 +118,28 @@ export function SectorsTab({ farmId }: { farmId: number }) {
     });
   };
 
+  const startEdit = (s: NonNullable<typeof sectors>[number]) => {
+    setEditingSectorId(s.id);
+    form.reset({
+      name: s.name,
+      surfaceHa: s.surfaceHa != null ? String(s.surfaceHa) : "",
+      plantCount: s.plantCount != null ? String(s.plantCount) : "",
+      phenologicalStage: s.phenologicalStage ?? "",
+      weeklyLitresPerPlant: s.weeklyLitresPerPlant != null ? String(s.weeklyLitresPerPlant) : "",
+    });
+    setOpen(true);
+  };
+
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Sectores de Riego</h3>
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) form.reset(); }}>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditingSectorId(null); form.reset({ name: "", surfaceHa: "", plantCount: "", phenologicalStage: "", weeklyLitresPerPlant: "" }); } }}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Añadir Sector</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Añadir Sector de Riego</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingSectorId != null ? "Editar Sector de Riego" : "Añadir Sector de Riego"}</DialogTitle></DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
@@ -137,9 +179,11 @@ export function SectorsTab({ farmId }: { farmId: number }) {
                     </FormItem>
                   )}/>
                 </div>
-                <Button type="submit" className="w-full" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? (
+                <Button type="submit" className="w-full" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {createMutation.isPending || updateMutation.isPending ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando…</>
+                  ) : editingSectorId != null ? (
+                    "Guardar cambios"
                   ) : (
                     "Crear sector"
                   )}
@@ -173,6 +217,16 @@ export function SectorsTab({ farmId }: { farmId: number }) {
                   <TableCell>{s.phenologicalStage || '-'}</TableCell>
                   <TableCell>{s.weeklyLitresPerPlant || '-'}</TableCell>
                   <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground"
+                      aria-label={`Editar sector ${s.name}`}
+                      data-testid={`button-edit-sector-${s.id}`}
+                      onClick={() => startEdit(s)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -854,6 +908,8 @@ export function ReportsTab({ farmId }: { farmId: number }) {
 
   const { data: recommendations } = useListRecommendations(farmId);
   const [genOpen, setGenOpen] = useState(false);
+  const [reportKind, setReportKind] = useState<"fertirrigacion" | "enmiendas_arranque" | "enmiendas_lluvias">("fertirrigacion");
+  const isAmendment = reportKind !== "fertirrigacion";
   const [selectedRecId, setSelectedRecId] = useState<string>("none");
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [chatConversationId, setChatConversationId] = useState<number | null>(null);
@@ -881,12 +937,18 @@ export function ReportsTab({ farmId }: { farmId: number }) {
   const handleGenerate = () => {
     createMutation.mutate({
       farmId,
-      data: {
-        format,
-        title: "Informe técnico de fertirrigación",
-        ...(selectedRecId !== "none" ? { recommendationId: parseInt(selectedRecId, 10) } : {}),
-        ...(chatConversationId != null ? { conversationId: chatConversationId } : {}),
-      },
+      data: isAmendment
+        ? {
+            format,
+            reportType: "enmiendas",
+            scenario: reportKind === "enmiendas_arranque" ? "arranque_siembra" : "lluvias",
+          }
+        : {
+            format,
+            title: "Informe técnico de fertirrigación",
+            ...(selectedRecId !== "none" ? { recommendationId: parseInt(selectedRecId, 10) } : {}),
+            ...(chatConversationId != null ? { conversationId: chatConversationId } : {}),
+          },
     });
   };
 
@@ -901,6 +963,25 @@ export function ReportsTab({ farmId }: { farmId: number }) {
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Generar informe</DialogTitle></DialogHeader>
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Tipo de informe</Label>
+                <Select value={reportKind} onValueChange={(v) => setReportKind(v as typeof reportKind)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fertirrigacion">Fertirrigación (programa semanal)</SelectItem>
+                    <SelectItem value="enmiendas_arranque">Enmiendas del terreno — arranque y siembra</SelectItem>
+                    <SelectItem value="enmiendas_lluvias">Enmiendas del terreno — época de lluvias</SelectItem>
+                  </SelectContent>
+                </Select>
+                {isAmendment && (
+                  <p className="text-xs text-muted-foreground">
+                    La IA elabora el plan de enmiendas (yeso, cal, materia orgánica...) a partir de las
+                    analíticas más recientes de la finca. Se necesita al menos la analítica de suelo y una
+                    clave de OpenAI configurada.
+                  </p>
+                )}
+              </div>
+              {!isAmendment && (
               <div className="space-y-2">
                 <Label>Programa de abonado a incluir</Label>
                 <Select value={selectedRecId} onValueChange={setSelectedRecId}>
@@ -918,6 +999,7 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                   Elige el programa propuesto por la IA o la versión del técnico (manual o modificada).
                 </p>
               </div>
+              )}
               <div className="space-y-2">
                 <Label>Formato</Label>
                 <Select value={format} onValueChange={(v) => setFormat(v as "pdf" | "docx")}>
@@ -928,6 +1010,7 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                   </SelectContent>
                 </Select>
               </div>
+              {!isAmendment && (<>
               <div className="space-y-2">
                 <Label>Conversación con el técnico IA</Label>
                 <Select
@@ -990,10 +1073,11 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                   )}
                 </div>
               )}
+              </>)}
               <Button className="w-full" onClick={handleGenerate} disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Generando..." : "Generar informe"}
               </Button>
-              {chatConversationId != null && (
+              {!isAmendment && chatConversationId != null && (
                 <p className="text-xs text-muted-foreground text-center">
                   El informe incluirá las observaciones de la conversación con el técnico IA.
                 </p>

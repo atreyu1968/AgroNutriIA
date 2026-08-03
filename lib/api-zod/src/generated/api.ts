@@ -514,11 +514,11 @@ export const UpdateSectorParams = zod.object({
 
 export const UpdateSectorBody = zod.object({
   "name": zod.string().min(1).optional(),
-  "plantCount": zod.number().int().optional(),
-  "surfaceHa": zod.number().optional(),
-  "weeklyLitresPerPlant": zod.number().optional(),
-  "phenologicalStage": zod.string().optional(),
-  "notes": zod.string().optional()
+  "plantCount": zod.number().int().nullish(),
+  "surfaceHa": zod.number().nullish(),
+  "weeklyLitresPerPlant": zod.number().nullish(),
+  "phenologicalStage": zod.string().nullish(),
+  "notes": zod.string().nullish()
 })
 
 export const UpdateSectorResponse = zod.object({
@@ -1508,6 +1508,7 @@ export const ListReportsResponseItem = zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
   "title": zod.string(),
+  "reportType": zod.string().optional().describe('fertirrigacion | enmiendas'),
   "format": zod.string().describe('pdf | docx'),
   "status": zod.string().describe('generating | ready | error'),
   "warnings": zod.array(zod.string()).nullish().describe('Avisos no bloqueantes de la generación (p. ej. logo ausente)'),
@@ -1525,6 +1526,8 @@ export const CreateReportParams = zod.object({
 export const CreateReportBody = zod.object({
   "title": zod.string().optional(),
   "format": zod.enum(['pdf', 'docx']),
+  "reportType": zod.enum(['fertirrigacion', 'enmiendas']).optional().describe('Tipo de informe; por defecto fertirrigación'),
+  "scenario": zod.enum(['arranque_siembra', 'lluvias']).nullish().describe('Escenario del plan de enmiendas (obligatorio si reportType=enmiendas)'),
   "recommendationId": zod.number().int().optional(),
   "conversationId": zod.number().int().nullish().describe('Conversation with the AI technician whose notes and attachments are summarised into the report')
 })
@@ -1533,6 +1536,7 @@ export const CreateReportResponse = zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
   "title": zod.string(),
+  "reportType": zod.string().optional().describe('fertirrigacion | enmiendas'),
   "format": zod.string().describe('pdf | docx'),
   "status": zod.string().describe('generating | ready | error'),
   "warnings": zod.array(zod.string()).nullish().describe('Avisos no bloqueantes de la generación (p. ej. logo ausente)'),
@@ -1685,6 +1689,129 @@ export const PhytoConsultResponse = zod.object({
   "answer": zod.string(),
   "sources": zod.array(zod.string())
 })
+
+
+/**
+ * @summary Download the AI advisor's treatment plan as a PDF report
+ */
+export const PhytoPlanPdfParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const phytoPlanPdfBodyAnswerMax = 40000;
+
+export const phytoPlanPdfBodyQuestionMax = 4000;
+
+export const phytoPlanPdfBodyPestsItemMax = 120;
+
+export const phytoPlanPdfBodyPestsMax = 20;
+
+export const phytoPlanPdfBodySourcesItemMax = 600;
+
+
+export const phytoPlanPdfBodySourcesItemRegExp = new RegExp('^https?:/');
+export const phytoPlanPdfBodySourcesMax = 30;
+
+
+
+export const PhytoPlanPdfBody = zod.object({
+  "answer": zod.string().min(1).max(phytoPlanPdfBodyAnswerMax),
+  "question": zod.string().max(phytoPlanPdfBodyQuestionMax).nullish(),
+  "pests": zod.array(zod.string().max(phytoPlanPdfBodyPestsItemMax)).max(phytoPlanPdfBodyPestsMax).optional(),
+  "sources": zod.array(zod.string().max(phytoPlanPdfBodySourcesItemMax).regex(phytoPlanPdfBodySourcesItemRegExp)).max(phytoPlanPdfBodySourcesMax).optional()
+})
+
+export const PhytoPlanPdfResponse = zod.unknown()
+
+
+/**
+ * @summary List the shared catalog of authorized phytosanitary products
+ */
+export const ListPhytoProductsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "productName": zod.string(),
+  "registryNumber": zod.string().nullable(),
+  "activeIngredient": zod.string().nullable(),
+  "pests": zod.string().nullable(),
+  "doseInfo": zod.string().nullable(),
+  "maxApplicationsYear": zod.number().int().nullable(),
+  "safetyDays": zod.number().int().nullable(),
+  "expiryDate": zod.string().nullable().describe('YYYY-MM-DD end of authorization'),
+  "exceptional": zod.boolean(),
+  "notes": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "lastVerifiedAt": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "updatedAt": zod.string()
+})
+export const ListPhytoProductsResponse = zod.array(ListPhytoProductsResponseItem)
+
+
+/**
+ * @summary Add or update (by registry number or name) a product in the catalog
+ */
+export const createPhytoProductBodyProductNameMax = 200;
+
+export const createPhytoProductBodyRegistryNumberMax = 50;
+
+export const createPhytoProductBodyActiveIngredientMax = 200;
+
+export const createPhytoProductBodyPestsMax = 500;
+
+export const createPhytoProductBodyDoseInfoMax = 500;
+
+export const createPhytoProductBodyMaxApplicationsYearMin = 0;
+
+export const createPhytoProductBodySafetyDaysMin = 0;
+
+export const createPhytoProductBodyExpiryDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createPhytoProductBodyNotesMax = 2000;
+
+export const createPhytoProductBodySourceUrlMax = 500;
+
+
+
+export const CreatePhytoProductBody = zod.object({
+  "productName": zod.string().min(1).max(createPhytoProductBodyProductNameMax),
+  "registryNumber": zod.string().max(createPhytoProductBodyRegistryNumberMax).nullish(),
+  "activeIngredient": zod.string().max(createPhytoProductBodyActiveIngredientMax).nullish(),
+  "pests": zod.string().max(createPhytoProductBodyPestsMax).nullish(),
+  "doseInfo": zod.string().max(createPhytoProductBodyDoseInfoMax).nullish(),
+  "maxApplicationsYear": zod.number().int().min(createPhytoProductBodyMaxApplicationsYearMin).nullish(),
+  "safetyDays": zod.number().int().min(createPhytoProductBodySafetyDaysMin).nullish(),
+  "expiryDate": zod.string().regex(createPhytoProductBodyExpiryDateRegExp).nullish(),
+  "exceptional": zod.boolean().optional(),
+  "notes": zod.string().max(createPhytoProductBodyNotesMax).nullish(),
+  "sourceUrl": zod.string().max(createPhytoProductBodySourceUrlMax).nullish()
+})
+
+export const CreatePhytoProductResponse = zod.object({
+  "id": zod.number().int(),
+  "productName": zod.string(),
+  "registryNumber": zod.string().nullable(),
+  "activeIngredient": zod.string().nullable(),
+  "pests": zod.string().nullable(),
+  "doseInfo": zod.string().nullable(),
+  "maxApplicationsYear": zod.number().int().nullable(),
+  "safetyDays": zod.number().int().nullable(),
+  "expiryDate": zod.string().nullable().describe('YYYY-MM-DD end of authorization'),
+  "exceptional": zod.boolean(),
+  "notes": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "lastVerifiedAt": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Remove a product from the catalog (admin or creator)
+ */
+export const DeletePhytoProductParams = zod.object({
+  "productId": zod.coerce.number().int()
+})
+
+export const DeletePhytoProductResponse = zod.void()
 
 
 export const GetUsageQueryParams = zod.object({

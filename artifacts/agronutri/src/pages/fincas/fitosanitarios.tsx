@@ -8,6 +8,10 @@ import {
   usePhytoConsult,
   useListSectors,
   getListSectorsQueryKey,
+  useListPhytoProducts,
+  getListPhytoProductsQueryKey,
+  useCreatePhytoProduct,
+  useDeletePhytoProduct,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +28,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { SprayCan, Plus, Trash2, ExternalLink, Bot, Loader2, FlaskConical, AlertTriangle } from "lucide-react";
+import { SprayCan, Plus, Trash2, ExternalLink, Bot, Loader2, FlaskConical, AlertTriangle, BookMarked, FileDown } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 const PESTS = [
@@ -67,11 +71,60 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
   const [fSafety, setFSafety] = useState("");
   const [fNotes, setFNotes] = useState("");
 
-  // Asesor IA
+  // Asesor IA (selección múltiple de plagas)
   const [question, setQuestion] = useState("");
-  const [pest, setPest] = useState<string>("none");
+  const [selectedPests, setSelectedPests] = useState<string[]>([]);
   const [aiSector, setAiSector] = useState<string>("all");
   const [answer, setAnswer] = useState<{ answer: string; sources: string[] } | null>(null);
+  const [downloadingPlan, setDownloadingPlan] = useState(false);
+
+  const downloadPlanPdf = async () => {
+    if (!answer) return;
+    setDownloadingPlan(true);
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/farms/${farmId}/phyto/plan-pdf`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answer: answer.answer,
+          question: question.trim() || null,
+          pests: selectedPests,
+          sources: answer.sources,
+        }),
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "plan-tratamiento-fitosanitario.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({
+        title: "No se pudo generar el PDF",
+        description: "Vuelve a intentarlo en unos segundos.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPlan(false);
+    }
+  };
+
+  // Catálogo de productos autorizados
+  const { data: products } = useListPhytoProducts({ query: { queryKey: getListPhytoProductsQueryKey() } });
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<number | null>(null);
+  const [pName, setPName] = useState("");
+  const [pRegistry, setPRegistry] = useState("");
+  const [pActive, setPActive] = useState("");
+  const [pPests, setPPests] = useState("");
+  const [pDose, setPDose] = useState("");
+  const [pMaxApps, setPMaxApps] = useState("");
+  const [pSafety, setPSafety] = useState("");
+  const [pExpiry, setPExpiry] = useState("");
+  const [pNotes, setPNotes] = useState("");
 
   // Calculadora de caldo
   const [cDose, setCDose] = useState("");
@@ -104,10 +157,47 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
 
   const consult = usePhytoConsult({
     mutation: {
-      onSuccess: (data) => setAnswer(data),
+      onSuccess: (data) => {
+        setAnswer(data);
+        // El asesor puede haber guardado productos verificados en el catálogo.
+        queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+      },
       onError: (err) => toast({ title: "Error del asesor", description: errorMessage(err), variant: "destructive" }),
     },
   });
+
+  const createProduct = useCreatePhytoProduct({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+        setAddingProduct(false);
+        setPName(""); setPRegistry(""); setPActive(""); setPPests(""); setPDose("");
+        setPMaxApps(""); setPSafety(""); setPExpiry(""); setPNotes("");
+        toast({ title: "Producto guardado en el catálogo" });
+      },
+      onError: (err) => toast({ title: "No se pudo guardar", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
+  const deleteProduct = useDeletePhytoProduct({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+        setDeletingProduct(null);
+        toast({ title: "Producto eliminado del catálogo" });
+      },
+      onError: (err) => toast({ title: "No se pudo eliminar", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
+  function productStatus(expiryDate: string | null): { label: string; variant: "secondary" | "destructive" | "outline" } {
+    if (!expiryDate) return { label: "Sin fecha de caducidad", variant: "outline" };
+    const today = new Date().toISOString().slice(0, 10);
+    if (expiryDate < today) return { label: `Caducó el ${formatDate(expiryDate)}`, variant: "destructive" };
+    const soon = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    if (expiryDate <= soon) return { label: `Caduca el ${formatDate(expiryDate)}`, variant: "destructive" };
+    return { label: `Vigente hasta ${formatDate(expiryDate)}`, variant: "secondary" };
+  }
 
   const years = useMemo(() => {
     const ys = new Set<string>([String(new Date().getFullYear())]);
@@ -183,14 +273,35 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Plaga o problema</Label>
-              <Select value={pest} onValueChange={setPest}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin especificar</SelectItem>
-                  {PESTS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Plagas o problemas (puedes marcar varias)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {PESTS.map((p) => {
+                  const active = selectedPests.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() =>
+                        setSelectedPests((prev) =>
+                          active ? prev.filter((x) => x !== p) : [...prev, p],
+                        )
+                      }
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedPests.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  El asesor tratará cada plaga y analizará si los tratamientos se pueden combinar.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Sector</Label>
@@ -222,7 +333,7 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
                   farmId,
                   data: {
                     question: question.trim(),
-                    targetPest: pest === "none" ? null : pest,
+                    targetPest: selectedPests.length ? selectedPests.join(", ") : null,
                     sectorId: aiSector === "all" ? null : parseInt(aiSector, 10),
                   },
                 });
@@ -264,10 +375,91 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
                 Contrasta siempre esta información con la etiqueta vigente del producto y el Registro del MAPA.
                 La decisión final corresponde a un técnico autorizado en gestión integrada de plagas.
               </p>
+              <Button variant="outline" size="sm" onClick={downloadPlanPdf} disabled={downloadingPlan} className="gap-1.5">
+                {downloadingPlan ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                {downloadingPlan ? "Generando PDF..." : "Descargar plan en PDF"}
+              </Button>
             </div>
           )}
         </CardContent>
         )}
+      </Card>
+
+      {/* Catálogo de productos autorizados */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0 gap-2 flex-wrap">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BookMarked className="w-5 h-5" /> Productos autorizados
+            </CardTitle>
+            <CardDescription>
+              Catálogo compartido con la fecha de fin de cada autorización. El asesor IA lo rellena
+              automáticamente al verificar productos y lo reutiliza si la verificación es reciente.
+            </CardDescription>
+          </div>
+          {canEdit && (
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setAddingProduct(true)}>
+              <Plus className="w-4 h-4" /> Añadir producto
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {(products ?? []).length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookMarked className="w-8 h-8 mx-auto mb-2 opacity-20" />
+              <p className="text-sm">
+                Aún no hay productos en el catálogo. Consulta al asesor IA y guardará automáticamente
+                los productos que verifique en el Registro del MAPA.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(products ?? []).map((p) => {
+                const st = productStatus(p.expiryDate);
+                return (
+                  <div key={p.id} className="border rounded-lg p-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{p.productName}</span>
+                        {p.registryNumber && <Badge variant="outline" className="text-xs">Reg. {p.registryNumber}</Badge>}
+                        <Badge variant={st.variant} className="text-xs">{st.label}</Badge>
+                        {p.exceptional && <Badge variant="destructive" className="text-xs">Autorización excepcional</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {p.activeIngredient ? `${p.activeIngredient}` : ""}
+                        {p.pests ? ` • Plagas: ${p.pests}` : ""}
+                        {p.doseInfo ? ` • Dosis: ${p.doseInfo}` : ""}
+                        {p.maxApplicationsYear ? ` • Máx ${p.maxApplicationsYear} aplic./año` : ""}
+                        {p.safetyDays != null ? ` • Plazo seg. ${p.safetyDays} días` : ""}
+                      </p>
+                      {p.notes && <p className="text-xs text-muted-foreground mt-1 italic">{p.notes}</p>}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {p.lastVerifiedAt ? `Verificado el ${formatDate(p.lastVerifiedAt)}` : "Añadido manualmente (sin verificación IA)"}
+                        {p.sourceUrl && (
+                          <>
+                            {" · "}
+                            <a href={p.sourceUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                              fuente <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    {canEdit && (
+                      <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProduct(p.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted-foreground pt-1">
+                Un producto caducado o verificado hace más de 30 días se vuelve a comprobar en las fuentes
+                oficiales antes de recomendarse.
+              </p>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -469,6 +661,100 @@ export default function FitosanitariosTab({ farmId, canEdit }: { farmId: number;
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo añadir producto al catálogo */}
+      <Dialog open={addingProduct} onOpenChange={(open) => !open && setAddingProduct(false)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Añadir producto al catálogo</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Producto (nombre comercial)</Label>
+              <Input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Ej.: Movento 150 O-TEQ" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nº de registro (MAPA)</Label>
+                <Input value={pRegistry} onChange={(e) => setPRegistry(e.target.value)} placeholder="Ej.: 25.318" />
+              </div>
+              <div className="space-y-2">
+                <Label>Materia activa</Label>
+                <Input value={pActive} onChange={(e) => setPActive(e.target.value)} placeholder="Ej.: spirotetramat 15%" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Plagas autorizadas en platanera</Label>
+              <Input value={pPests} onChange={(e) => setPPests(e.target.value)} placeholder="Ej.: cochinilla, mosca blanca" />
+            </div>
+            <div className="space-y-2">
+              <Label>Dosis y condiciones</Label>
+              <Input value={pDose} onChange={(e) => setPDose(e.target.value)} placeholder="Ej.: 150 ml/hl, intervalo 14 días" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Máx aplic./año</Label>
+                <Input type="number" min="0" value={pMaxApps} onChange={(e) => setPMaxApps(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Plazo seg. (días)</Label>
+                <Input type="number" min="0" value={pSafety} onChange={(e) => setPSafety(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Autorizado hasta</Label>
+                <Input type="date" value={pExpiry} onChange={(e) => setPExpiry(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notas</Label>
+              <Textarea rows={2} value={pNotes} onChange={(e) => setPNotes(e.target.value)} placeholder="Condiciones, limitaciones, islas..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddingProduct(false)}>Cancelar</Button>
+            <Button
+              disabled={createProduct.isPending || !pName.trim()}
+              onClick={() =>
+                createProduct.mutate({
+                  data: {
+                    productName: pName.trim(),
+                    registryNumber: pRegistry.trim() || null,
+                    activeIngredient: pActive.trim() || null,
+                    pests: pPests.trim() || null,
+                    doseInfo: pDose.trim() || null,
+                    maxApplicationsYear: pMaxApps === "" ? null : parseInt(pMaxApps, 10),
+                    safetyDays: pSafety === "" ? null : parseInt(pSafety, 10),
+                    expiryDate: pExpiry || null,
+                    notes: pNotes.trim() || null,
+                  },
+                })
+              }
+            >
+              Guardar producto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de borrado de producto del catálogo */}
+      <AlertDialog open={deletingProduct !== null} onOpenChange={(open) => !open && setDeletingProduct(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este producto del catálogo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              El catálogo es compartido: dejará de estar disponible para todos. Solo el administrador o
+              quien lo añadió puede eliminarlo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletingProduct && deleteProduct.mutate({ productId: deletingProduct })}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmación de borrado */}
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>

@@ -57,7 +57,24 @@ export type ReportData = {
   authorName: string;
   date: string;
   technicianNotes?: string | null;
+  phytoTreatments?: {
+    applicationDate: string;
+    productName: string;
+    sectorName: string | null;
+    safetyDays: number | null;
+  }[];
+  /** Informe de enmiendas: sustituye al programa de fertirrigación. */
+  amendment?: { scenarioLabel: string; text: string } | null;
 };
+
+/** Fecha a partir de la cual se puede cosechar (aplicación + plazo de seguridad). */
+function harvestFromDate(applicationDate: string, safetyDays: number | null): string {
+  if (safetyDays == null) return "—";
+  const d = new Date(`${applicationDate}T00:00:00Z`);
+  if (isNaN(d.getTime())) return "—";
+  d.setUTCDate(d.getUTCDate() + safetyDays);
+  return d.toISOString().slice(0, 10).split("-").reverse().join("/");
+}
 
 type Section = { heading: string; paragraphs: string[]; table?: string[][] };
 
@@ -109,6 +126,26 @@ function buildSections(d: ReportData): Section[] {
     });
     n++;
   }
+  if (d.amendment) {
+    // Render ligero: guiones como viñetas; párrafos separados por líneas en blanco.
+    const paragraphs = d.amendment.text
+      .split("\n")
+      .map((l) => l.trimEnd())
+      .filter((l, i, arr) => l.trim() !== "" || (arr[i - 1] ?? "").trim() !== "")
+      .map((l) => {
+        const bullet = l.match(/^\s*[-*]\s+(.*)/);
+        return bullet ? `\u2022 ${bullet[1]}` : l.trim();
+      })
+      .filter(Boolean);
+    sections.push({
+      heading: `${n}. Plan de enmiendas del terreno — ${d.amendment.scenarioLabel}`,
+      paragraphs: [
+        "Elaborado a partir de las analíticas más recientes registradas en la finca. Debe validarlo el técnico responsable antes de aplicar.",
+        ...paragraphs,
+      ],
+    });
+    n++;
+  }
   if (d.recommendation) {
     const r = d.recommendation;
     const originLabel = r.source === "ai" ? "[IA]" : "[Técnico]";
@@ -140,6 +177,31 @@ function buildSections(d: ReportData): Section[] {
       n++;
     }
   }
+  if (d.phytoTreatments?.length) {
+    sections.push({
+      heading: `${n}. Tratamientos fitosanitarios y plazos de seguridad`,
+      paragraphs: [
+        "Aplicaciones registradas en el cuaderno de tratamientos de la campaña actual, con la fecha de inicio de cada tratamiento y la fecha en la que termina su plazo de seguridad.",
+      ],
+      table: [
+        [
+          "Fecha de inicio del tratamiento",
+          "Producto",
+          "Sector",
+          "Plazo seg. (días)",
+          "Fecha de fin de plazo de seguridad",
+        ],
+        ...d.phytoTreatments.map((t) => [
+          t.applicationDate.split("-").reverse().join("/"),
+          t.productName,
+          t.sectorName ?? "Toda la finca",
+          t.safetyDays != null ? String(t.safetyDays) : "—",
+          harvestFromDate(t.applicationDate, t.safetyDays),
+        ]),
+      ],
+    });
+    n++;
+  }
   if (d.technicianNotes) {
     sections.push({
       heading: `${n}. Observaciones del técnico`,
@@ -155,7 +217,6 @@ function buildSections(d: ReportData): Section[] {
     paragraphs: [
       "Repetir analítica foliar cada 6 meses y de suelo/agua cada 12 meses, o antes si cambian las condiciones de riego.",
       "Este informe se ha generado con AgroNutri AI a partir de los datos registrados de la finca y debe ser validado por el técnico responsable.",
-      `Elaborado por: ${d.authorName}. Fecha: ${d.date}.`,
     ],
   });
   return sections;
@@ -315,18 +376,39 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<stri
     doc.fillColor("black").moveDown();
     for (const s of sections) {
       // Keep heading attached to the following content
-      if (doc.y > doc.page.height - MARGIN - 90) doc.addPage();
-      doc.moveDown(0.6);
+      if (doc.y > doc.page.height - MARGIN - 110) doc.addPage();
+      doc.moveDown(1.4);
       doc.fontSize(13).font("Helvetica-Bold").fillColor("#1e4d36").text(s.heading);
       doc.fillColor("black");
-      doc.moveDown(0.3);
+      doc.moveDown(0.4);
       doc.fontSize(10).font("Helvetica");
-      for (const p of s.paragraphs) doc.text(pdfSafe(p), { lineGap: 2 });
+      for (const p of s.paragraphs) doc.text(pdfSafe(p), { lineGap: 2, paragraphGap: 4 });
       if (s.table) {
         doc.moveDown(0.3);
         drawTable(doc, s.table);
       }
     }
+    // Bloque de firma: espacio amplio para firmar sobre la línea, encima del
+    // nombre del técnico. Si no cabe en la página actual, pasa a la siguiente.
+    const SIGNATURE_SPACE = 90; // ~3 cm libres para la firma
+    const signatureBlockH = SIGNATURE_SPACE + 50;
+    if (doc.y + signatureBlockH > doc.page.height - MARGIN) doc.addPage();
+    doc.y += SIGNATURE_SPACE;
+    const lineW = 220;
+    doc
+      .moveTo(MARGIN, doc.y)
+      .lineTo(MARGIN + lineW, doc.y)
+      .lineWidth(0.8)
+      .strokeColor("#555555")
+      .stroke();
+    doc.y += 6;
+    doc.fontSize(9).font("Helvetica").fillColor("#555555").text("Firma del técnico", MARGIN);
+    doc.moveDown(0.4);
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("black")
+      .text(pdfSafe(`Elaborado por: ${d.authorName}. Fecha: ${d.date}.`), MARGIN);
     // Footer with page numbers on every buffered page
     const range = doc.bufferedPageRange();
     const total = range.start + range.count;
@@ -360,6 +442,152 @@ export async function generatePdf(d: ReportData, filePath: string): Promise<stri
     stream.on("error", reject);
   });
   return warnings;
+}
+
+export type PhytoPlanData = {
+  farmName: string;
+  authorName: string;
+  date: string;
+  pests: string[];
+  question: string | null;
+  answer: string;
+  sources: string[];
+};
+
+/**
+ * PDF del plan de tratamiento fitosanitario del asesor IA. Renderiza la
+ * respuesta (markdown ligero: títulos #, listas -, negritas **) con el mismo
+ * estilo que los informes, más fuentes y bloque de firma.
+ */
+export async function generatePhytoPlanPdf(d: PhytoPlanData): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    const doc = new PDFDocument({ margin: MARGIN, size: "A4", bufferPages: true });
+    const chunks: Buffer[] = [];
+    doc.on("data", (c: Buffer) => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.rect(0, 0, doc.page.width, 6).fill("#1e4d36");
+    doc.fillColor("black");
+    doc.y = MARGIN;
+    const logoW = 140;
+    const logoPath = resolveLogo();
+    if (logoPath) {
+      doc.image(logoPath, MARGIN, MARGIN, { width: logoW });
+      doc.y = MARGIN + logoW * LOGO_RATIO + 14;
+    }
+    doc.x = MARGIN;
+    doc
+      .fontSize(18)
+      .font("Helvetica-Bold")
+      .fillColor("#1e4d36")
+      .text("Plan de tratamiento fitosanitario");
+    doc.moveDown(0.3);
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#555555")
+      .text(pdfSafe(`AgroNutri AI — Finca ${d.farmName} · ${d.date}`));
+    doc.fillColor("black").moveDown(1);
+
+    if (d.pests.length) {
+      doc.fontSize(10).font("Helvetica-Bold").text("Plagas o problemas consultados: ", { continued: true });
+      doc.font("Helvetica").text(pdfSafe(d.pests.join(", ")));
+      doc.moveDown(0.4);
+    }
+    if (d.question) {
+      doc.fontSize(10).font("Helvetica-Bold").text("Consulta: ", { continued: true });
+      doc.font("Helvetica").text(pdfSafe(d.question), { lineGap: 2 });
+      doc.moveDown(0.4);
+    }
+    doc.moveDown(0.4);
+
+    // Render markdown ligero línea a línea
+    const stripInline = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/`/g, "");
+    for (const rawLine of d.answer.split("\n")) {
+      const line = rawLine.trimEnd();
+      if (!line.trim()) {
+        doc.moveDown(0.5);
+        continue;
+      }
+      if (doc.y > doc.page.height - MARGIN - 40) doc.addPage();
+      const heading = line.match(/^(#{1,4})\s+(.*)/);
+      if (heading) {
+        doc.moveDown(0.6);
+        doc
+          .fontSize(heading[1].length <= 2 ? 13 : 11)
+          .font("Helvetica-Bold")
+          .fillColor("#1e4d36")
+          .text(pdfSafe(stripInline(heading[2])));
+        doc.fillColor("black").moveDown(0.2);
+        continue;
+      }
+      const bullet = line.match(/^\s*[-*]\s+(.*)/);
+      doc.fontSize(10).font("Helvetica");
+      if (bullet) {
+        doc.text(pdfSafe(`\u2022 ${stripInline(bullet[1])}`), MARGIN + 10, doc.y, {
+          width: doc.page.width - MARGIN * 2 - 10,
+          lineGap: 2,
+        });
+        doc.x = MARGIN;
+      } else {
+        doc.text(pdfSafe(stripInline(line)), { lineGap: 2 });
+      }
+    }
+
+    if (d.sources.length) {
+      doc.moveDown(1);
+      if (doc.y > doc.page.height - MARGIN - 80) doc.addPage();
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#1e4d36").text("Fuentes consultadas");
+      doc.fillColor("black").moveDown(0.3);
+      doc.fontSize(9).font("Helvetica").fillColor("#1d4ed8");
+      for (const s of d.sources) doc.text(pdfSafe(s), { lineGap: 2, link: s });
+      doc.fillColor("black");
+    }
+
+    doc.moveDown(1);
+    if (doc.y > doc.page.height - MARGIN - 90) doc.addPage();
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .fillColor("#555555")
+      .text(
+        "Contrasta siempre esta información con la etiqueta vigente del producto y el Registro de Productos Fitosanitarios del MAPA. La decisión final corresponde a un técnico autorizado en gestión integrada de plagas.",
+        { lineGap: 2 },
+      );
+    doc.fillColor("black");
+    doc.moveDown(0.6);
+    doc.fontSize(10).text(pdfSafe(`Generado por: ${d.authorName}. Fecha: ${d.date}.`));
+
+    // Pie con paginación
+    const range = doc.bufferedPageRange();
+    const total = range.start + range.count;
+    for (let i = range.start; i < total; i++) {
+      doc.switchToPage(i);
+      const savedBottom = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
+      const footerY = doc.page.height - MARGIN + 8;
+      doc.fontSize(8).font("Helvetica").fillColor("#777777");
+      doc.text(pdfSafe(d.farmName), MARGIN, footerY, {
+        width: doc.page.width - MARGIN * 2,
+        align: "left",
+        lineBreak: false,
+      });
+      doc.text(`Página ${i - range.start + 1} de ${range.count}`, MARGIN, footerY, {
+        width: doc.page.width - MARGIN * 2,
+        align: "center",
+        lineBreak: false,
+      });
+      doc.text("AgroNutri AI", MARGIN, footerY, {
+        width: doc.page.width - MARGIN * 2,
+        align: "right",
+        lineBreak: false,
+      });
+      doc.fillColor("black");
+      doc.page.margins.bottom = savedBottom;
+    }
+    doc.end();
+  });
 }
 
 export async function generateDocx(d: ReportData, filePath: string): Promise<string[]> {
@@ -397,10 +625,12 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<str
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_1,
+        spacing: { before: 360, after: 160 },
         children: [new TextRun({ text: s.heading, color: "1e4d36" })],
       }),
     );
-    for (const p of s.paragraphs) children.push(new Paragraph({ text: p }));
+    for (const p of s.paragraphs)
+      children.push(new Paragraph({ text: p, spacing: { after: 120 } }));
     if (s.table) {
       children.push(
         new Table({
@@ -443,6 +673,18 @@ export async function generateDocx(d: ReportData, filePath: string): Promise<str
       );
     }
   }
+  // Bloque de firma: espacio amplio antes de la línea y el nombre del técnico.
+  children.push(
+    new Paragraph({ text: "", spacing: { before: 1800 } }),
+    new Paragraph({
+      children: [new TextRun({ text: "_".repeat(40), color: "555555" })],
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "Firma del técnico", size: 18, color: "555555" })],
+      spacing: { after: 160 },
+    }),
+    new Paragraph({ text: `Elaborado por: ${d.authorName}. Fecha: ${d.date}.` }),
+  );
   const footer = new Footer({
     children: [
       new Paragraph({
