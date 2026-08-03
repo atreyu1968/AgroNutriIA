@@ -301,6 +301,46 @@ test("generatePdf funciona con datos mínimos (sin analíticas ni recomendación
   assert.ok(text.includes("Seguimiento"), "incluye la sección de seguimiento");
 });
 
+test("el logo de AgroNutri existe en assets y es un PNG válido", () => {
+  const logoPath = path.resolve(process.cwd(), "assets", "logo.png");
+  assert.ok(fs.existsSync(logoPath), `el logo debe existir en ${logoPath}`);
+  const buf = fs.readFileSync(logoPath);
+  assert.ok(buf.length > 100, "el logo no debe estar vacío");
+  assert.equal(
+    buf.subarray(0, 8).toString("hex"),
+    "89504e470d0a1a0a",
+    "el logo debe tener la firma PNG",
+  );
+});
+
+test("generatePdf incrusta el logo como imagen en el PDF", async () => {
+  const filePath = path.join(tmpDir, "informe-logo.pdf");
+  await generatePdf(data, filePath);
+  const buf = fs.readFileSync(filePath);
+  const raw = buf.toString("latin1");
+  assert.ok(
+    /\/Subtype\s*\/Image/.test(raw),
+    "el PDF debe contener al menos un XObject de tipo imagen (el logo)",
+  );
+});
+
+test("generateDocx incrusta el logo como imagen en el DOCX", async () => {
+  const filePath = path.join(tmpDir, "informe-logo.docx");
+  await generateDocx(data, filePath);
+  const zip = await JSZip.loadAsync(fs.readFileSync(filePath));
+  const mediaFiles = Object.keys(zip.files).filter(
+    (f) => f.startsWith("word/media/") && !zip.files[f].dir,
+  );
+  assert.ok(mediaFiles.length > 0, "el DOCX debe incluir al menos una imagen en word/media/");
+  const pngs = await Promise.all(mediaFiles.map((f) => zip.file(f)!.async("nodebuffer")));
+  assert.ok(
+    pngs.some((b) => b.subarray(0, 8).toString("hex") === "89504e470d0a1a0a"),
+    "al menos una imagen incrustada debe ser un PNG (el logo)",
+  );
+  const docXml = await zip.file("word/document.xml")!.async("string");
+  assert.match(docXml, /<w:drawing>/, "el documento referencia la imagen mediante w:drawing");
+});
+
 test("generateDocx crea un DOCX válido con contenido y pie de página", async () => {
   const filePath = path.join(tmpDir, "informe.docx");
   await generateDocx(data, filePath);
