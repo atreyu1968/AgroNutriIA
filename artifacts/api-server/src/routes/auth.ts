@@ -59,10 +59,16 @@ export function registrationEnabled(): boolean {
 }
 
 router.get("/auth/config", (_req, res): void => {
+  // Credenciales de la cuenta de prueba: SOLO se exponen en la instalación
+  // de demostración (DEMO_MODE=true) y si el aprovisionador las configuró.
+  const demoEmail = process.env.DEMO_EMAIL?.trim();
+  const demoPassword = process.env.DEMO_PASSWORD;
+  const exposeDemoCredentials = demoMode() && !!demoEmail && !!demoPassword;
   res.json({
     registrationEnabled: registrationEnabled(),
     coopInstance: isCoopInstance(),
     demoMode: demoMode(),
+    ...(exposeDemoCredentials ? { demoEmail, demoPassword } : {}),
   });
 });
 

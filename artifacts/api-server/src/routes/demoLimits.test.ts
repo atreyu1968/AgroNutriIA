@@ -134,6 +134,29 @@ after(async () => {
   await pool.end();
 });
 
+test("/auth/config expone las credenciales de demo solo si están configuradas", async (t) => {
+  // Sin DEMO_EMAIL/DEMO_PASSWORD no se exponen credenciales aunque demoMode=true.
+  delete process.env.DEMO_EMAIL;
+  delete process.env.DEMO_PASSWORD;
+  let res = await fetch(`${baseUrl}/api/auth/config`);
+  let json = (await res.json()) as Record<string, unknown>;
+  assert.equal(json.demoMode, true);
+  assert.ok(!("demoEmail" in json));
+  assert.ok(!("demoPassword" in json));
+
+  // Con las variables configuradas, se exponen en la respuesta.
+  process.env.DEMO_EMAIL = "demo@prueba.local";
+  process.env.DEMO_PASSWORD = "demo1234";
+  t.after(() => {
+    delete process.env.DEMO_EMAIL;
+    delete process.env.DEMO_PASSWORD;
+  });
+  res = await fetch(`${baseUrl}/api/auth/config`);
+  json = (await res.json()) as Record<string, unknown>;
+  assert.equal(json.demoEmail, "demo@prueba.local");
+  assert.equal(json.demoPassword, "demo1234");
+});
+
 test("la segunda finca se rechaza con 403 y el mensaje de la demo", async () => {
   const { status, json } = await api("POST", "/farms", {
     name: "Segunda finca prohibida",

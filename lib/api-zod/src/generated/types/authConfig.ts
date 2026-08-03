@@ -10,4 +10,6 @@ export interface AuthConfig {
   registrationEnabled: boolean;
   coopInstance: boolean;
   demoMode: boolean;
+  demoEmail?: string;
+  demoPassword?: string;
 }

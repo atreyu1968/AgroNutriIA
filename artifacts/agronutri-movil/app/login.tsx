@@ -28,6 +28,8 @@ export default function LoginScreen() {
     query: { queryKey: getGetAuthConfigQueryKey() },
   });
   const demoMode = authConfigQuery.data?.demoMode === true;
+  const demoEmail = authConfigQuery.data?.demoEmail;
+  const demoPassword = authConfigQuery.data?.demoPassword;
 
   const login = useLogin({
     mutation: {
@@ -83,6 +85,27 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
         )}
+
+        {demoMode && demoEmail && demoPassword ? (
+          <View style={[styles.demoCredentials, { backgroundColor: '#fef3c7', borderColor: '#fde68a' }]}>
+            <Text style={styles.demoBannerText} testID="text-demo-credentials">
+              Usuario: <Text style={styles.demoCredentialValue}>{demoEmail}</Text>
+              {'\n'}
+              Contraseña: <Text style={styles.demoCredentialValue}>{demoPassword}</Text>
+            </Text>
+            <Pressable
+              testID="button-demo-login"
+              accessibilityRole="button"
+              disabled={login.isPending}
+              onPress={() => login.mutate({ data: { email: demoEmail, password: demoPassword } })}
+              style={[styles.demoButton, { borderColor: '#fbbf24' }]}
+            >
+              <Text style={styles.demoButtonText}>
+                {login.isPending ? 'Entrando...' : 'Probar la demo'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.form}>
           <Text style={[styles.label, { color: c.foreground }]}>Correo electrónico</Text>
@@ -183,6 +206,32 @@ const styles = StyleSheet.create({
   demoBannerLink: {
     fontFamily: 'Inter_600SemiBold',
     textDecorationLine: 'underline',
+    color: '#92400e',
+  },
+  demoCredentials: {
+    borderWidth: 1,
+    borderRadius: colors.radius,
+    width: '100%',
+    maxWidth: 420,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  demoCredentialValue: {
+    fontFamily: 'Inter_600SemiBold',
+  },
+  demoButton: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: colors.radius,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  demoButtonText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
     color: '#92400e',
   },
   form: {

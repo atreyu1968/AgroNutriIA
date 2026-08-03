@@ -2140,6 +2140,10 @@ components:
         registrationEnabled: { type: boolean }
         coopInstance: { type: boolean }
         demoMode: { type: boolean }
+        # Credenciales de la cuenta de prueba; SOLO presentes cuando demoMode=true
+        # y la instalación las ha configurado (DEMO_EMAIL / DEMO_PASSWORD).
+        demoEmail: { type: string }
+        demoPassword: { type: string }
     AdminUserCreate:
       type: object
       required: [email, name, password]

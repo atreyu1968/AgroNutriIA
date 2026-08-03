@@ -106,6 +106,12 @@ EOF
 # tipo (exporta DEMO_MODE=1 al invocar este script).
 if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then
   echo "DEMO_MODE=true" >> "$ENV_FILE"
+  # La pantalla de login muestra estas credenciales de prueba y un botón
+  # "Probar la demo" (solo se exponen cuando DEMO_MODE=true).
+  cat >> "$ENV_FILE" <<EOF
+DEMO_EMAIL=${ADMIN_EMAIL}
+DEMO_PASSWORD=${ADMIN_PASSWORD}
+EOF
   echo "   (instancia de DEMOSTRACIÓN: 1 finca y 1 informe de cada tipo)"
 fi
 # Reporte automático de uso: la instancia cuenta sus fincas activas y las

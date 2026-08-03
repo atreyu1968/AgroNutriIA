@@ -2051,7 +2051,9 @@ export const GetDashboardResponse = zod.object({
 export const GetAuthConfigResponse = zod.object({
   "registrationEnabled": zod.boolean(),
   "coopInstance": zod.boolean(),
-  "demoMode": zod.boolean()
+  "demoMode": zod.boolean(),
+  "demoEmail": zod.string().optional(),
+  "demoPassword": zod.string().optional()
 })
 
 

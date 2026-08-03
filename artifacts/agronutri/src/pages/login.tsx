@@ -66,10 +66,36 @@ export default function Login() {
           className="mb-6 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2 text-center"
           data-testid="banner-demo-mode"
         >
-          Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{" "}
-          <Link href="/landing" className="font-medium underline underline-offset-2 hover:text-amber-700">
-            Contrata AgroNutri AI
-          </Link>
+          <p>
+            Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{" "}
+            <Link href="/landing" className="font-medium underline underline-offset-2 hover:text-amber-700">
+              Contrata AgroNutri AI
+            </Link>
+          </p>
+          {authConfig.demoEmail && authConfig.demoPassword && (
+            <div className="mt-3 space-y-2">
+              <p data-testid="text-demo-credentials">
+                Usuario: <span className="font-mono font-medium">{authConfig.demoEmail}</span>
+                {" · "}
+                Contraseña: <span className="font-mono font-medium">{authConfig.demoPassword}</span>
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                data-testid="button-demo-login"
+                disabled={loginMutation.isPending}
+                onClick={() =>
+                  loginMutation.mutate({
+                    data: { email: authConfig.demoEmail!, password: authConfig.demoPassword! },
+                  })
+                }
+              >
+                {loginMutation.isPending ? "Entrando..." : "Probar la demo"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
       <Form {...form}>

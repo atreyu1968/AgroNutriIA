@@ -307,6 +307,8 @@ export interface AuthConfig {
   registrationEnabled: boolean;
   coopInstance: boolean;
   demoMode: boolean;
+  demoEmail?: string;
+  demoPassword?: string;
 }
 
 export type AdminUserCreateRole = typeof AdminUserCreateRole[keyof typeof AdminUserCreateRole];
