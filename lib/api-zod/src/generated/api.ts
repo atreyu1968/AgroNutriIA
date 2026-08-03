@@ -19,6 +19,8 @@ export const HealthCheckResponse = zod.object({
 export const registerBodyPasswordMin = 8;
 
 
+
+
 export const RegisterBody = zod.object({
   "email": zod.string().email(),
   "password": zod.string().min(registerBodyPasswordMin),
@@ -86,6 +88,7 @@ export const GetMeResponse = zod.object({
 export const updateMeBodyPasswordMin = 8;
 
 
+
 export const UpdateMeBody = zod.object({
   "name": zod.string().optional(),
   "company": zod.string().optional(),
@@ -143,6 +146,9 @@ export const ListFarmsResponseItem = zod.object({
   "sectorCount": zod.number().int().nullish()
 })
 export const ListFarmsResponse = zod.array(ListFarmsResponseItem)
+
+
+
 
 
 export const CreateFarmBody = zod.object({
@@ -240,6 +246,8 @@ export const GetFarmResponse = zod.object({
 export const UpdateFarmParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateFarmBody = zod.object({
@@ -453,6 +461,8 @@ export const CreateSectorParams = zod.object({
 })
 
 
+
+
 export const CreateSectorBody = zod.object({
   "name": zod.string().min(1),
   "plantCount": zod.number().int().optional(),
@@ -478,6 +488,8 @@ export const UpdateSectorParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "sectorId": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateSectorBody = zod.object({
@@ -775,6 +787,9 @@ export const ListFertilizersResponseItem = zod.object({
 export const ListFertilizersResponse = zod.array(ListFertilizersResponseItem)
 
 
+
+
+
 export const CreateFertilizerBody = zod.object({
   "name": zod.string().min(1),
   "formulaType": zod.string().optional(),
@@ -822,6 +837,8 @@ export const CreateFertilizerResponse = zod.object({
 export const UpdateFertilizerParams = zod.object({
   "fertilizerId": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateFertilizerBody = zod.object({
@@ -1194,7 +1211,9 @@ export const ListCredentialsResponseItem = zod.object({
 export const ListCredentialsResponse = zod.array(ListCredentialsResponseItem)
 
 
+
 export const createCredentialBodyApiKeyMin = 10;
+
 
 
 export const CreateCredentialBody = zod.object({
@@ -1224,6 +1243,7 @@ export const UpdateCredentialParams = zod.object({
 })
 
 export const updateCredentialBodyApiKeyMin = 10;
+
 
 
 export const UpdateCredentialBody = zod.object({
@@ -1377,6 +1397,8 @@ export const SendMessageParams = zod.object({
 })
 
 
+
+
 export const SendMessageBody = zod.object({
   "content": zod.string().min(1),
   "draftContext": zod.string().nullish().describe('Optional description of the fertilization plan the user is editing, added to the assistant context')
@@ -1498,6 +1520,22 @@ export const CreateReportResponse = zod.object({
 })
 
 
+/**
+ * @summary Generate an on-demand preview of the «Observaciones del técnico» section for a conversation
+ */
+export const PreviewReportNotesParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const PreviewReportNotesBody = zod.object({
+  "conversationId": zod.number().int().describe('Conversation with the AI technician to summarise')
+})
+
+export const PreviewReportNotesResponse = zod.object({
+  "notes": zod.string().describe('Text that would appear under «Observaciones del técnico»')
+})
+
+
 export const GetUsageQueryParams = zod.object({
   "month": zod.coerce.string().optional().describe('Month in YYYY-MM format; defaults to current month')
 })
@@ -1601,6 +1639,7 @@ export const adminUpdateUserBodyAiMonthlyLimitEurMin = 0;
 export const adminUpdateUserBodyPasswordMin = 8;
 
 
+
 export const AdminUpdateUserBody = zod.object({
   "name": zod.string().min(1).optional(),
   "role": zod.enum(['owner', 'technician', 'manager', 'viewer']).optional(),
@@ -1660,4 +1699,5 @@ export const AdminDeleteFarmParams = zod.object({
 })
 
 export const AdminDeleteFarmResponse = zod.void()
+
 

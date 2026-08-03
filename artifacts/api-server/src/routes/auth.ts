@@ -37,9 +37,7 @@ async function startSession(
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    // COOKIE_SECURE=false permite sesiones sobre HTTP plano (instalaciones
-    // propias sin certificado todavía); actívalo a true al habilitar HTTPS.
-    secure: process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false",
+    secure: process.env.NODE_ENV === "production",
     maxAge: SESSION_TTL_MS,
     path: "/",
   });

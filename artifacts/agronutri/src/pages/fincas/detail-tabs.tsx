@@ -7,7 +7,7 @@ import {
   useListSectors, useCreateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis, useUpdateAnalysis,
   useListRecommendations, useChangeRecommendationStatus, useListConversations, getListConversationsQueryKey,
-  useListReports, useCreateReport,
+  useListReports, useCreateReport, usePreviewReportNotes,
   useListMembers, useAddMember, useRemoveMember,
   useGetFarmApiConfig, useSetFarmApiConfig, useListCredentials,
   getListSectorsQueryKey, getListAnalysesQueryKey, 
@@ -852,6 +852,22 @@ export function ReportsTab({ farmId }: { farmId: number }) {
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [chatConversationId, setChatConversationId] = useState<number | null>(null);
   const [selectedConvId, setSelectedConvId] = useState<string>("new");
+  const [previewNotes, setPreviewNotes] = useState<string | null>(null);
+  const previewMutation = usePreviewReportNotes({
+    mutation: {
+      onSuccess: (data) => setPreviewNotes(data.notes),
+      onError: (err: unknown) => {
+        const message =
+          (err as { data?: { error?: string } })?.data?.error ??
+          "No se pudo generar la previsualización.";
+        toast({ title: "Previsualización no disponible", description: message, variant: "destructive" });
+      },
+    },
+  });
+  const handlePreview = () => {
+    if (chatConversationId == null) return;
+    previewMutation.mutate({ farmId, data: { conversationId: chatConversationId } });
+  };
   const { data: farmConversations } = useListConversations(farmId, {
     query: { enabled: genOpen, queryKey: getListConversationsQueryKey(farmId) },
   });
@@ -913,6 +929,7 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                   onValueChange={(v) => {
                     setSelectedConvId(v);
                     setChatConversationId(v === "new" ? null : parseInt(v, 10));
+                    setPreviewNotes(null);
                   }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -938,6 +955,35 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                 compact
                 onConversationChange={setChatConversationId}
               />
+              {chatConversationId != null && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handlePreview}
+                    disabled={previewMutation.isPending}
+                    data-testid="button-preview-notes"
+                  >
+                    {previewMutation.isPending
+                      ? "Generando previsualización..."
+                      : previewNotes
+                        ? "Refrescar previsualización"
+                        : "Previsualizar observaciones"}
+                  </Button>
+                  {previewNotes && (
+                    <div className="rounded-md border bg-muted/50 p-3 space-y-1" data-testid="preview-notes">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Observaciones del técnico (previsualización)
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap">{previewNotes}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Puedes seguir chateando y refrescar la previsualización antes de generar el informe.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
               <Button className="w-full" onClick={handleGenerate} disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Generando..." : "Generar informe"}
               </Button>

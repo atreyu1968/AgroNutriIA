@@ -64,6 +64,8 @@ import type {
   RegisterInput,
   Report,
   ReportInput,
+  ReportNotesPreview,
+  ReportNotesPreviewInput,
   Sector,
   SectorInput,
   SectorUpdate,
@@ -3979,6 +3981,78 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateReportMutationOptions(options));
+    }
+
+export const getPreviewReportNotesUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/reports/notes-preview`
+}
+
+/**
+ * @summary Generate an on-demand preview of the «Observaciones del técnico» section for a conversation
+ */
+export const previewReportNotes = async (farmId: number,
+    reportNotesPreviewInput: ReportNotesPreviewInput, options?: Parameters<typeof customFetch>[1]): Promise<ReportNotesPreview> => {
+
+  return customFetch<ReportNotesPreview>(getPreviewReportNotesUrl(farmId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reportNotesPreviewInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewReportNotesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewReportNotes>>, TError,{farmId: number;data: BodyType<ReportNotesPreviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewReportNotes>>, TError,{farmId: number;data: BodyType<ReportNotesPreviewInput>}, TContext> => {
+
+const mutationKey = ['previewReportNotes'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewReportNotes>>, {farmId: number;data: BodyType<ReportNotesPreviewInput>}> = (props) => {
+          const {farmId,data} = props ?? {};
+
+          return  previewReportNotes(farmId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewReportNotesMutationResult = NonNullable<Awaited<ReturnType<typeof previewReportNotes>>>
+    export type PreviewReportNotesMutationBody = BodyType<ReportNotesPreviewInput>
+    export type PreviewReportNotesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate an on-demand preview of the «Observaciones del técnico» section for a conversation
+ */
+export const usePreviewReportNotes = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewReportNotes>>, TError,{farmId: number;data: BodyType<ReportNotesPreviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewReportNotes>>,
+        TError,
+        {farmId: number;data: BodyType<ReportNotesPreviewInput>},
+        TContext
+      > => {
+      return useMutation(getPreviewReportNotesMutationOptions(options));
     }
 
 export const getGetUsageUrl = (params?: GetUsageParams,) => {

@@ -48,7 +48,7 @@ El script instala y configura automáticamente:
 
    Si no indicas dominio, la web responderá en la IP del servidor.
 
-4. Al terminar, abre `http://midominio.com` (o `http://IP-del-servidor`) y crea tu usuario desde **Registro**.
+4. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y crea tu usuario desde **Registro**.
 
 5. Dentro de la app, en **Ajustes**, añade tu clave de OpenAI para activar el técnico virtual, el chat con adjuntos y los borradores de programa por IA.
 
@@ -81,14 +81,15 @@ sudo bash /opt/agronutri/deploy/install.sh https://github.com/atreyu1968/AgroNut
 
 El instalador es **re-ejecutable**: si ya hay una instalación, actualiza el código, vuelve a compilar y reinicia los servicios conservando las credenciales y las sesiones. Antes de aplicar cambios de esquema hace una copia de seguridad automática de la base de datos en `/var/backups/agronutri` (si aun así quieres restaurar: `pg_restore -d agronutri fichero.dump`). Ten en cuenta que la actualización sincroniza el esquema automáticamente; si una versión nueva elimina columnas o tablas, esos datos concretos se pierden — de ahí la copia previa.
 
-### HTTPS (recomendado)
 
-El instalador deja la web en HTTP. Para activar HTTPS con certificado gratuito:
+### HTTPS
 
-```bash
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d midominio.com
-```
+El instalador configura HTTPS siempre:
+
+- **Con dominio**: emite automáticamente un certificado gratuito de Let's Encrypt (renovación automática incluida). El dominio debe apuntar al servidor antes de ejecutar el instalador.
+- **Sin dominio (acceso por IP)**: genera un certificado autofirmado. El navegador mostrará un aviso de seguridad la primera vez, pero el tráfico va cifrado. Cuando tengas dominio, vuelve a ejecutar el instalador pasándolo como segundo argumento.
+
+Todo el tráfico HTTP se redirige a HTTPS y las cookies de sesión se envían solo por conexiones seguras.
 
 ## Ficheros y rutas en el servidor
 

@@ -775,6 +775,16 @@ export interface ReportInput {
   conversationId?: number | null;
 }
 
+export interface ReportNotesPreviewInput {
+  /** Conversation with the AI technician to summarise */
+  conversationId: number;
+}
+
+export interface ReportNotesPreview {
+  /** Text that would appear under «Observaciones del técnico» */
+  notes: string;
+}
+
 export interface UsageEntry {
   id: number;
   /** @nullable */
@@ -869,3 +879,4 @@ export type ListAuditLogParams = {
 farmId?: number;
 limit?: number;
 };
+

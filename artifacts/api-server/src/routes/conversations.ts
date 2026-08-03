@@ -225,6 +225,10 @@ router.post("/farms/:farmId/conversations", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para usar el técnico virtual" });
+    return;
+  }
   const parsed = CreateConversationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -279,6 +283,10 @@ router.delete("/farms/:farmId/conversations/:conversationId", async (req, res): 
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para eliminar conversaciones" });
+    return;
+  }
   const [conv] = await db
     .delete(conversationsTable)
     .where(and(eq(conversationsTable.id, convId), eq(conversationsTable.farmId, farmId)))
@@ -298,6 +306,10 @@ router.post(
     const access = await farmAccess(req.user!, farmId);
     if (!access) {
       res.status(404).json({ error: "Finca no encontrada" });
+      return;
+    }
+    if (!canEdit(access.role)) {
+      res.status(403).json({ error: "Sin permisos para usar el técnico virtual" });
       return;
     }
     const parsed = SendMessageBody.safeParse(req.body);

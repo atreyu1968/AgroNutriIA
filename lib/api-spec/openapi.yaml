@@ -895,6 +895,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Report"
 
+  /farms/{farmId}/reports/notes-preview:
+    post:
+      operationId: previewReportNotes
+      tags: [reports]
+      summary: Generate an on-demand preview of the «Observaciones del técnico» section for a conversation
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportNotesPreviewInput"
+      responses:
+        "200":
+          description: Preview of the technician notes that would appear in the report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportNotesPreview"
+
   /usage:
     get:
       operationId: getUsage
@@ -1723,6 +1744,22 @@ components:
           type: integer
           nullable: true
           description: Conversation with the AI technician whose notes and attachments are summarised into the report
+
+    ReportNotesPreviewInput:
+      type: object
+      required: [conversationId]
+      properties:
+        conversationId:
+          type: integer
+          description: Conversation with the AI technician to summarise
+
+    ReportNotesPreview:
+      type: object
+      required: [notes]
+      properties:
+        notes:
+          type: string
+          description: Text that would appear under «Observaciones del técnico»
 
     UsageSummary:
       type: object

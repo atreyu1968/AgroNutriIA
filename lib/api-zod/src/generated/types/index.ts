@@ -64,6 +64,8 @@ export * from './registerInput';
 export * from './report';
 export * from './reportInput';
 export * from './reportInputFormat';
+export * from './reportNotesPreview';
+export * from './reportNotesPreviewInput';
 export * from './sector';
 export * from './sectorInput';
 export * from './sectorUpdate';

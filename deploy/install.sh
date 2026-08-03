@@ -48,9 +48,17 @@ apt-get upgrade -y
 apt-get install -y curl ca-certificates gnupg git build-essential openssl
 
 # ----------------------------------------------------------------------------
-log "Instalando Node.js 24 (NodeSource)"
+log "Instalando Node.js 24 (repositorio NodeSource con clave GPG verificada)"
 if ! command -v node >/dev/null || [[ "$(node -v | cut -c2-3)" -lt 22 ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  # Sin `curl | bash`: se añade el repositorio apt con la clave GPG de
+  # NodeSource fijada en un keyring dedicado.
+  install -d -m 755 /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+    | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+  chmod 644 /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" \
+    > /etc/apt/sources.list.d/nodesource.list
+  apt-get update -y
   apt-get install -y nodejs
 fi
 node -v
@@ -118,8 +126,6 @@ HOST=127.0.0.1
 PORT=${API_PORT}
 DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
-# Cambia a true cuando actives HTTPS (certbot) para exigir cookies seguras.
-COOKIE_SECURE=false
 ENV
 chmod 640 /etc/agronutri/api.env
 
@@ -179,12 +185,53 @@ if ! systemctl is-active --quiet ${SERVICE_NAME}; then
 fi
 
 # ----------------------------------------------------------------------------
-log "Instalando y configurando nginx"
+log "Instalando y configurando nginx (HTTPS obligatorio)"
 apt-get install -y nginx
+
+# Certificado: Let's Encrypt si hay dominio; autofirmado si se instala por IP.
+SSL_CERT=""
+SSL_KEY=""
+if [[ "$DOMAIN" != "_" ]]; then
+  apt-get install -y certbot python3-certbot-nginx
+  # Certificado real de Let's Encrypt (renovación automática vía systemd timer).
+  if certbot certonly --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" 2>/dev/null \
+     || certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN"; then
+    SSL_CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+    SSL_KEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+  else
+    echo "AVISO: no se pudo emitir el certificado de Let's Encrypt (¿el dominio apunta a este servidor?)." >&2
+    echo "       Se usará un certificado autofirmado; vuelve a ejecutar el instalador cuando el DNS esté listo." >&2
+  fi
+fi
+if [[ -z "$SSL_CERT" ]]; then
+  # Autofirmado: el navegador mostrará un aviso, pero la sesión viaja cifrada
+  # y las cookies Secure funcionan. Sustituible por certbot cuando haya dominio.
+  install -d -m 750 /etc/agronutri/ssl
+  if [[ ! -f /etc/agronutri/ssl/selfsigned.crt ]]; then
+    openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+      -keyout /etc/agronutri/ssl/selfsigned.key \
+      -out /etc/agronutri/ssl/selfsigned.crt \
+      -subj "/CN=${DOMAIN}" >/dev/null 2>&1
+  fi
+  SSL_CERT="/etc/agronutri/ssl/selfsigned.crt"
+  SSL_KEY="/etc/agronutri/ssl/selfsigned.key"
+fi
+
 cat > /etc/nginx/sites-available/agronutri <<NGINX
 server {
     listen 80;
     server_name ${DOMAIN};
+    # Todo el tráfico HTTP se redirige a HTTPS.
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     ${SSL_CERT};
+    ssl_certificate_key ${SSL_KEY};
 
     root ${APP_DIR}/artifacts/agronutri/dist/public;
     index index.html;
