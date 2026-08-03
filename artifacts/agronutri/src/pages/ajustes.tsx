@@ -1,4 +1,5 @@
-import { useGetMe, useUpdateMe, useListCredentials, useCreateCredential, useUpdateCredential, useDeleteCredential, useTestCredential, getListCredentialsQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useGetMe, useUpdateMe, useListCredentials, useCreateCredential, useUpdateCredential, useDeleteCredential, useTestCredential, useGetMobileAppUrl, getListCredentialsQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -12,7 +13,49 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useEffect } from "react";
-import { Key, User, Shield, CheckCircle2, XCircle, Trash2, Edit2, Play, Plus } from "lucide-react";
+import { Key, User, Shield, CheckCircle2, XCircle, Trash2, Edit2, Play, Plus, Smartphone } from "lucide-react";
+
+function MobileAppCard() {
+  const { data, isLoading } = useGetMobileAppUrl();
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Smartphone className="w-4 h-4 text-primary" /> AgroNutri Móvil
+        </CardTitle>
+        <CardDescription>
+          Funciona como aplicación web: no necesitas tienda de aplicaciones. Tras abrirla, usa "Añadir a pantalla de inicio" en tu navegador para instalarla como una app.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col sm:flex-row items-center gap-6">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        ) : data?.url ? (
+          <>
+            <div className="bg-white p-3 rounded-lg border shadow-sm">
+              <QRCodeSVG value={data.url} size={160} />
+            </div>
+            <div className="space-y-2 text-sm">
+              <p className="font-medium">Cómo instalarla:</p>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Escanea el QR con la cámara del móvil.</li>
+                <li>Se abrirá la aplicación en el navegador.</li>
+                <li>En el menú del navegador, elige "Añadir a pantalla de inicio".</li>
+              </ol>
+              <a href={data.url} target="_blank" rel="noreferrer" className="text-primary underline break-all block pt-1">
+                {data.url}
+              </a>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            La dirección de la aplicación móvil no está disponible en este entorno.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Ajustes() {
   const { data: user } = useGetMe();
@@ -33,6 +76,18 @@ export default function Ajustes() {
         </div>
         <div className="md:col-span-2">
           <ProfileForm user={user} />
+        </div>
+      </div>
+
+      <div className="h-px bg-border my-4" />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-1">
+          <h2 className="text-lg font-semibold mb-2">Aplicación móvil</h2>
+          <p className="text-sm text-muted-foreground">Escanea el código QR con la cámara del móvil para abrir AgroNutri en el navegador e instalarla como aplicación.</p>
+        </div>
+        <div className="md:col-span-2">
+          <MobileAppCard />
         </div>
       </div>
 

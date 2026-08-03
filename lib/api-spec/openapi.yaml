@@ -506,6 +506,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recommendation"
+  /mobile-app:
+    get:
+      operationId: getMobileAppUrl
+      tags: [misc]
+      summary: URL of the mobile web app (for QR access)
+      responses:
+        "200":
+          description: Mobile app URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string, nullable: true }
   /farms/{farmId}/recommendations/ai-draft:
     post:
       operationId: generateAiDraftRecommendation

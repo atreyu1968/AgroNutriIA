@@ -967,6 +967,14 @@ export const CreateRecommendationResponse = zod.object({
 
 
 /**
+ * @summary URL of the mobile web app (for QR access)
+ */
+export const GetMobileAppUrlResponse = zod.object({
+  "url": zod.string().nullable()
+})
+
+
+/**
  * @summary Generate an AI draft fertigation program from the latest analyses
  */
 export const GenerateAiDraftRecommendationParams = zod.object({

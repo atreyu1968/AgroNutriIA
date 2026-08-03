@@ -44,6 +44,7 @@ export * from './fertilizerInput';
 export * from './fertilizerInputUsage';
 export * from './fertilizerUpdate';
 export * from './fertilizerUpdateUsage';
+export * from './getMobileAppUrl200';
 export * from './getUsageParams';
 export * from './healthStatus';
 export * from './importAnalysisPdfBody';

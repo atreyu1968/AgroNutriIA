@@ -17,6 +17,7 @@ import {
   ListAuditLogQueryParams,
   ListAuditLogResponse,
   GetDashboardResponse,
+  GetMobileAppUrlResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { farmAlerts, latestAnalysis, activeRecommendation } from "../lib/farmContext";
@@ -35,6 +36,13 @@ async function accessibleFarmIds(userId: number): Promise<number[]> {
     .where(eq(farmMembersTable.userId, userId));
   return [...new Set([...owned.map((r) => r.id), ...member.map((r) => r.id)])];
 }
+
+router.get("/mobile-app", async (_req, res): Promise<void> => {
+  const url =
+    process.env.MOBILE_APP_URL ??
+    (process.env.REPLIT_EXPO_DEV_DOMAIN ? `https://${process.env.REPLIT_EXPO_DEV_DOMAIN}` : null);
+  res.json(GetMobileAppUrlResponse.parse({ url }));
+});
 
 router.get("/usage", async (req, res): Promise<void> => {
   const q = GetUsageQueryParams.safeParse(req.query);

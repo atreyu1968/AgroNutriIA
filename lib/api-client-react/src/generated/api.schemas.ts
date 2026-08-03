@@ -798,6 +798,10 @@ export type ImportAnalysisPdfBody = {
   file: Blob;
 };
 
+export type GetMobileAppUrl200 = {
+  url: string | null;
+};
+
 export type GetUsageParams = {
 /**
  * Month in YYYY-MM format; defaults to current month
