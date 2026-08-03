@@ -592,6 +592,9 @@ paths:
                 sectorId:
                   type: ["integer", "null"]
                   description: "Sector objetivo del programa; null u omitido = programa global de la finca"
+                useAcid:
+                  type: boolean
+                  description: "Si es true, la finca usa ácido para bajar el pH del agua de riego y la IA debe tenerlo en cuenta"
       responses:
         "201":
           description: Created AI draft

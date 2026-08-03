@@ -179,6 +179,7 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     return;
   }
   const requestedSectorId = parsedBody.data.sectorId ?? null;
+  const useAcid = parsedBody.data.useAcid === true;
   let sector: typeof sectorsTable.$inferSelect | null = null;
   if (requestedSectorId != null) {
     const [s] = await db
@@ -222,11 +223,50 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     });
     return;
   }
+  if (useAcid) {
+    const params = water?.parameters ?? [];
+    const norm = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const hasPh = params.some((p) => {
+      const n = norm(p.name);
+      return n === "ph" || n.startsWith("ph ") || n.includes("ph agua") || /\bph\b/.test(n);
+    });
+    const hasBicarb = params.some((p) => {
+      const n = norm(p.name);
+      return n.includes("bicarbonat") || n.includes("hco3") || n.includes("alcalinid") || n.includes("carbonat");
+    });
+    const weeklyLitres = sector?.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant;
+    const plants = sector?.plantCount ?? access.farm.plantCount;
+    const hasVolume = weeklyLitres != null && weeklyLitres > 0 && plants != null && plants > 0;
+    if (!water || !hasPh || !hasBicarb || !hasVolume) {
+      const missing: string[] = [];
+      if (!water) missing.push("una analítica de agua");
+      else {
+        if (!hasPh) missing.push("el pH en la analítica de agua");
+        if (!hasBicarb) missing.push("los bicarbonatos (o alcalinidad) en la analítica de agua");
+      }
+      if (!hasVolume) missing.push("el riego semanal (litros por planta y número de plantas)");
+      res.status(422).json({
+        error: `Para calcular los litros de ácido necesarios falta: ${missing.join(", ")}. Completa esos datos o desmarca la opción de ácido.`,
+      });
+      return;
+    }
+  }
   const contextBlock = buildFarmContext({ farm: access.farm, sectors, soil, leaf, water, active });
   const catalog = fertilizers
     .filter((f) => f.isActive !== false && (f.usage ?? "fertirrigacion") === "fertirrigacion")
     .map((f) => `- ${f.name} (${f.formulaType ?? "?"})`)
     .join("\n");
+
+  const acidBlock = useAcid
+    ? `
+
+IMPORTANTE — ACIDIFICACIÓN DEL AGUA: el agricultor ha decidido usar ácido para bajar el pH del agua de riego. Tenlo en cuenta al diseñar el programa:
+- Calcula los LITROS de ácido necesarios POR SEMANA a partir del pH y los bicarbonatos del análisis de agua y del volumen semanal de riego, para llevar el agua a un pH objetivo de 5,5–6,0.
+- Si el catálogo incluye un ácido (p. ej. ácido nítrico, fosfórico o sulfúrico), inclúyelo como un producto más del programa con su dosis semanal en L y el motivo "corrección de pH del agua", y descuenta el nitrógeno o fósforo que aporte del resto del abonado.
+- Si no hay ningún ácido en el catálogo, NO lo inventes como producto: indica en la justificación los litros semanales estimados de ácido y de qué tipo, y ajusta el programa asumiendo el agua ya acidificada.
+- Evita recomendar productos alcalinizantes o bicarbonatados que contrarresten la acidificación.`
+    : "";
 
   const model = credential.selectedModel ?? "gpt-4o-mini";
   const start = Date.now();
@@ -250,12 +290,12 @@ Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"
 Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
 ${catalog}
 
-Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.`
+Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${acidBlock}`
             : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
 Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
 ${catalog}
 
-Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.`,
+Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${acidBlock}`,
         },
       ],
     });

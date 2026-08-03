@@ -1202,6 +1202,8 @@ export type GenerateAiDraftRecommendationBody = {
      * @nullable
      */
   sectorId?: number | null;
+  /** Si es true, la finca usa ácido para bajar el pH del agua de riego y la IA debe tenerlo en cuenta */
+  useAcid?: boolean;
 };
 
 export type UploadConversationAttachmentBody = {

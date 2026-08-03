@@ -1064,7 +1064,8 @@ export const GenerateAiDraftRecommendationParams = zod.object({
 })
 
 export const GenerateAiDraftRecommendationBody = zod.object({
-  "sectorId": zod.number().int().nullish().describe('Sector objetivo del programa; null u omitido = programa global de la finca')
+  "sectorId": zod.number().int().nullish().describe('Sector objetivo del programa; null u omitido = programa global de la finca'),
+  "useAcid": zod.boolean().optional().describe('Si es true, la finca usa ácido para bajar el pH del agua de riego y la IA debe tenerlo en cuenta')
 })
 
 export const GenerateAiDraftRecommendationResponse = zod.object({

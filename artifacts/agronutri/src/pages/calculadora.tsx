@@ -35,6 +35,7 @@ export default function CalculadoraTab({
   const { data: fertilizers } = useListFertilizers();
   const { data: sectors } = useListSectors(farmId);
   const [aiSectorId, setAiSectorId] = useState<string>("global");
+  const [useAcid, setUseAcid] = useState(false);
 
   const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
   const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
@@ -210,7 +211,20 @@ export default function CalculadoraTab({
               <CardTitle className="text-base flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-secondary" /> Plan de Abonado Semanal
               </CardTitle>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center flex-wrap justify-end">
+                <label
+                  className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+                  data-testid="label-use-acid"
+                >
+                  <input
+                    type="checkbox"
+                    checked={useAcid}
+                    onChange={(e) => setUseAcid(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-primary"
+                    data-testid="checkbox-use-acid"
+                  />
+                  Uso de ácido para bajar el pH del agua
+                </label>
                 {sectors && sectors.length > 0 && (
                   <Select value={aiSectorId} onValueChange={setAiSectorId}>
                     <SelectTrigger className="h-8 w-[170px] text-xs" data-testid="select-ai-sector">
@@ -230,7 +244,10 @@ export default function CalculadoraTab({
                   onClick={() =>
                     aiMutation.mutate({
                       farmId,
-                      data: aiSectorId === "global" ? {} : { sectorId: Number(aiSectorId) },
+                      data: {
+                        ...(aiSectorId === "global" ? {} : { sectorId: Number(aiSectorId) }),
+                        ...(useAcid ? { useAcid: true } : {}),
+                      },
                     })
                   }
                   disabled={aiMutation.isPending}
