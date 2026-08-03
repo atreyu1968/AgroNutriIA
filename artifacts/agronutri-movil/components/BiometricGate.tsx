@@ -27,6 +27,16 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
     Platform.OS === 'web' ? true : AppState.currentState === 'active',
   );
   const authInProgress = useRef(false);
+  const prevLockEnabled = useRef<boolean | null>(null);
+
+  // When the user turns the lock ON during this session, they just passed a
+  // confirmation prompt (see the farms screen), so don't prompt a second time.
+  useEffect(() => {
+    if (prevLockEnabled.current === false && biometricLockEnabled === true) {
+      setLocked(false);
+    }
+    prevLockEnabled.current = biometricLockEnabled;
+  }, [biometricLockEnabled]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;

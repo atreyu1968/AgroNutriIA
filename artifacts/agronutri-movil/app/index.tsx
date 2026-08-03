@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   FlatList,
   Platform,
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Redirect, useRouter } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
 import {
   getListFarmsQueryKey,
   useListFarms,
@@ -37,6 +38,29 @@ export default function FarmsScreen() {
   const router = useRouter();
   const { token, user, isLoading, signOut } = useAuth();
   const { biometricLockEnabled, setBiometricLockEnabled } = useBiometricPref();
+  const biometricCheckInProgress = useRef(false);
+
+  const handleBiometricToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      setBiometricLockEnabled(false);
+      return;
+    }
+    if (biometricCheckInProgress.current) return;
+    biometricCheckInProgress.current = true;
+    try {
+      // Confirm the user's identity right away so we know biometrics work on
+      // this device. If it fails or is cancelled, the switch stays off.
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirma tu identidad para activar el bloqueo',
+        cancelLabel: 'Cancelar',
+      });
+      setBiometricLockEnabled(result.success);
+    } catch {
+      setBiometricLockEnabled(false);
+    } finally {
+      biometricCheckInProgress.current = false;
+    }
+  };
 
   const farmsQuery = useListFarms({
     query: { queryKey: getListFarmsQueryKey(), enabled: !!token },
@@ -128,7 +152,7 @@ export default function FarmsScreen() {
                 <Switch
                   testID="switch-biometric-lock"
                   value={biometricLockEnabled === true}
-                  onValueChange={setBiometricLockEnabled}
+                  onValueChange={handleBiometricToggle}
                   trackColor={{ true: c.primary }}
                 />
               </Card>
