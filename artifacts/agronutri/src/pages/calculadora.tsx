@@ -254,7 +254,12 @@ export default function CalculadoraTab({
                       <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                       <SelectContent>
                         {fertilizers?.map(f => (
-                          <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>
+                          <SelectItem key={f.id} value={f.id.toString()}>
+                            {f.name}
+                            {[f.nPct, f.p2o5Pct, f.k2oPct, f.caoPct, f.mgoPct, f.so3Pct, f.boronPct].every(v => !v) && (
+                              <span className="text-yellow-700"> · sin riqueza declarada</span>
+                            )}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

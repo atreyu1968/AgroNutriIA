@@ -49,12 +49,12 @@ router.patch("/fertilizers/:fertilizerId", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Solo un administrador puede gestionar el catálogo" });
     return;
   }
-  const id = parseIntParam(req.params.fertilizerId);
   const parsed = UpdateFertilizerBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const id = parseIntParam(req.params.fertilizerId);
   const [fert] = await db
     .update(fertilizersTable)
     .set(parsed.data)
@@ -64,6 +64,13 @@ router.patch("/fertilizers/:fertilizerId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Fertilizante no encontrado" });
     return;
   }
+  await audit({
+    userId: req.user!.id,
+    action: "fertilizer_updated",
+    entityType: "fertilizer",
+    entityId: fert.id,
+    detail: fert.name,
+  });
   res.json(UpdateFertilizerResponse.parse(serializeFertilizer(fert)));
 });
 
