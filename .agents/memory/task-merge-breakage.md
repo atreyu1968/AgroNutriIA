@@ -1,10 +1,9 @@
 ---
 name: Task-merge auto-resolution can commit broken code
-description: What to do when the platform merges task-agent branches into main and the app stops building
+description: Verify builds after task merges; don't trust auto-merged conflict regions
 ---
+Automatic merges of task branches into main can auto-resolve conflicts in large shared files badly — the merge commit itself contains breakage while the tree looks clean.
 
-Platform merges of task-agent branches can auto-resolve conflicts badly: fragments of one route spliced into another, deleted statements (e.g. a DB insert), `const` reassignments. The merge commit itself contains the breakage, so the working tree is "clean" while the build fails.
+**Why:** semantic auto-resolution can splice fragments of one function into another when several tasks touch the same file.
 
-**Why:** Seen when several tasks touched the same large route file; the merged commits were mangled and the API server workflow failed at esbuild, breaking login for the user.
-
-**How to apply:** After any task merge, restart the affected workflows and check logs before assuming health. To repair, diff against `gitsafe-backup/main` (pre-merge state) and the individual pre-merge task commits (they exist in `git log --all`) to reconstruct each side's intent, then re-apply cleanly by hand. Don't trust the merged version of conflicted regions.
+**How to apply:** after any task merge, run typecheck/build (and restart affected workflows) before assuming health. To repair, reconstruct each side's intent from the pre-merge commits in `git log --all` instead of trusting the merged version of conflicted regions.

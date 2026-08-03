@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -9,6 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -23,6 +26,7 @@ import {
   useGetConversation,
   useListConversations,
   useSendMessage,
+  useUploadConversationAttachment,
   type Message,
 } from '@workspace/api-client-react';
 import { ErrorView, LoadingView } from '@/components/ui';
@@ -33,6 +37,7 @@ type PendingMessage = {
   id: string;
   role: 'user';
   content: string;
+  attachments?: string[];
 };
 
 type ChatItem = Message | PendingMessage;
@@ -41,6 +46,7 @@ function MessageBubble({ item }: { item: ChatItem }) {
   const c = useColors();
   const isUser = item.role === 'user';
   const sources = 'sources' in item ? item.sources : undefined;
+  const attachments = 'attachments' in item ? item.attachments : undefined;
   return (
     <View
       style={[
@@ -69,6 +75,24 @@ function MessageBubble({ item }: { item: ChatItem }) {
         >
           {item.content}
         </Text>
+        {attachments && attachments.length > 0 ? (
+          <View style={styles.attachmentRow}>
+            <Feather
+              name="paperclip"
+              size={12}
+              color={isUser ? c.primaryForeground : c.mutedForeground}
+            />
+            <Text
+              style={[
+                styles.attachmentText,
+                { color: isUser ? c.primaryForeground : c.mutedForeground },
+              ]}
+              numberOfLines={1}
+            >
+              {attachments.join(', ')}
+            </Text>
+          </View>
+        ) : null}
         {sources && sources.length > 0 ? (
           <Text style={[styles.sources, { color: c.mutedForeground }]}>
             Fuentes: {sources.join(', ')}
@@ -120,6 +144,7 @@ export default function ChatScreen() {
   });
 
   const sendMessage = useSendMessage();
+  const uploadAttachment = useUploadConversationAttachment();
 
   const messages: ChatItem[] = useMemo(() => {
     const server = conversationQuery.data?.messages ?? [];
@@ -127,7 +152,8 @@ export default function ChatScreen() {
     return all.reverse(); // inverted FlatList
   }, [conversationQuery.data, pending]);
 
-  const isSending = sendMessage.isPending || createConversation.isPending;
+  const isSending =
+    sendMessage.isPending || createConversation.isPending || uploadAttachment.isPending;
 
   const handleSend = async () => {
     const content = draft.trim();
@@ -168,6 +194,125 @@ export default function ChatScreen() {
       const anyErr = err as { data?: { error?: string } };
       setSendError(anyErr?.data?.error ?? 'No se pudo enviar el mensaje. Inténtalo de nuevo.');
     }
+  };
+
+  const ensureConversation = async (title: string): Promise<number> => {
+    let convId = activeConversationId;
+    if (convId == null) {
+      const conv = await createConversation.mutateAsync({
+        farmId,
+        data: { title: title.slice(0, 60) },
+      });
+      convId = conv.id;
+      setConversationId(conv.id);
+    }
+    return convId;
+  };
+
+  const refreshConversation = async (convId: number) => {
+    await queryClient.fetchQuery({
+      queryKey: getGetConversationQueryKey(farmId, convId),
+      queryFn: () => getConversation(farmId, convId),
+    });
+    await queryClient.invalidateQueries({
+      queryKey: getListConversationsQueryKey(farmId),
+    });
+  };
+
+  type PickedFile = { uri: string; name: string; mimeType: string };
+
+  const uploadFile = async (picked: PickedFile) => {
+    setSendError(null);
+    setPending({
+      id: `pending-${Date.now()}`,
+      role: 'user',
+      content: 'Enviando adjunto…',
+      attachments: [picked.name],
+    });
+    try {
+      const convId = await ensureConversation(`Adjunto: ${picked.name}`);
+      let file: Blob;
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(picked.uri)).blob();
+        file = new File([blob], picked.name, { type: picked.mimeType });
+      } else {
+        file = {
+          uri: picked.uri,
+          name: picked.name,
+          type: picked.mimeType,
+        } as unknown as Blob;
+      }
+      await uploadAttachment.mutateAsync({
+        farmId,
+        conversationId: convId,
+        data: { file },
+      });
+      await refreshConversation(convId);
+      setPending(null);
+    } catch (err) {
+      setPending(null);
+      const anyErr = err as { data?: { error?: string } };
+      setSendError(anyErr?.data?.error ?? 'No se pudo enviar el adjunto. Inténtalo de nuevo.');
+    }
+  };
+
+  const guessImageMeta = (asset: ImagePicker.ImagePickerAsset): { name: string; mimeType: string } => {
+    const mimeType = asset.mimeType ?? 'image/jpeg';
+    if (asset.fileName) return { name: asset.fileName, mimeType };
+    const ext = mimeType.split('/')[1] ?? 'jpg';
+    return { name: `foto-${Date.now()}.${ext === 'jpeg' ? 'jpg' : ext}`, mimeType };
+  };
+
+  const pickFromCamera = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setSendError('Se necesita permiso de cámara para hacer la foto.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    await uploadFile({ uri: asset.uri, ...guessImageMeta(asset) });
+  };
+
+  const pickFromLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    await uploadFile({ uri: asset.uri, ...guessImageMeta(asset) });
+  };
+
+  const pickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    await uploadFile({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? (asset.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+    });
+  };
+
+  const handleAttach = () => {
+    if (isSending) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'web') {
+      // On web the camera option isn't useful; go straight to the file picker.
+      void pickDocument();
+      return;
+    }
+    Alert.alert('Adjuntar al chat', 'Elige qué quieres adjuntar', [
+      { text: 'Hacer foto', onPress: () => void pickFromCamera() },
+      { text: 'Elegir imagen', onPress: () => void pickFromLibrary() },
+      { text: 'Archivo (PDF o imagen)', onPress: () => void pickDocument() },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   };
 
   const topInset = Platform.OS === 'web' ? 67 : insets.top;
@@ -266,6 +411,22 @@ export default function ChatScreen() {
             },
           ]}
         >
+          <Pressable
+            testID="button-attach"
+            accessibilityRole="button"
+            accessibilityLabel="Adjuntar foto o archivo"
+            disabled={isSending}
+            onPress={handleAttach}
+            style={({ pressed }) => [
+              styles.attachButton,
+              {
+                backgroundColor: c.secondary,
+                opacity: isSending ? 0.4 : pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Feather name="paperclip" size={19} color={c.foreground} />
+          </Pressable>
           <TextInput
             testID="input-message"
             style={[
@@ -397,5 +558,23 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  attachButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  attachmentText: {
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    flexShrink: 1,
   },
 });

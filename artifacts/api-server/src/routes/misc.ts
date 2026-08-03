@@ -39,10 +39,13 @@ async function accessibleFarmIds(userId: number): Promise<number[]> {
   return [...new Set([...owned.map((r) => r.id), ...member.map((r) => r.id)])];
 }
 
-router.get("/product-sheets", async (_req, res): Promise<void> => {
+router.get("/product-sheets", async (req, res): Promise<void> => {
+  // Scope to the caller's own sheets (admins see all) — same ownership model
+  // as the delete endpoint below.
   const rows = await db
     .select()
     .from(productSheetsTable)
+    .where(req.user!.isAdmin ? undefined : eq(productSheetsTable.createdBy, req.user!.id))
     .orderBy(desc(productSheetsTable.createdAt));
   res.json(
     ListProductSheetsResponse.parse(
