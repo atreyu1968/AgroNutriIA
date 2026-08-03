@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useGetFarmSummary, getGetFarmSummaryQueryKey, useGetFarm } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +18,7 @@ import FitosanitariosTab from "./fitosanitarios";
 export default function FincaDetail() {
   const [match, params] = useRoute("/:id");
   const farmId = match && params.id ? parseInt(params.id, 10) : null;
+  const [activeTab, setActiveTab] = useState("resumen");
 
   const { data: summary, isLoading, error } = useGetFarmSummary(farmId as number, { 
     query: { queryKey: getGetFarmSummaryQueryKey(farmId as number), enabled: !!farmId } 
@@ -76,7 +78,7 @@ export default function FincaDetail() {
         </div>
       </div>
 
-      <Tabs defaultValue="resumen" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="h-12 items-center justify-start min-w-max">
             <TabsTrigger value="resumen" className="gap-2"><MapPin className="w-4 h-4" /> Resumen</TabsTrigger>
@@ -144,6 +146,22 @@ export default function FincaDetail() {
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">Técnico</span>
                   <p className="font-medium truncate" title={farm.responsibleTechnician || ''}>{farm.responsibleTechnician || '-'}</p>
                 </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Contacto</span>
+                  <p className="font-medium truncate" title={farm.contactName || ''}>{farm.contactName || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Teléfono</span>
+                  <p className="font-medium truncate">
+                    {farm.contactPhone ? <a href={`tel:${farm.contactPhone}`} className="hover:underline">{farm.contactPhone}</a> : '-'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Email</span>
+                  <p className="font-medium truncate" title={farm.contactEmail || ''}>
+                    {farm.contactEmail ? <a href={`mailto:${farm.contactEmail}`} className="hover:underline">{farm.contactEmail}</a> : '-'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -195,7 +213,7 @@ export default function FincaDetail() {
 
         <TabsContent value="sectores"><SectorsTab farmId={farmId} /></TabsContent>
         <TabsContent value="analiticas"><AnalysesTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
-        <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} /></TabsContent>
+        <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} onCreate={() => setActiveTab("calculadora")} /></TabsContent>
         <TabsContent value="calculadora"><CalculadoraTab farmId={farmId} defaultPlantCount={farm.plantCount} defaultWeeklyLitres={farm.weeklyLitresPerPlant} /></TabsContent>
         <TabsContent value="fitosanitarios"><FitosanitariosTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
         <TabsContent value="informes"><ReportsTab farmId={farmId} /></TabsContent>

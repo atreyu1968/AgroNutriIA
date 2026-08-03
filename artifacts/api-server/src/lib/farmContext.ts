@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   db,
   analysesTable,
@@ -23,6 +23,38 @@ export async function latestAnalysis(farmId: number, type: string): Promise<Anal
   return a ?? null;
 }
 
+/**
+ * Latest analysis of a type, aware of sector scope:
+ * - With a sectorId: prefer the sector's own analyses, falling back to the
+ *   farm-global ones (sectorId null).
+ * - Without sectorId (global program): prefer farm-global analyses, falling
+ *   back to the latest one of any sector so farms that only tag analyses by
+ *   sector keep working.
+ */
+export async function latestAnalysisScoped(
+  farmId: number,
+  type: string,
+  sectorId: number | null,
+): Promise<Analysis | null> {
+  const base = and(eq(analysesTable.farmId, farmId), eq(analysesTable.type, type));
+  const pick = async (extra?: ReturnType<typeof eq> | ReturnType<typeof isNull>) => {
+    const [a] = await db
+      .select()
+      .from(analysesTable)
+      .where(extra ? and(base, extra) : base)
+      .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
+      .limit(1);
+    return a ?? null;
+  };
+  if (sectorId != null) {
+    return (
+      (await pick(eq(analysesTable.sectorId, sectorId))) ??
+      (await pick(isNull(analysesTable.sectorId)))
+    );
+  }
+  return (await pick(isNull(analysesTable.sectorId))) ?? (await pick());
+}
+
 export async function activeRecommendation(farmId: number): Promise<Recommendation | null> {
   const [r] = await db
     .select()
@@ -36,6 +68,37 @@ export async function activeRecommendation(farmId: number): Promise<Recommendati
     .orderBy(desc(recommendationsTable.updatedAt))
     .limit(1);
   return r ?? null;
+}
+
+/**
+ * Active recommendation restricted to a scope: with a sectorId, prefer that
+ * sector's active program and fall back to the farm-global one; without it,
+ * only the farm-global active program counts.
+ */
+export async function activeRecommendationScoped(
+  farmId: number,
+  sectorId: number | null,
+): Promise<Recommendation | null> {
+  const base = and(
+    eq(recommendationsTable.farmId, farmId),
+    inArray(recommendationsTable.status, ["validated", "applying"]),
+  );
+  const pick = async (scope: ReturnType<typeof eq> | ReturnType<typeof isNull>) => {
+    const [r] = await db
+      .select()
+      .from(recommendationsTable)
+      .where(and(base, scope))
+      .orderBy(desc(recommendationsTable.updatedAt))
+      .limit(1);
+    return r ?? null;
+  };
+  if (sectorId != null) {
+    return (
+      (await pick(eq(recommendationsTable.sectorId, sectorId))) ??
+      (await pick(isNull(recommendationsTable.sectorId)))
+    );
+  }
+  return pick(isNull(recommendationsTable.sectorId));
 }
 
 /**

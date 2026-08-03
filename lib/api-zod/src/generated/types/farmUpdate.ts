@@ -31,4 +31,7 @@ export interface FarmUpdate {
   maxEcDsM?: number | null;
   managementNotes?: string;
   responsibleTechnician?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }

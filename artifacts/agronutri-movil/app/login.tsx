@@ -48,12 +48,11 @@ export default function LoginScreen() {
         bottomOffset={24}
       >
         <Image
-          source={require('../assets/images/icon.png')}
-          style={styles.logoCircle}
+          source={require('../assets/images/logo.png')}
+          style={styles.logoWordmark}
           contentFit="contain"
-          accessibilityLabel="Logo de AgroNutri"
+          accessibilityLabel="Logotipo de AgroNutri"
         />
-        <Text style={[styles.title, { color: c.foreground }]}>AgroNutri</Text>
         <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
           Tu técnico virtual, a pie de finca
         </Text>
@@ -124,17 +123,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
   },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Inter_700Bold',
+  logoWordmark: {
+    width: 260,
+    height: 60,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,

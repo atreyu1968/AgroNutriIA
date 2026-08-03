@@ -54,6 +54,12 @@ export interface Farm {
   managementNotes?: string | null;
   /** @nullable */
   responsibleTechnician?: string | null;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  contactPhone?: string | null;
+  /** @nullable */
+  contactEmail?: string | null;
   /** owner | technician | manager | viewer */
   myRole: string;
   /** @nullable */

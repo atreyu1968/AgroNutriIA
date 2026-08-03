@@ -61,6 +61,12 @@ const editFarmSchema = z.object({
   weeklyLitresPerPlant: numField,
   maxEcDsM: numField,
   responsibleTechnician: z.string().optional(),
+  contactName: z.string().optional(),
+  contactPhone: z.string().optional(),
+  contactEmail: z
+    .string()
+    .optional()
+    .refine((v) => !v || z.string().email().safeParse(v).success, "Email no válido"),
   managementNotes: z.string().optional(),
 });
 
@@ -88,6 +94,9 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
       weeklyLitresPerPlant: farm.weeklyLitresPerPlant ?? undefined,
       maxEcDsM: farm.maxEcDsM ?? undefined,
       responsibleTechnician: farm.responsibleTechnician ?? "",
+      contactName: farm.contactName ?? "",
+      contactPhone: farm.contactPhone ?? "",
+      contactEmail: farm.contactEmail ?? "",
       managementNotes: farm.managementNotes ?? "",
     },
   });
@@ -217,6 +226,14 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
               {numberField("maxEcDsM", "CE máx. (dS/m)")}
             </div>
             {textField("soilType", "Tipo de suelo")}
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-sm font-medium text-muted-foreground">Persona de contacto</p>
+              {textField("contactName", "Nombre de contacto")}
+              <div className="grid grid-cols-2 gap-4">
+                {textField("contactPhone", "Teléfono")}
+                {textField("contactEmail", "Email")}
+              </div>
+            </div>
             <FormField
               control={form.control}
               name="managementNotes"

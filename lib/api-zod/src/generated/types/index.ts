@@ -53,6 +53,7 @@ export * from './fertilizerInputUsage';
 export * from './fertilizerUpdate';
 export * from './fertilizerUpdateUsage';
 export * from './forgotPasswordInput';
+export * from './generateAiDraftRecommendationBody';
 export * from './getMobileAppUrl200';
 export * from './getUsageParams';
 export * from './healthStatus';

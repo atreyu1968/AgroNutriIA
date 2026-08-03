@@ -38,6 +38,9 @@ export const farmsTable = pgTable("farms", {
   maxEcDsM: real("max_ec_ds_m"),
   managementNotes: text("management_notes"),
   responsibleTechnician: text("responsible_technician"),
+  contactName: text("contact_name"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

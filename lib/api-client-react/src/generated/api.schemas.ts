@@ -435,6 +435,12 @@ export interface Farm {
   managementNotes?: string | null;
   /** @nullable */
   responsibleTechnician?: string | null;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  contactPhone?: string | null;
+  /** @nullable */
+  contactEmail?: string | null;
   /** owner | technician | manager | viewer */
   myRole: string;
   /** @nullable */
@@ -466,6 +472,9 @@ export interface FarmInput {
   maxEcDsM?: number;
   managementNotes?: string;
   responsibleTechnician?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }
 
 export interface FarmUpdate {
@@ -493,6 +502,9 @@ export interface FarmUpdate {
   maxEcDsM?: number | null;
   managementNotes?: string;
   responsibleTechnician?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }
 
 export type AnalysisType = typeof AnalysisType[keyof typeof AnalysisType];
@@ -1171,6 +1183,14 @@ export type ImportAnalysisPdfBody = {
 
 export type GetMobileAppUrl200 = {
   url: string | null;
+};
+
+export type GenerateAiDraftRecommendationBody = {
+  /**
+     * Sector objetivo del programa; null u omitido = programa global de la finca
+     * @nullable
+     */
+  sectorId?: number | null;
 };
 
 export type UploadConversationAttachmentBody = {

@@ -420,6 +420,15 @@ export default function FarmDetailScreen() {
                 {farm?.responsibleTechnician ? (
                   <InfoRow label="Técnico" value={farm.responsibleTechnician} />
                 ) : null}
+                {farm?.contactName ? (
+                  <InfoRow label="Contacto" value={farm.contactName} />
+                ) : null}
+                {farm?.contactPhone ? (
+                  <InfoRow label="Teléfono" value={farm.contactPhone} />
+                ) : null}
+                {farm?.contactEmail ? (
+                  <InfoRow label="Email" value={farm.contactEmail} />
+                ) : null}
               </Card>
 
               <Card style={{ gap: 8 }}>

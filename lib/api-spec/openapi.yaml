@@ -582,6 +582,16 @@ paths:
       summary: Generate an AI draft fertigation program from the latest analyses
       parameters:
         - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sectorId:
+                  type: ["integer", "null"]
+                  description: "Sector objetivo del programa; null u omitido = programa global de la finca"
       responses:
         "201":
           description: Created AI draft
@@ -1754,6 +1764,9 @@ components:
         maxEcDsM: { type: ["number", "null"] }
         managementNotes: { type: ["string", "null"] }
         responsibleTechnician: { type: ["string", "null"] }
+        contactName: { type: ["string", "null"] }
+        contactPhone: { type: ["string", "null"] }
+        contactEmail: { type: ["string", "null"] }
         myRole: { type: string, description: "owner | technician | manager | viewer" }
         sectorCount: { type: ["integer", "null"] }
     FarmInput:
@@ -1783,6 +1796,9 @@ components:
         maxEcDsM: { type: number }
         managementNotes: { type: string }
         responsibleTechnician: { type: string }
+        contactName: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string }
     FarmUpdate:
       type: object
       properties:
@@ -1809,6 +1825,9 @@ components:
         maxEcDsM: { type: number, nullable: true }
         managementNotes: { type: string }
         responsibleTechnician: { type: string }
+        contactName: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string }
     FarmSummary:
       type: object
       required: [farm]

@@ -3,7 +3,7 @@ import multer from "multer";
 import { PDFParse } from "pdf-parse";
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
-import { db, analysesTable } from "@workspace/db";
+import { db, analysesTable, sectorsTable } from "@workspace/db";
 import {
   ListAnalysesResponse,
   CreateAnalysisBody,
@@ -243,6 +243,16 @@ router.post(
   },
 );
 
+/** A sectorId, if provided, must belong to the farm; returns true when valid. */
+async function sectorBelongsToFarm(sectorId: number | null | undefined, farmId: number): Promise<boolean> {
+  if (sectorId == null) return true;
+  const [s] = await db
+    .select({ id: sectorsTable.id })
+    .from(sectorsTable)
+    .where(and(eq(sectorsTable.id, sectorId), eq(sectorsTable.farmId, farmId)));
+  return !!s;
+}
+
 router.get("/farms/:farmId/analyses", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
   const access = await farmAccess(req.user!, farmId);
@@ -272,6 +282,10 @@ router.post("/farms/:farmId/analyses", async (req, res): Promise<void> => {
   const parsed = CreateAnalysisBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (!(await sectorBelongsToFarm(parsed.data.sectorId, farmId))) {
+    res.status(400).json({ error: "El sector indicado no existe en esta finca" });
     return;
   }
   const [analysis] = await db
@@ -323,6 +337,10 @@ router.put("/farms/:farmId/analyses/:analysisId", async (req, res): Promise<void
   const parsed = UpdateAnalysisBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (!(await sectorBelongsToFarm(parsed.data.sectorId, farmId))) {
+    res.status(400).json({ error: "El sector indicado no existe en esta finca" });
     return;
   }
   const [analysis] = await db

@@ -11,6 +11,7 @@ import {
   ListRecommendationsResponse,
   CreateRecommendationBody,
   CreateRecommendationResponse,
+  GenerateAiDraftRecommendationBody,
   GenerateAiDraftRecommendationResponse,
   GetRecommendationResponse,
   UpdateRecommendationBody,
@@ -30,7 +31,9 @@ import {
 import { serializeRecommendation } from "../lib/serializers";
 import {
   latestAnalysis,
+  latestAnalysisScoped,
   activeRecommendation,
+  activeRecommendationScoped,
   resolveCredential,
   userName,
 } from "../lib/farmContext";
@@ -169,6 +172,25 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     res.status(403).json({ error: "Sin permisos para crear programas" });
     return;
   }
+  // Optional body: { sectorId } → sector-specific program; absent/null → farm-wide.
+  const parsedBody = GenerateAiDraftRecommendationBody.safeParse(req.body ?? {});
+  if (!parsedBody.success) {
+    res.status(400).json({ error: "Sector no válido" });
+    return;
+  }
+  const requestedSectorId = parsedBody.data.sectorId ?? null;
+  let sector: typeof sectorsTable.$inferSelect | null = null;
+  if (requestedSectorId != null) {
+    const [s] = await db
+      .select()
+      .from(sectorsTable)
+      .where(and(eq(sectorsTable.id, requestedSectorId), eq(sectorsTable.farmId, farmId)));
+    if (!s) {
+      res.status(404).json({ error: "El sector indicado no existe en esta finca" });
+      return;
+    }
+    sector = s;
+  }
   const credential = await resolveCredential(access.farm, req.user!);
   if (!credential) {
     res.status(409).json({
@@ -183,18 +205,20 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     return;
   }
 
+  const sectorScope = sector?.id ?? null;
   const [soil, leaf, water, sectors, active, fertilizers] = await Promise.all([
-    latestAnalysis(farmId, "soil"),
-    latestAnalysis(farmId, "leaf"),
-    latestAnalysis(farmId, "water"),
+    latestAnalysisScoped(farmId, "soil", sectorScope),
+    latestAnalysisScoped(farmId, "leaf", sectorScope),
+    latestAnalysisScoped(farmId, "water", sectorScope),
     db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId)),
-    activeRecommendation(farmId),
+    activeRecommendationScoped(farmId, sectorScope),
     db.select().from(fertilizersTable),
   ]);
   if (!soil && !leaf && !water) {
     res.status(422).json({
-      error:
-        "La finca no tiene ninguna analítica registrada. Sube al menos una analítica (agua, suelo o foliar) para generar un programa con IA.",
+      error: sector
+        ? `Ni el sector «${sector.name}» ni la finca tienen analíticas registradas. Sube al menos una analítica (agua, suelo o foliar) para generar un programa con IA.`
+        : "La finca no tiene ninguna analítica registrada. Sube al menos una analítica (agua, suelo o foliar) para generar un programa con IA.",
     });
     return;
   }
@@ -220,7 +244,14 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
         { role: "system", content: agronomistSystemPrompt(access.farm, contextBlock) },
         {
           role: "user",
-          content: `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
+          content: sector
+            ? `Diseña el programa semanal de fertirrigación más adecuado para el sector «${sector.name}» de esta finca a partir de las últimas analíticas disponibles (las analíticas mostradas son las del propio sector cuando existen; si no, las globales de la finca).
+Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"} ha, riego ${sector.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant ?? "?"} L/planta/semana${sector.phenologicalStage ? `, fase fenológica ${sector.phenologicalStage}` : ""}.
+Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
+${catalog}
+
+Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.`
+            : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
 Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
 ${catalog}
 
@@ -291,12 +322,13 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     });
     return;
   }
-  const out = runEngine({ farm: access.farm, waterAnalysis: water, fertilizers, items });
+  const out = runEngine({ farm: access.farm, sector, waterAnalysis: water, fertilizers, items });
 
   const [rec] = await db
     .insert(recommendationsTable)
     .values({
       farmId,
+      sectorId: sector?.id ?? null,
       title: extracted.title || "Programa propuesto por el técnico virtual",
       items,
       rationale: extracted.rationale || null,

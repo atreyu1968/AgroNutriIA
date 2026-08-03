@@ -36,6 +36,9 @@ const farm: Farm = {
   maxEcDsM: 2.2,
   managementNotes: null,
   responsibleTechnician: "María Pérez",
+  contactName: null,
+  contactPhone: null,
+  contactEmail: null,
   createdAt: now,
   updatedAt: now,
 };

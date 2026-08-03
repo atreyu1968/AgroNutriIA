@@ -472,7 +472,7 @@ function AnalysisDetailDialog({
         </DialogHeader>
         {analysis && editDraft && (
           <div className="space-y-3">
-            <AnalysisDraftEditor draft={editDraft} setDraft={setEditDraft} showErrors={showErrors} />
+            <AnalysisDraftEditor farmId={farmId} draft={editDraft} setDraft={setEditDraft} showErrors={showErrors} />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => { setEditDraft(null); setShowErrors(false); }} disabled={updateMutation.isPending}>
                 Cancelar
@@ -717,6 +717,9 @@ function ParameterTrendCard({ analyses }: { analyses: AnalysisRow[] }) {
 
 export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEdit?: boolean }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
+  const { data: sectorsForNames } = useListSectors(farmId);
+  const sectorName = (id: number | null | undefined) =>
+    id == null ? null : sectorsForNames?.find((s) => s.id === id)?.name ?? `Sector ${id}`;
   const [selected, setSelected] = useState<AnalysisRow | null>(null);
   const [onlyOutOfRange, setOnlyOutOfRange] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'soil' | 'leaf' | 'water'>('all');
@@ -779,6 +782,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
             <TableRow>
               <TableHead>Fecha</TableHead>
               <TableHead>Tipo</TableHead>
+              <TableHead>Ámbito</TableHead>
               <TableHead>Referencia</TableHead>
               <TableHead>Laboratorio</TableHead>
               <TableHead>Parámetros</TableHead>
@@ -786,7 +790,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
             ) : filteredAnalyses && filteredAnalyses.length > 0 ? (
               filteredAnalyses.map(a => (
                 <TableRow key={a.id} className="cursor-pointer" onClick={() => setSelected(a)}>
@@ -799,6 +803,13 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
                     }>
                       {a.type === 'soil' ? 'Suelo' : a.type === 'leaf' ? 'Foliar' : 'Agua'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {sectorName(a.sectorId) ? (
+                      <Badge variant="outline">{sectorName(a.sectorId)}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Global</span>
+                    )}
                   </TableCell>
                   <TableCell>{a.reference || '-'}</TableCell>
                   <TableCell>{a.laboratory || '-'}</TableCell>
@@ -822,7 +833,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{(onlyOutOfRange || typeFilter !== 'all') && analyses && analyses.length > 0 ? "No hay analíticas que coincidan con los filtros." : "No hay analíticas registradas."}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">{(onlyOutOfRange || typeFilter !== 'all') && analyses && analyses.length > 0 ? "No hay analíticas que coincidan con los filtros." : "No hay analíticas registradas."}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -833,13 +844,19 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
 }
 
 // --- Recommendations Tab ---
-export function RecommendationsTab({ farmId }: { farmId: number }) {
+export function RecommendationsTab({ farmId, onCreate }: { farmId: number; onCreate?: () => void }) {
   const { data: recommendations, isLoading } = useListRecommendations(farmId);
+  const { data: recSectors } = useListSectors(farmId);
+  const [selectedRec, setSelectedRec] = useState<NonNullable<typeof recommendations>[number] | null>(null);
+  const recSectorName = (id: number | null | undefined) =>
+    id == null ? null : recSectors?.find((s) => s.id === id)?.name ?? `Sector ${id}`;
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Programas de Nutrición</h3>
-        <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Crear Programa</Button>
+        <Button size="sm" onClick={onCreate} data-testid="button-create-program">
+          <Plus className="w-4 h-4 mr-2" /> Crear Programa
+        </Button>
       </div>
       <div className="grid grid-cols-1 gap-4">
         {isLoading ? (
@@ -863,7 +880,14 @@ export function RecommendationsTab({ farmId }: { farmId: number }) {
                     {r.updatedByName && <span>Ajustado por {r.updatedByName}</span>}
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">Ver detalles</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedRec(r)}
+                  data-testid={`button-view-program-${r.id}`}
+                >
+                  Ver detalles
+                </Button>
               </CardContent>
             </Card>
           ))
@@ -874,6 +898,61 @@ export function RecommendationsTab({ farmId }: { farmId: number }) {
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedRec} onOpenChange={(open) => !open && setSelectedRec(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedRec && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="pr-8">{selectedRec.title || "Recomendación sin título"}</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={selectedRec.status === "applying" ? "success" : selectedRec.status === "draft" ? "outline" : "secondary"}>
+                  {selectedRec.status}
+                </Badge>
+                {selectedRec.source === "ai" && (
+                  <Badge variant="secondary" className="gap-1"><Bot className="w-3 h-3" /> IA</Badge>
+                )}
+                <Badge variant="outline">
+                  {recSectorName(selectedRec.sectorId) ? `Sector: ${recSectorName(selectedRec.sectorId)}` : "Global de la finca"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">{formatDate(selectedRec.createdAt)}</span>
+              </div>
+              <div className="text-sm text-muted-foreground flex flex-wrap gap-4">
+                {selectedRec.estimatedEcDsM != null && <span>CE estimada: {selectedRec.estimatedEcDsM} dS/m</span>}
+                {selectedRec.updatedByName && <span>Ajustado por {selectedRec.updatedByName}</span>}
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fertilizante</TableHead>
+                    <TableHead className="text-right">Dosis semanal</TableHead>
+                    <TableHead>Motivo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(selectedRec.items ?? []).map((it, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{it.fertilizerName}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{it.weeklyDose} {it.unit}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{it.reason || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {(selectedRec.items ?? []).length === 0 && (
+                    <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sin fertilizantes.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {selectedRec.rationale && (
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold">Justificación agronómica</h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedRec.rationale}</p>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1382,7 +1461,7 @@ function AnalysisDraftDialog({
         {draft && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">{description}</p>
-              <AnalysisDraftEditor draft={draft} setDraft={setDraft} showErrors={showErrors} />
+              <AnalysisDraftEditor farmId={farmId} draft={draft} setDraft={setDraft} showErrors={showErrors} />
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDraft(null)} disabled={saveAnalysis.isPending}>
                   Descartar
@@ -1423,14 +1502,17 @@ function draftToPayload(draft: EditableDraft): AnalysisInput {
 }
 
 function AnalysisDraftEditor({
+  farmId,
   draft,
   setDraft,
   showErrors,
 }: {
+  farmId: number;
   draft: EditableDraft;
   setDraft: React.Dispatch<React.SetStateAction<EditableDraft | null>>;
   showErrors: boolean;
 }) {
+  const { data: sectors } = useListSectors(farmId);
   const errors = draftValidation(draft)!;
   const updateParam = (i: number, patch: Partial<EditableParam>) =>
     setDraft((d) => d && { ...d, parameters: d.parameters.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
@@ -1451,6 +1533,23 @@ function AnalysisDraftEditor({
               <SelectItem value="soil">Suelo</SelectItem>
               <SelectItem value="leaf">Foliar</SelectItem>
               <SelectItem value="water">Agua de riego</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Ámbito</label>
+          <Select
+            value={draft.sectorId != null ? String(draft.sectorId) : "global"}
+            onValueChange={(v) =>
+              setDraft((d) => d && { ...d, sectorId: v === "global" ? null : Number(v) })
+            }
+          >
+            <SelectTrigger data-testid="select-analysis-sector"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="global">Global (toda la finca)</SelectItem>
+              {(sectors ?? []).map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>Sector: {s.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

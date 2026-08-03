@@ -52,6 +52,9 @@ export function serializeFarm(f: Farm, myRole: string, sectorCount?: number) {
     maxEcDsM: f.maxEcDsM,
     managementNotes: f.managementNotes,
     responsibleTechnician: f.responsibleTechnician,
+    contactName: f.contactName,
+    contactPhone: f.contactPhone,
+    contactEmail: f.contactEmail,
     myRole,
     sectorCount: sectorCount ?? null,
   };

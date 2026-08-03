@@ -162,6 +162,9 @@ export const ListFarmsResponseItem = zod.object({
   "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
+  "contactName": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
   "myRole": zod.string().describe('owner | technician | manager | viewer'),
   "sectorCount": zod.number().int().nullish()
 })
@@ -194,7 +197,10 @@ export const CreateFarmBody = zod.object({
   "weeklyLitresPerPlant": zod.number().optional(),
   "maxEcDsM": zod.number().optional(),
   "managementNotes": zod.string().optional(),
-  "responsibleTechnician": zod.string().optional()
+  "responsibleTechnician": zod.string().optional(),
+  "contactName": zod.string().optional(),
+  "contactPhone": zod.string().optional(),
+  "contactEmail": zod.string().optional()
 })
 
 export const CreateFarmResponse = zod.object({
@@ -223,6 +229,9 @@ export const CreateFarmResponse = zod.object({
   "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
+  "contactName": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
   "myRole": zod.string().describe('owner | technician | manager | viewer'),
   "sectorCount": zod.number().int().nullish()
 })
@@ -258,6 +267,9 @@ export const GetFarmResponse = zod.object({
   "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
+  "contactName": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
   "myRole": zod.string().describe('owner | technician | manager | viewer'),
   "sectorCount": zod.number().int().nullish()
 })
@@ -293,7 +305,10 @@ export const UpdateFarmBody = zod.object({
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().optional(),
-  "responsibleTechnician": zod.string().optional()
+  "responsibleTechnician": zod.string().optional(),
+  "contactName": zod.string().optional(),
+  "contactPhone": zod.string().optional(),
+  "contactEmail": zod.string().optional()
 })
 
 export const UpdateFarmResponse = zod.object({
@@ -322,6 +337,9 @@ export const UpdateFarmResponse = zod.object({
   "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
+  "contactName": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
   "myRole": zod.string().describe('owner | technician | manager | viewer'),
   "sectorCount": zod.number().int().nullish()
 })
@@ -365,6 +383,9 @@ export const GetFarmSummaryResponse = zod.object({
   "maxEcDsM": zod.number().nullish(),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
+  "contactName": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
   "myRole": zod.string().describe('owner | technician | manager | viewer'),
   "sectorCount": zod.number().int().nullish()
 }),
@@ -1040,6 +1061,10 @@ export const DeleteProductSheetResponse = zod.void()
  */
 export const GenerateAiDraftRecommendationParams = zod.object({
   "farmId": zod.coerce.number().int()
+})
+
+export const GenerateAiDraftRecommendationBody = zod.object({
+  "sectorId": zod.number().int().nullish().describe('Sector objetivo del programa; null u omitido = programa global de la finca')
 })
 
 export const GenerateAiDraftRecommendationResponse = zod.object({

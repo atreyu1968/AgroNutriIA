@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { BiometricGate } from '@/components/BiometricGate';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, getStoredToken } from '@/context/AuthContext';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
@@ -60,7 +61,9 @@ export default function RootLayout() {
           <AuthProvider>
             <GestureHandlerRootView>
               <KeyboardProvider>
-                <RootLayoutNav />
+                <BiometricGate>
+                  <RootLayoutNav />
+                </BiometricGate>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </AuthProvider>

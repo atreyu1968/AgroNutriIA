@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   useRunCalculation,
   useListFertilizers,
+  useListSectors,
   useGenerateAiDraftRecommendation,
   useCreateRecommendation,
   useUpdateRecommendation,
@@ -32,6 +33,8 @@ export default function CalculadoraTab({
   defaultWeeklyLitres?: number | null;
 }) {
   const { data: fertilizers } = useListFertilizers();
+  const { data: sectors } = useListSectors(farmId);
+  const [aiSectorId, setAiSectorId] = useState<string>("global");
 
   const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
   const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
@@ -47,13 +50,13 @@ export default function CalculadoraTab({
   const calcMutation = useRunCalculation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [aiDraft, setAiDraft] = useState<{ id: number; title: string; rationale: string | null } | null>(null);
+  const [aiDraft, setAiDraft] = useState<{ id: number; title: string; rationale: string | null; sectorId: number | null } | null>(null);
   const [edited, setEdited] = useState(false);
 
   const aiMutation = useGenerateAiDraftRecommendation({
     mutation: {
       onSuccess: (rec) => {
-        setAiDraft({ id: rec.id, title: rec.title ?? "Programa propuesto por IA", rationale: rec.rationale ?? null });
+        setAiDraft({ id: rec.id, title: rec.title ?? "Programa propuesto por IA", rationale: rec.rationale ?? null, sectorId: rec.sectorId ?? null });
         setEdited(false);
         setItems(
           rec.items.map((i, idx) => ({
@@ -125,6 +128,8 @@ export default function CalculadoraTab({
       data: {
         title: aiDraft ? `${aiDraft.title} (ajustado por el técnico)` : "Programa del técnico",
         rationale: aiDraft?.rationale ?? undefined,
+        // Conserva el ámbito del borrador IA: un programa sectorial no debe volverse global.
+        ...(aiDraft?.sectorId != null ? { sectorId: aiDraft.sectorId } : {}),
         items: validItems,
       },
     });
@@ -205,11 +210,29 @@ export default function CalculadoraTab({
               <CardTitle className="text-base flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-secondary" /> Plan de Abonado Semanal
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                {sectors && sectors.length > 0 && (
+                  <Select value={aiSectorId} onValueChange={setAiSectorId}>
+                    <SelectTrigger className="h-8 w-[170px] text-xs" data-testid="select-ai-sector">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="global">Toda la finca</SelectItem>
+                      {sectors.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>Sector: {s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => aiMutation.mutate({ farmId })}
+                  onClick={() =>
+                    aiMutation.mutate({
+                      farmId,
+                      data: aiSectorId === "global" ? {} : { sectorId: Number(aiSectorId) },
+                    })
+                  }
                   disabled={aiMutation.isPending}
                   className="h-8 gap-1"
                 >

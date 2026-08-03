@@ -41,6 +41,9 @@ type FormState = {
   weeklyLitresPerPlant: string;
   maxEcDsM: string;
   responsibleTechnician: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
   managementNotes: string;
   foliarAllowed: boolean;
   hasDrainage: boolean;
@@ -60,6 +63,9 @@ const EMPTY: FormState = {
   weeklyLitresPerPlant: '',
   maxEcDsM: '',
   responsibleTechnician: '',
+  contactName: '',
+  contactPhone: '',
+  contactEmail: '',
   managementNotes: '',
   foliarAllowed: true,
   hasDrainage: false,
@@ -155,6 +161,9 @@ export default function FarmFormScreen() {
           farm.weeklyLitresPerPlant != null ? String(farm.weeklyLitresPerPlant) : '',
         maxEcDsM: farm.maxEcDsM != null ? String(farm.maxEcDsM) : '',
         responsibleTechnician: farm.responsibleTechnician ?? '',
+        contactName: farm.contactName ?? '',
+        contactPhone: farm.contactPhone ?? '',
+        contactEmail: farm.contactEmail ?? '',
         managementNotes: farm.managementNotes ?? '',
         foliarAllowed: farm.foliarAllowed ?? true,
         hasDrainage: farm.hasDrainage ?? false,
@@ -184,6 +193,9 @@ export default function FarmFormScreen() {
     weeklyLitresPerPlant: parseNum(form.weeklyLitresPerPlant),
     maxEcDsM: parseNum(form.maxEcDsM),
     responsibleTechnician: form.responsibleTechnician.trim() || undefined,
+    contactName: form.contactName.trim() || undefined,
+    contactPhone: form.contactPhone.trim() || undefined,
+    contactEmail: form.contactEmail.trim() || undefined,
     managementNotes: form.managementNotes.trim() || undefined,
     foliarAllowed: form.foliarAllowed,
     hasDrainage: form.hasDrainage,
@@ -366,6 +378,27 @@ export default function FarmFormScreen() {
             value={form.responsibleTechnician}
             onChange={set('responsibleTechnician')}
             placeholder="Nombre del técnico"
+          />
+          <Field
+            label="Persona de contacto"
+            value={form.contactName}
+            onChange={set('contactName')}
+            placeholder="Nombre de contacto"
+            testID="input-contact-name"
+          />
+          <Field
+            label="Teléfono de contacto"
+            value={form.contactPhone}
+            onChange={set('contactPhone')}
+            placeholder="+34 …"
+            testID="input-contact-phone"
+          />
+          <Field
+            label="Email de contacto"
+            value={form.contactEmail}
+            onChange={set('contactEmail')}
+            placeholder="correo@ejemplo.com"
+            testID="input-contact-email"
           />
           <Field
             label="Notas de manejo"

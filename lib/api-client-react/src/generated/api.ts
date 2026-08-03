@@ -55,6 +55,7 @@ import type {
   FertilizerInput,
   FertilizerUpdate,
   ForgotPasswordInput,
+  GenerateAiDraftRecommendationBody,
   GetMobileAppUrl200,
   GetUsageParams,
   HealthStatus,
@@ -2673,14 +2674,15 @@ export const getGenerateAiDraftRecommendationUrl = (farmId: number,) => {
 /**
  * @summary Generate an AI draft fertigation program from the latest analyses
  */
-export const generateAiDraftRecommendation = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<Recommendation> => {
+export const generateAiDraftRecommendation = async (farmId: number,
+    generateAiDraftRecommendationBody?: GenerateAiDraftRecommendationBody, options?: Parameters<typeof customFetch>[1]): Promise<Recommendation> => {
 
   return customFetch<Recommendation>(getGenerateAiDraftRecommendationUrl(farmId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateAiDraftRecommendationBody)
   }
 );}
 
@@ -2689,8 +2691,8 @@ export const generateAiDraftRecommendation = async (farmId: number, options?: Pa
 
 
 export const getGenerateAiDraftRecommendationMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number;data?: BodyType<GenerateAiDraftRecommendationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number;data?: BodyType<GenerateAiDraftRecommendationBody>}, TContext> => {
 
 const mutationKey = ['generateAiDraftRecommendation'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2702,10 +2704,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, {farmId: number}> = (props) => {
-          const {farmId} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, {farmId: number;data?: BodyType<GenerateAiDraftRecommendationBody>}> = (props) => {
+          const {farmId,data} = props ?? {};
 
-          return  generateAiDraftRecommendation(farmId,requestOptions)
+          return  generateAiDraftRecommendation(farmId,data,requestOptions)
         }
 
 
@@ -2716,18 +2718,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type GenerateAiDraftRecommendationMutationResult = NonNullable<Awaited<ReturnType<typeof generateAiDraftRecommendation>>>
-
+    export type GenerateAiDraftRecommendationMutationBody = BodyType<GenerateAiDraftRecommendationBody> | undefined
     export type GenerateAiDraftRecommendationMutationError = ErrorType<unknown>
 
     /**
  * @summary Generate an AI draft fertigation program from the latest analyses
  */
 export const useGenerateAiDraftRecommendation = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number;data?: BodyType<GenerateAiDraftRecommendationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateAiDraftRecommendation>>,
         TError,
-        {farmId: number},
+        {farmId: number;data?: BodyType<GenerateAiDraftRecommendationBody>},
         TContext
       > => {
       return useMutation(getGenerateAiDraftRecommendationMutationOptions(options));
