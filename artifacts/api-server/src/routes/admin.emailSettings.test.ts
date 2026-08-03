@@ -5,7 +5,10 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { eq, inArray } from "drizzle-orm";
 import { db, pool, usersTable, sessionsTable, appSettingsTable } from "@workspace/db";
-import { AdminGetEmailSettingsResponse } from "@workspace/api-zod";
+import {
+  AdminGetEmailSettingsResponse,
+  AdminSendTestEmailResponse,
+} from "@workspace/api-zod";
 import app from "../app";
 
 // Configuración de email (Resend) en Administración: solo admins, la clave se
@@ -20,6 +23,22 @@ delete process.env.EMAIL_FROM;
 
 const KEY_API = "resend_api_key";
 const KEY_FROM = "email_from";
+
+// Mock de Resend para las pruebas del email de prueba: contador de llamadas y
+// respuesta configurable. Las peticiones al propio servidor pasan sin cambios.
+const realFetch = globalThis.fetch;
+let resendCalls = 0;
+let resendResponder: () => Response = () => new Response("{}", { status: 200 });
+
+globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+  const url =
+    typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (url.startsWith("https://api.resend.com/")) {
+    resendCalls++;
+    return resendResponder();
+  }
+  return realFetch(input, init);
+}) as typeof fetch;
 
 let server: Server;
 let baseUrl: string;
@@ -102,6 +121,7 @@ before(async () => {
 });
 
 after(async () => {
+  globalThis.fetch = realFetch;
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
   );
@@ -229,4 +249,69 @@ test("borrada la clave de BD, vuelve el fallback al entorno (source='env')", asy
   assert.equal(body.configured, true);
   assert.equal(body.source, "env");
   assert.equal(body.apiKeyMasked, null);
+});
+
+// ---------------------------------------------------------------------------
+// POST /admin/settings/email/test — envía un correo real vía Resend, así que:
+// solo un admin puede lanzarlo, sin clave responde 400 sin llamar a Resend, y
+// un fallo de Resend se traduce en 502 con mensaje legible. Estos tests van al
+// final porque los anteriores dejan la BD sin clave y el entorno limpio.
+// ---------------------------------------------------------------------------
+
+test("email de prueba: un usuario no admin recibe 403 y sin sesión 401; Resend no se llama", async () => {
+  resendCalls = 0;
+  assert.equal(
+    (await api("POST", "/admin/settings/email/test", { token: userToken })).status,
+    403,
+  );
+  assert.equal((await api("POST", "/admin/settings/email/test")).status, 401);
+  assert.equal(resendCalls, 0);
+});
+
+test("email de prueba: sin clave configurada responde 400 y no llama a Resend", async () => {
+  resendCalls = 0;
+  const { status, raw } = await api("POST", "/admin/settings/email/test", {
+    token: adminToken,
+  });
+  assert.equal(status, 400);
+  assert.match((raw as { error: string }).error, /clave de Resend/i);
+  assert.equal(resendCalls, 0);
+});
+
+test("email de prueba: si Resend falla, responde 502 con un mensaje legible", async (t) => {
+  process.env.RESEND_API_KEY = "re_test_fallo_123456";
+  t.after(() => {
+    delete process.env.RESEND_API_KEY;
+  });
+  resendCalls = 0;
+  resendResponder = () =>
+    new Response(JSON.stringify({ message: "API key is invalid" }), { status: 401 });
+
+  const { status, raw } = await api("POST", "/admin/settings/email/test", {
+    token: adminToken,
+  });
+  assert.equal(status, 502);
+  assert.equal(resendCalls, 1);
+  const error = (raw as { error: string }).error;
+  assert.match(error, /No se pudo enviar el email de prueba/);
+  // El detalle del fallo de Resend llega legible al cliente.
+  assert.match(error, /401/);
+  assert.match(error, /API key is invalid/);
+});
+
+test("email de prueba: con clave y Resend OK, responde con el email del admin", async (t) => {
+  process.env.RESEND_API_KEY = "re_test_ok_123456";
+  t.after(() => {
+    delete process.env.RESEND_API_KEY;
+  });
+  resendCalls = 0;
+  resendResponder = () => new Response(JSON.stringify({ id: "email_1" }), { status: 200 });
+
+  const { status, raw } = await api("POST", "/admin/settings/email/test", {
+    token: adminToken,
+  });
+  assert.equal(status, 200);
+  assert.equal(resendCalls, 1);
+  const body = AdminSendTestEmailResponse.parse(raw);
+  assert.equal(body.sentTo, `adm-email-admin-${suffix}@test.local`);
 });
