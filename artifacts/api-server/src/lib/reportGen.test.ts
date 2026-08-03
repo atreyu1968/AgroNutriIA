@@ -233,6 +233,59 @@ test("generatePdf incluye título, secciones, tablas y pie con paginación", asy
   });
 });
 
+test("generatePdf muestra el origen [IA] y la fecha del programa cuando source=\"ai\"", async () => {
+  const filePath = path.join(tmpDir, "informe-origen-ia.pdf");
+  await generatePdf(data, filePath);
+  const { text } = await extractPdf(fs.readFileSync(filePath));
+  assert.ok(text.includes("[IA]"), 'incluye la etiqueta de origen "[IA]"');
+  assert.ok(!text.includes("[Técnico]"), 'no incluye la etiqueta "[Técnico]" si el origen es IA');
+  assert.ok(text.includes("Origen del programa"), "incluye la línea de origen del programa");
+  assert.ok(
+    text.includes("Fecha del programa: 15/01/2026"),
+    "incluye la fecha del programa (updatedAt) en formato dd/mm/aaaa",
+  );
+});
+
+test("generatePdf muestra el origen [Técnico] cuando source=\"manual\"", async () => {
+  const filePath = path.join(tmpDir, "informe-origen-manual.pdf");
+  const updated = new Date("2026-02-20T09:00:00Z");
+  await generatePdf(
+    { ...data, recommendation: { ...recommendation, source: "manual", updatedAt: updated } },
+    filePath,
+  );
+  const { text } = await extractPdf(fs.readFileSync(filePath));
+  assert.ok(text.includes("[Técnico]"), 'incluye la etiqueta de origen "[Técnico]"');
+  assert.ok(!text.includes("[IA]"), 'no incluye la etiqueta "[IA]" si el origen es manual');
+  assert.ok(
+    text.includes("Fecha del programa: 20/02/2026"),
+    "incluye la fecha actualizada del programa",
+  );
+});
+
+test("generateDocx muestra el origen y la fecha del programa según source", async () => {
+  const aiPath = path.join(tmpDir, "informe-origen-ia.docx");
+  await generateDocx(data, aiPath);
+  const aiZip = await JSZip.loadAsync(fs.readFileSync(aiPath));
+  const aiXml = await aiZip.file("word/document.xml")!.async("string");
+  assert.ok(aiXml.includes("[IA]"), 'el DOCX incluye la etiqueta "[IA]"');
+  assert.ok(!aiXml.includes("[Técnico]"), "el DOCX no incluye [Técnico] si el origen es IA");
+  assert.ok(aiXml.includes("Fecha del programa: 15/01/2026"), "el DOCX incluye la fecha del programa");
+
+  const manualPath = path.join(tmpDir, "informe-origen-manual.docx");
+  await generateDocx(
+    {
+      ...data,
+      recommendation: { ...recommendation, source: "manual", updatedAt: new Date("2026-02-20T09:00:00Z") },
+    },
+    manualPath,
+  );
+  const mZip = await JSZip.loadAsync(fs.readFileSync(manualPath));
+  const mXml = await mZip.file("word/document.xml")!.async("string");
+  assert.ok(mXml.includes("[Técnico]"), 'el DOCX incluye la etiqueta "[Técnico]"');
+  assert.ok(!mXml.includes("[IA]"), "el DOCX no incluye [IA] si el origen es manual");
+  assert.ok(mXml.includes("Fecha del programa: 20/02/2026"), "el DOCX incluye la fecha actualizada");
+});
+
 test("generatePdf funciona con datos mínimos (sin analíticas ni recomendación)", async () => {
   const filePath = path.join(tmpDir, "informe-minimo.pdf");
   await generatePdf(
