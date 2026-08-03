@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ReferenceArea, ReferenceLine,
@@ -710,7 +710,13 @@ export function RecommendationsTab({ farmId }: { farmId: number }) {
 
 // --- Reports Tab ---
 export function ReportsTab({ farmId }: { farmId: number }) {
-  const { data: reports, isLoading } = useListReports(farmId);
+  const { data: reports, isLoading, refetch } = useListReports(farmId);
+  const anyGenerating = reports?.some(r => r.status === 'generating') ?? false;
+  useEffect(() => {
+    if (!anyGenerating) return;
+    const t = setInterval(() => { void refetch(); }, 3000);
+    return () => clearInterval(t);
+  }, [anyGenerating, refetch]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   

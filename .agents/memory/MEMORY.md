@@ -1,3 +1,4 @@
 - [Orval + zod version](orval-zod.md) — Orval 8 emits zod-v4 syntax by default; pin `override.zod.version: 3` when the workspace uses zod 3.x.
 - [OpenAPI Params name collisions](orval-zod.md) — ops with both path and query params can collide on generated `<Op>Params` types; avoid query params on such ops or rename.
+- [Stale TS builds](stale-ts-build.md) — phantom "property does not exist" errors after merges: rebuild lib project refs with `tsc -b lib/<pkg>` before trusting them.
 - [esbuild externals](esbuild-externals.md) — pdfkit/fontkit and pdf-parse/@napi-rs/canvas cannot be bundled by esbuild; keep them in the `external` list.

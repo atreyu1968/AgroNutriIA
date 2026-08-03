@@ -80,53 +80,62 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
     })
     .returning();
 
-  const [soil, leaf, water, sectors] = await Promise.all([
-    latestAnalysis(farmId, "soil"),
-    latestAnalysis(farmId, "leaf"),
-    latestAnalysis(farmId, "water"),
-    db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId)),
-  ]);
-  const filePath = path.join(
-    REPORTS_DIR,
-    `informe-${farmId}-${report.id}.${parsed.data.format}`,
-  );
-  try {
-    const data = {
-      title,
-      farm: access.farm,
-      sectors,
-      soil,
-      leaf,
-      water,
-      recommendation,
-      authorName: req.user!.name,
-      date: new Date().toLocaleDateString("es-ES"),
-    };
-    if (parsed.data.format === "pdf") await generatePdf(data, filePath);
-    else await generateDocx(data, filePath);
-    const [ready] = await db
-      .update(reportsTable)
-      .set({ status: "ready", filePath })
-      .where(eq(reportsTable.id, report.id))
-      .returning();
-    await audit({
-      userId: req.user!.id,
-      farmId,
-      action: "report_generated",
-      entityType: "report",
-      entityId: report.id,
-      detail: `${title} (${parsed.data.format})`,
-    });
-    res.status(201).json(CreateReportResponse.parse(serializeReport(ready, req.user!.name)));
-  } catch (err) {
-    req.log.error({ err: (err as Error).message }, "Report generation failed");
-    const [failed] = await db
-      .update(reportsTable)
-      .set({ status: "error" })
-      .where(eq(reportsTable.id, report.id))
-      .returning();
-    res.status(201).json(CreateReportResponse.parse(serializeReport(failed, req.user!.name)));
-  }
+  // Respond immediately; generation continues in background.
+  res
+    .status(201)
+    .json(CreateReportResponse.parse(serializeReport(report, req.user!.name)));
+
+  const userId = req.user!.id;
+  const authorName = req.user!.name;
+  const log = req.log;
+  void (async () => {
+    const filePath = path.join(
+      REPORTS_DIR,
+      `informe-${farmId}-${report.id}.${parsed.data.format}`,
+    );
+    try {
+      const [soil, leaf, water, sectors] = await Promise.all([
+        latestAnalysis(farmId, "soil"),
+        latestAnalysis(farmId, "leaf"),
+        latestAnalysis(farmId, "water"),
+        db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId)),
+      ]);
+      const data = {
+        title,
+        farm: access.farm,
+        sectors,
+        soil,
+        leaf,
+        water,
+        recommendation,
+        authorName,
+        date: new Date().toLocaleDateString("es-ES"),
+      };
+      if (parsed.data.format === "pdf") await generatePdf(data, filePath);
+      else await generateDocx(data, filePath);
+      await db
+        .update(reportsTable)
+        .set({ status: "ready", filePath })
+        .where(and(eq(reportsTable.id, report.id), eq(reportsTable.status, "generating")));
+      await audit({
+        userId,
+        farmId,
+        action: "report_generated",
+        entityType: "report",
+        entityId: report.id,
+        detail: `${title} (${parsed.data.format})`,
+      });
+    } catch (err) {
+      log.error({ err: (err as Error).message }, "Report generation failed");
+      await db
+        .update(reportsTable)
+        .set({ status: "error" })
+        .where(eq(reportsTable.id, report.id))
+        .catch((e: Error) =>
+          log.error({ err: e.message }, "Failed to mark report as error"),
+        );
+    }
+  })();
 });
 
 router.get("/farms/:farmId/reports/:reportId/download", async (req, res): Promise<void> => {
