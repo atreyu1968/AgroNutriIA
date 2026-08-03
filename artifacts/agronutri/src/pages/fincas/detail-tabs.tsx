@@ -612,7 +612,23 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
                   </TableCell>
                   <TableCell>{a.reference || '-'}</TableCell>
                   <TableCell>{a.laboratory || '-'}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{a.parameters?.length || 0} analizados</TableCell>
+                  <TableCell className="text-xs">
+                    <span className="text-muted-foreground">{a.parameters?.length || 0} analizados</span>
+                    {(() => {
+                      const params = a.parameters ?? [];
+                      const outOfRange = params.filter(p => p.status && p.status !== 'normal');
+                      if (outOfRange.length === 0) return null;
+                      const severe = outOfRange.some(p => p.status === 'muy_bajo' || p.status === 'muy_alto');
+                      return (
+                        <Badge
+                          variant="outline"
+                          className={`ml-2 ${severe ? 'bg-red-500/10 text-red-700 border-red-300' : 'bg-amber-500/10 text-amber-700 border-amber-300'}`}
+                        >
+                          {outOfRange.length} fuera de rango
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
