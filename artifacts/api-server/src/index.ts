@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startReportSweeper } from "./lib/reportSweeper";
 import { startUsageReporter } from "./lib/usageReporter";
+import { ensureInvoiceGuards } from "./lib/invoiceGuard";
 
 const rawPort = process.env["PORT"];
 
@@ -21,13 +22,23 @@ if (Number.isNaN(port) || port <= 0) {
 // escucha en todas las interfaces (necesario para el proxy de desarrollo).
 const host = process.env.HOST ?? "0.0.0.0";
 
-app.listen(port, host, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+// Instala los triggers que protegen las facturas emitidas contra
+// modificaciones o borrados directos en la base de datos. El servidor no
+// empieza a escuchar hasta que la protección está instalada (fail closed).
+ensureInvoiceGuards()
+  .then(() => {
+    app.listen(port, host, (err) => {
+      if (err) {
+        logger.error({ err }, "Error listening on port");
+        process.exit(1);
+      }
 
-  logger.info({ port }, "Server listening");
-  startReportSweeper();
-  startUsageReporter();
-});
+      logger.info({ port }, "Server listening");
+      startReportSweeper();
+      startUsageReporter();
+    });
+  })
+  .catch((err) => {
+    logger.error({ err }, "Error instalando la protección de facturas");
+    process.exit(1);
+  });

@@ -8,4 +8,5 @@
 - [Task-merge breakage](task-merge-breakage.md) — platform merges can commit mangled code; after merges, restart workflows, check build, repair by diffing gitsafe-backup/main.
 - [Shared app_settings in tests](api-test-shared-settings.md) — node --test files run concurrently on one DB; tests mutating the same global rows must live in the same file.
 - [Public route ordering](public-route-ordering.md) — public routers (webhooks/signup) must be mounted before routers with root-level requireAuth, or they 401.
+- [Invoice DB trigger guards](invoice-db-guards.md) — no session-variable bypasses in triggers; single-role Replit Postgres means DDL bypass is inherent, document trust model.
 - [pdfkit footers](pdfkit-footer.md) — zero out `margins.bottom` before writing footer text in the bottom margin, or pdfkit silently appends blank pages.
