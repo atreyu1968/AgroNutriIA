@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertTriangle, FlaskConical, Info, Pencil, Plus, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -95,24 +96,7 @@ export default function Fertilizantes() {
                             Sin riqueza declarada
                           </Badge>
                         )}
-                        {fert.notes && (
-                          <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  aria-label={`Nota de ${fert.name}`}
-                                  className="text-muted-foreground hover:text-foreground shrink-0"
-                                >
-                                  <Info className="w-4 h-4" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs whitespace-pre-wrap">
-                                {fert.notes}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
+                        {fert.notes && <ProductNoteInfo name={fert.name} notes={fert.notes} />}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -398,5 +382,36 @@ function EditFertilizerButton({ fertilizer }: { fertilizer: Fertilizer }) {
         </Form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ProductNoteInfo({ name, notes }: { name: string; notes: string }) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  return (
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Nota de ${name}`}
+                className="text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          {!popoverOpen && (
+            <TooltipContent className="max-w-xs whitespace-pre-wrap">
+              {notes}
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+      <PopoverContent className="max-w-xs w-auto text-sm whitespace-pre-wrap">
+        {notes}
+      </PopoverContent>
+    </Popover>
   );
 }
