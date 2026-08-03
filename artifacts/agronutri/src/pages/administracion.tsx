@@ -14,7 +14,11 @@ import {
   getAdminGetEmailSettingsQueryKey,
   useAdminUpdateEmailSettings,
   useAdminSendTestEmail,
+  useListMembers,
+  getListMembersQueryKey,
+  useAdminReassignTechnician,
   type AdminUser,
+  type AdminFarm,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus, Mail, Loader2 } from "lucide-react";
+import { Users, MapPin, ShieldCheck, Pencil, Trash2, UserPlus, Mail, Loader2, ArrowRightLeft } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propietario",
@@ -65,6 +69,7 @@ export default function Administracion() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [deleteFarmId, setDeleteFarmId] = useState<number | null>(null);
+  const [reassignFarm, setReassignFarm] = useState<AdminFarm | null>(null);
 
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState("owner");
@@ -262,6 +267,9 @@ export default function Administracion() {
                         {f.plantCount != null ? `${f.plantCount.toLocaleString("es-ES")} pl.` : "—"}
                       </div>
                       <div className="hidden md:block text-sm text-muted-foreground w-20 text-right tabular-nums">{f.memberCount} miembro{f.memberCount === 1 ? "" : "s"}</div>
+                      <Button variant="ghost" size="icon" onClick={() => setReassignFarm(f)} aria-label="Reasignar técnico" title="Reasignar técnico">
+                        <ArrowRightLeft className="w-4 h-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteFarmId(f.id)} aria-label="Eliminar finca">
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -448,7 +456,103 @@ export default function Administracion() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {reassignFarm && (
+        <ReassignTechnicianDialog
+          farm={reassignFarm}
+          users={users ?? []}
+          onClose={() => setReassignFarm(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function ReassignTechnicianDialog({ farm, users, onClose }: { farm: AdminFarm; users: AdminUser[]; onClose: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: members, isLoading } = useListMembers(farm.id, {
+    query: { queryKey: getListMembersQueryKey(farm.id) },
+  });
+  const [fromUserId, setFromUserId] = useState<string>("");
+  const [toUserId, setToUserId] = useState<string>("");
+
+  const technicians = (members ?? []).filter((m) => m.role === "technician");
+  const memberIds = new Set((members ?? []).map((m) => m.userId));
+  const candidates = users.filter((u) => u.active && u.id !== farm.ownerId && !memberIds.has(u.id));
+
+  const reassign = useAdminReassignTechnician({
+    mutation: {
+      onSuccess: (m) => {
+        queryClient.invalidateQueries({ queryKey: getListMembersQueryKey(farm.id) });
+        queryClient.invalidateQueries({ queryKey: getAdminListFarmsQueryKey() });
+        toast({ title: "Técnico reasignado", description: `Ahora ${m.name} es técnico de ${farm.name}.` });
+        onClose();
+      },
+      onError: (err) => toast({ title: "No se pudo reasignar", description: errorMessage(err), variant: "destructive" }),
+    },
+  });
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reasignar técnico — {farm.name}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
+        ) : technicians.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Esta finca no tiene ningún técnico asignado. Puedes añadir uno desde la pestaña Equipo de la propia finca.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Técnico actual</Label>
+              <Select value={fromUserId} onValueChange={setFromUserId}>
+                <SelectTrigger><SelectValue placeholder="Elige el técnico a sustituir" /></SelectTrigger>
+                <SelectContent>
+                  {technicians.map((t) => (
+                    <SelectItem key={t.userId} value={String(t.userId)}>{t.name} · {t.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nuevo técnico</Label>
+              <Select value={toUserId} onValueChange={setToUserId}>
+                <SelectTrigger><SelectValue placeholder="Elige quién lo sustituye" /></SelectTrigger>
+                <SelectContent>
+                  {candidates.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>{u.name} · {u.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {candidates.length === 0 && (
+                <p className="text-xs text-muted-foreground">No hay usuarios disponibles: todos son ya miembros o el propietario de la finca.</p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El nuevo técnico hereda el acceso a la finca y el anterior deja de tenerlo. El historial de la finca no cambia.
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          {technicians.length > 0 && (
+            <Button
+              disabled={!fromUserId || !toUserId || reassign.isPending}
+              onClick={() =>
+                reassign.mutate({ farmId: farm.id, data: { fromUserId: Number(fromUserId), toUserId: Number(toUserId) } })
+              }
+            >
+              {reassign.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Reasignar
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, usersTable, farmsTable, farmMembersTable, sessionsTable } from "@workspace/db";
 import {
   AdminListUsersResponse,
@@ -9,6 +9,8 @@ import {
   AdminUpdateUserBody,
   AdminUpdateUserResponse,
   AdminListFarmsResponse,
+  AdminReassignTechnicianBody,
+  AdminReassignTechnicianResponse,
   AdminUpdateEmailSettingsBody,
   AdminGetEmailSettingsResponse,
   AdminSendTestEmailResponse,
@@ -254,6 +256,95 @@ router.delete("/admin/farms/:farmId", async (req, res): Promise<void> => {
     detail: farm.name,
   });
   res.status(204).send();
+});
+
+router.post("/admin/farms/:farmId/reassign-technician", async (req, res): Promise<void> => {
+  const farmId = strictId(req.params.farmId);
+  if (farmId == null) {
+    res.status(400).json({ error: "Identificador de finca no válido" });
+    return;
+  }
+  const parsed = AdminReassignTechnicianBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { fromUserId, toUserId } = parsed.data;
+  if (fromUserId === toUserId) {
+    res.status(400).json({ error: "El técnico de origen y el de destino son el mismo usuario" });
+    return;
+  }
+  type Fail = { status: number; error: string };
+  let outcome:
+    | { ok: true; updated: typeof farmMembersTable.$inferSelect; targetName: string; targetEmail: string; fromEmail: string | null; memberId: number }
+    | ({ ok: false } & Fail);
+  try {
+    outcome = await db.transaction(async (tx) => {
+      const [farm] = await tx.select().from(farmsTable).where(eq(farmsTable.id, farmId)).for("update");
+      if (!farm) return { ok: false as const, status: 404, error: "Finca no encontrada" };
+      if (fromUserId === farm.ownerId) {
+        return { ok: false as const, status: 409, error: "Ese usuario es el propietario de la finca, no un técnico reasignable" };
+      }
+      const [member] = await tx
+        .select()
+        .from(farmMembersTable)
+        .where(and(eq(farmMembersTable.farmId, farmId), eq(farmMembersTable.userId, fromUserId)))
+        .for("update");
+      if (!member || member.role !== "technician") {
+        return { ok: false as const, status: 404, error: "Ese usuario no es técnico de esta finca" };
+      }
+      const [target] = await tx.select().from(usersTable).where(eq(usersTable.id, toUserId));
+      if (!target) return { ok: false as const, status: 404, error: "El usuario de destino no existe" };
+      if (!target.active) return { ok: false as const, status: 409, error: "El usuario de destino está desactivado" };
+      if (target.id === farm.ownerId) {
+        return { ok: false as const, status: 409, error: "Ese usuario ya es el propietario de la finca" };
+      }
+      const [updated] = await tx
+        .update(farmMembersTable)
+        .set({ userId: toUserId })
+        .where(eq(farmMembersTable.id, member.id))
+        .returning();
+      const [fromUser] = await tx.select().from(usersTable).where(eq(usersTable.id, fromUserId));
+      return {
+        ok: true as const,
+        updated,
+        targetName: target.name,
+        targetEmail: target.email,
+        fromEmail: fromUser?.email ?? null,
+        memberId: member.id,
+      };
+    });
+  } catch (err) {
+    // Violación del índice único (farm_id, user_id): el destino ya es miembro (carrera concurrente incluida)
+    if ((err as { code?: string })?.code === "23505" || /farm_members_farm_user_unique/.test(String(err))) {
+      res.status(409).json({ error: "El usuario de destino ya es miembro de la finca" });
+      return;
+    }
+    throw err;
+  }
+  if (!outcome.ok) {
+    res.status(outcome.status).json({ error: outcome.error });
+    return;
+  }
+  const { updated, targetName, targetEmail, fromEmail, memberId } = outcome;
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "admin_technician_reassigned",
+    entityType: "member",
+    entityId: memberId,
+    detail: `${fromEmail ?? fromUserId} → ${targetEmail}`,
+  });
+  res.json(
+    AdminReassignTechnicianResponse.parse({
+      id: updated.id,
+      farmId: updated.farmId,
+      userId: updated.userId,
+      role: updated.role,
+      name: targetName,
+      email: targetEmail,
+    })
+  );
 });
 
 function maskKey(key: string): string {

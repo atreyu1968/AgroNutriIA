@@ -1241,6 +1241,33 @@ paths:
         "204":
           description: Deleted
 
+  /admin/farms/{farmId}/reassign-technician:
+    post:
+      operationId: adminReassignTechnician
+      tags: [admin]
+      summary: Reassign a farm technician to another user (admin only)
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminReassignTechnicianInput"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmMember"
+        "400":
+          description: Invalid input
+        "404":
+          description: Farm, member or target user not found
+        "409":
+          description: Target user is owner or already a member
+
   /admin/settings/email:
     get:
       operationId: adminGetEmailSettings
@@ -1758,6 +1785,12 @@ components:
       required: [role]
       properties:
         role: { type: string, enum: [technician, manager, viewer] }
+    AdminReassignTechnicianInput:
+      type: object
+      required: [fromUserId, toUserId]
+      properties:
+        fromUserId: { type: integer, description: "Usuario técnico actual de la finca" }
+        toUserId: { type: integer, description: "Usuario que pasará a ser el técnico" }
 
     Analysis:
       type: object

@@ -2023,6 +2023,28 @@ export const AdminDeleteFarmResponse = zod.void()
 
 
 /**
+ * @summary Reassign a farm technician to another user (admin only)
+ */
+export const AdminReassignTechnicianParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const AdminReassignTechnicianBody = zod.object({
+  "fromUserId": zod.number().int().describe('Usuario técnico actual de la finca'),
+  "toUserId": zod.number().int().describe('Usuario que pasará a ser el técnico')
+})
+
+export const AdminReassignTechnicianResponse = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "userId": zod.number().int(),
+  "role": zod.string().describe('technician | manager | viewer'),
+  "name": zod.string(),
+  "email": zod.string()
+})
+
+
+/**
  * @summary Get email (Resend) settings (admin only)
  */
 export const AdminGetEmailSettingsResponse = zod.object({

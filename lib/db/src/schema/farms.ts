@@ -3,6 +3,7 @@ import {
   text,
   serial,
   timestamp,
+  uniqueIndex,
   integer,
   real,
   boolean,
@@ -45,17 +46,21 @@ export const farmsTable = pgTable("farms", {
 });
 export type Farm = typeof farmsTable.$inferSelect;
 
-export const farmMembersTable = pgTable("farm_members", {
-  id: serial("id").primaryKey(),
-  farmId: integer("farm_id")
-    .notNull()
-    .references(() => farmsTable.id, { onDelete: "cascade" }),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
-  role: text("role").notNull(), // technician | manager | viewer
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const farmMembersTable = pgTable(
+  "farm_members",
+  {
+    id: serial("id").primaryKey(),
+    farmId: integer("farm_id")
+      .notNull()
+      .references(() => farmsTable.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // technician | manager | viewer
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("farm_members_farm_user_unique").on(t.farmId, t.userId)]
+);
 export type FarmMember = typeof farmMembersTable.$inferSelect;
 
 export const sectorsTable = pgTable("sectors", {

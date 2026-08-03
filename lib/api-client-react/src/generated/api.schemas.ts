@@ -634,6 +634,13 @@ export interface FarmMemberUpdate {
   role: FarmMemberUpdateRole;
 }
 
+export interface AdminReassignTechnicianInput {
+  /** Usuario técnico actual de la finca */
+  fromUserId: number;
+  /** Usuario que pasará a ser el técnico */
+  toUserId: number;
+}
+
 export type AnalysisInputType = typeof AnalysisInputType[keyof typeof AnalysisInputType];
 
 

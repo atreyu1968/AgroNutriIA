@@ -10,6 +10,7 @@ export * from './adminEmailSettings';
 export * from './adminEmailSettingsInput';
 export * from './adminEmailSettingsSource';
 export * from './adminFarm';
+export * from './adminReassignTechnicianInput';
 export * from './adminTestEmailResult';
 export * from './adminUser';
 export * from './adminUserCreate';

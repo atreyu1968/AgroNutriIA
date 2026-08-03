@@ -23,6 +23,7 @@ import type {
   AdminEmailSettings,
   AdminEmailSettingsInput,
   AdminFarm,
+  AdminReassignTechnicianInput,
   AdminTestEmailResult,
   AdminUser,
   AdminUserCreate,
@@ -5525,6 +5526,78 @@ export const useAdminDeleteFarm = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAdminDeleteFarmMutationOptions(options));
+    }
+
+export const getAdminReassignTechnicianUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/admin/farms/${farmId}/reassign-technician`
+}
+
+/**
+ * @summary Reassign a farm technician to another user (admin only)
+ */
+export const adminReassignTechnician = async (farmId: number,
+    adminReassignTechnicianInput: AdminReassignTechnicianInput, options?: Parameters<typeof customFetch>[1]): Promise<FarmMember> => {
+
+  return customFetch<FarmMember>(getAdminReassignTechnicianUrl(farmId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminReassignTechnicianInput)
+  }
+);}
+
+
+
+
+
+export const getAdminReassignTechnicianMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminReassignTechnician>>, TError,{farmId: number;data: BodyType<AdminReassignTechnicianInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminReassignTechnician>>, TError,{farmId: number;data: BodyType<AdminReassignTechnicianInput>}, TContext> => {
+
+const mutationKey = ['adminReassignTechnician'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminReassignTechnician>>, {farmId: number;data: BodyType<AdminReassignTechnicianInput>}> = (props) => {
+          const {farmId,data} = props ?? {};
+
+          return  adminReassignTechnician(farmId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminReassignTechnicianMutationResult = NonNullable<Awaited<ReturnType<typeof adminReassignTechnician>>>
+    export type AdminReassignTechnicianMutationBody = BodyType<AdminReassignTechnicianInput>
+    export type AdminReassignTechnicianMutationError = ErrorType<void>
+
+    /**
+ * @summary Reassign a farm technician to another user (admin only)
+ */
+export const useAdminReassignTechnician = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminReassignTechnician>>, TError,{farmId: number;data: BodyType<AdminReassignTechnicianInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminReassignTechnician>>,
+        TError,
+        {farmId: number;data: BodyType<AdminReassignTechnicianInput>},
+        TContext
+      > => {
+      return useMutation(getAdminReassignTechnicianMutationOptions(options));
     }
 
 export const getAdminGetEmailSettingsUrl = () => {
