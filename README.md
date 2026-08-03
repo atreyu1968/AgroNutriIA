@@ -37,13 +37,13 @@ El script instala y configura automáticamente:
 2. Descarga el instalador (aún no hace falta clonar todo el repositorio):
 
    ```bash
-   curl -fsSLO https://raw.githubusercontent.com/USUARIO/REPO/main/deploy/install.sh
+   curl -fsSLO https://raw.githubusercontent.com/atreyu1968/AgroNutriIA/main/deploy/install.sh
    ```
 
 3. Ejecútalo como root, indicando la URL del repositorio y, opcionalmente, tu dominio:
 
    ```bash
-   sudo bash install.sh https://github.com/USUARIO/REPO.git midominio.com
+   sudo bash install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
    ```
 
    Si no indicas dominio, la web responderá en la IP del servidor.
@@ -53,7 +53,7 @@ El script instala y configura automáticamente:
 5. Dentro de la app, en **Ajustes**, añade tu clave de OpenAI para activar el técnico virtual, el chat con adjuntos y los borradores de programa por IA.
 
 > Si el repositorio es privado, usa una URL con token de acceso
-> (`https://TOKEN@github.com/USUARIO/REPO.git`) o configura antes una clave SSH de despliegue.
+> (`https://TOKEN@github.com/atreyu1968/AgroNutriIA.git`) o configura antes una clave SSH de despliegue.
 
 ### Opciones avanzadas
 
@@ -76,7 +76,7 @@ journalctl -u agronutri-api -f
 sudo systemctl restart agronutri-api
 
 # Actualizar a la última versión publicada en GitHub
-sudo bash /opt/agronutri/deploy/install.sh https://github.com/USUARIO/REPO.git midominio.com
+sudo bash /opt/agronutri/deploy/install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
 ```
 
 El instalador es **re-ejecutable**: si ya hay una instalación, actualiza el código, vuelve a compilar y reinicia los servicios conservando las credenciales y las sesiones. Antes de aplicar cambios de esquema hace una copia de seguridad automática de la base de datos en `/var/backups/agronutri` (si aun así quieres restaurar: `pg_restore -d agronutri fichero.dump`). Ten en cuenta que la actualización sincroniza el esquema automáticamente; si una versión nueva elimina columnas o tablas, esos datos concretos se pierden — de ahí la copia previa.

@@ -7,7 +7,7 @@
 # como servicio systemd y la web compilada servida por nginx.
 #
 # Uso (como root o con sudo):
-#   sudo bash install.sh https://github.com/USUARIO/REPO.git [dominio]
+#   sudo bash install.sh https://github.com/atreyu1968/AgroNutriIA.git [dominio]
 #
 #   - 1er argumento (obligatorio): URL del repositorio git.
 #   - 2º argumento (opcional): dominio para nginx (por defecto: _ = cualquier host).
@@ -30,7 +30,7 @@ SERVICE_NAME="agronutri-api"
 
 if [[ -z "$REPO_URL" ]]; then
   echo "ERROR: falta la URL del repositorio." >&2
-  echo "Uso: sudo bash install.sh https://github.com/USUARIO/REPO.git [dominio]" >&2
+  echo "Uso: sudo bash install.sh https://github.com/atreyu1968/AgroNutriIA.git [dominio]" >&2
   exit 1
 fi
 if [[ $EUID -ne 0 ]]; then
