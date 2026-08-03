@@ -8,6 +8,7 @@ import Register from '@/pages/register';
 import Recuperar from '@/pages/recuperar';
 import Restablecer from '@/pages/restablecer';
 import Dashboard from '@/pages/dashboard';
+import Landing from '@/pages/landing';
 
 import { FincasRouter } from '@/pages/fincas/router';
 
@@ -39,6 +40,7 @@ function NotFound() {
 function Router() {
   return (
     <Switch>
+      <Route path="/landing" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/registro" component={Register} />
       <Route path="/recuperar" component={Recuperar} />
