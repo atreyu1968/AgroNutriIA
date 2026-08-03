@@ -966,6 +966,39 @@ export const CreateRecommendationResponse = zod.object({
 })
 
 
+/**
+ * @summary Generate an AI draft fertigation program from the latest analyses
+ */
+export const GenerateAiDraftRecommendationParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const GenerateAiDraftRecommendationResponse = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "sectorId": zod.number().int().nullish(),
+  "title": zod.string().nullish(),
+  "status": zod.string().describe('draft | pending_review | validated | applying | finished | rejected'),
+  "source": zod.string().nullish().describe('manual | ai'),
+  "items": zod.array(zod.object({
+  "fertilizerId": zod.number().int().nullish(),
+  "fertilizerName": zod.string(),
+  "weeklyDose": zod.number(),
+  "unit": zod.string().describe('kg | L'),
+  "previousDose": zod.number().nullish(),
+  "reason": zod.string().nullish()
+})),
+  "rationale": zod.string().nullish(),
+  "estimatedEcDsM": zod.number().nullish(),
+  "estimatedWeeklyNKg": zod.number().nullish(),
+  "warnings": zod.array(zod.string()).optional(),
+  "createdByName": zod.string().nullish(),
+  "validatedByName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().nullish()
+})
+
+
 export const GetRecommendationParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "recommendationId": zod.coerce.number().int()

@@ -506,6 +506,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recommendation"
+  /farms/{farmId}/recommendations/ai-draft:
+    post:
+      operationId: generateAiDraftRecommendation
+      tags: [recommendations]
+      summary: Generate an AI draft fertigation program from the latest analyses
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "201":
+          description: Created AI draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendation"
   /farms/{farmId}/recommendations/{recommendationId}:
     get:
       operationId: getRecommendation

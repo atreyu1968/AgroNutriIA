@@ -839,17 +839,71 @@ export function ReportsTab({ farmId }: { farmId: number }) {
       onSuccess: () => {
         toast({ title: "Informe en generación", description: "Estará listo en unos momentos." });
         queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(farmId) });
+        setGenOpen(false);
       }
     }
   });
+
+  const { data: recommendations } = useListRecommendations(farmId);
+  const [genOpen, setGenOpen] = useState(false);
+  const [selectedRecId, setSelectedRecId] = useState<string>("none");
+  const [format, setFormat] = useState<"pdf" | "docx">("pdf");
+
+  const handleGenerate = () => {
+    createMutation.mutate({
+      farmId,
+      data: {
+        format,
+        title: "Informe técnico de fertirrigación",
+        ...(selectedRecId !== "none" ? { recommendationId: parseInt(selectedRecId, 10) } : {}),
+      },
+    });
+  };
 
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Informes Generados</h3>
-        <Button size="sm" onClick={() => createMutation.mutate({ farmId, data: { format: 'pdf', title: 'Informe de Estado' } })} disabled={createMutation.isPending}>
-          <FileText className="w-4 h-4 mr-2" /> Generar PDF General
-        </Button>
+        <Dialog open={genOpen} onOpenChange={setGenOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><FileText className="w-4 h-4 mr-2" /> Generar Informe</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Generar informe</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Programa de abonado a incluir</Label>
+                <Select value={selectedRecId} onValueChange={setSelectedRecId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Programa vigente (automático)</SelectItem>
+                    {recommendations?.map(r => (
+                      <SelectItem key={r.id} value={String(r.id)}>
+                        {r.source === 'ai' ? '[IA] ' : '[Técnico] '}{r.title} · {formatDate(r.createdAt)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Elige el programa propuesto por la IA o la versión del técnico (manual o modificada).
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Formato</Label>
+                <Select value={format} onValueChange={(v) => setFormat(v as "pdf" | "docx")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="docx">Word (DOCX)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="w-full" onClick={handleGenerate} disabled={createMutation.isPending}>
+                {createMutation.isPending ? "Generando..." : "Generar informe"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
       <Card>
         <Table>

@@ -2284,6 +2284,77 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreateRecommendationMutationOptions(options));
     }
 
+export const getGenerateAiDraftRecommendationUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/recommendations/ai-draft`
+}
+
+/**
+ * @summary Generate an AI draft fertigation program from the latest analyses
+ */
+export const generateAiDraftRecommendation = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<Recommendation> => {
+
+  return customFetch<Recommendation>(getGenerateAiDraftRecommendationUrl(farmId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getGenerateAiDraftRecommendationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number}, TContext> => {
+
+const mutationKey = ['generateAiDraftRecommendation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, {farmId: number}> = (props) => {
+          const {farmId} = props ?? {};
+
+          return  generateAiDraftRecommendation(farmId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateAiDraftRecommendationMutationResult = NonNullable<Awaited<ReturnType<typeof generateAiDraftRecommendation>>>
+
+    export type GenerateAiDraftRecommendationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate an AI draft fertigation program from the latest analyses
+ */
+export const useGenerateAiDraftRecommendation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAiDraftRecommendation>>, TError,{farmId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateAiDraftRecommendation>>,
+        TError,
+        {farmId: number},
+        TContext
+      > => {
+      return useMutation(getGenerateAiDraftRecommendationMutationOptions(options));
+    }
+
 export const getGetRecommendationUrl = (farmId: number,
     recommendationId: number,) => {
 

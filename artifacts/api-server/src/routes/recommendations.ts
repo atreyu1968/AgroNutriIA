@@ -5,11 +5,13 @@ import {
   recommendationsTable,
   fertilizersTable,
   sectorsTable,
+  type RecommendationItem,
 } from "@workspace/db";
 import {
   ListRecommendationsResponse,
   CreateRecommendationBody,
   CreateRecommendationResponse,
+  GenerateAiDraftRecommendationResponse,
   GetRecommendationResponse,
   UpdateRecommendationBody,
   UpdateRecommendationResponse,
@@ -26,9 +28,22 @@ import {
   parseIntParam,
 } from "../middlewares/auth";
 import { serializeRecommendation } from "../lib/serializers";
-import { latestAnalysis, userName } from "../lib/farmContext";
+import {
+  latestAnalysis,
+  activeRecommendation,
+  resolveCredential,
+  userName,
+} from "../lib/farmContext";
 import { runEngine } from "../lib/engine";
 import { audit } from "../lib/audit";
+import { buildFarmContext } from "../lib/contextBlock";
+import {
+  clientFor,
+  agronomistSystemPrompt,
+  estimateCostEur,
+  recordUsage,
+  checkMonthlyLimit,
+} from "../lib/openai";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -105,6 +120,181 @@ router.post("/farms/:farmId/recommendations", async (req, res): Promise<void> =>
     detail: rec.title,
   });
   res.status(201).json(CreateRecommendationResponse.parse(await fullSerialize(rec)));
+});
+
+const aiProgramSchema = {
+  name: "programa_fertirrigacion",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["title", "rationale", "items"],
+    properties: {
+      title: { type: "string" },
+      rationale: {
+        type: "string",
+        description: "Justificación agronómica breve basada en las analíticas",
+      },
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["fertilizerName", "weeklyDose", "unit"],
+          properties: {
+            fertilizerName: { type: "string" },
+            weeklyDose: { type: "number", description: "Dosis semanal total de la finca" },
+            unit: { type: "string", enum: ["kg", "L"] },
+            reason: { type: ["string", "null"] },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para crear programas" });
+    return;
+  }
+  const credential = await resolveCredential(access.farm, req.user!);
+  if (!credential) {
+    res.status(409).json({
+      error:
+        "No hay ninguna clave de OpenAI configurada. Añade tu clave en Ajustes para usar el técnico virtual.",
+    });
+    return;
+  }
+  const limitMsg = await checkMonthlyLimit(req.user!, credential);
+  if (limitMsg) {
+    res.status(429).json({ error: limitMsg });
+    return;
+  }
+
+  const [soil, leaf, water, sectors, active, fertilizers] = await Promise.all([
+    latestAnalysis(farmId, "soil"),
+    latestAnalysis(farmId, "leaf"),
+    latestAnalysis(farmId, "water"),
+    db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId)),
+    activeRecommendation(farmId),
+    db.select().from(fertilizersTable),
+  ]);
+  if (!soil && !leaf && !water) {
+    res.status(422).json({
+      error:
+        "La finca no tiene ninguna analítica registrada. Sube al menos una analítica (agua, suelo o foliar) para generar un programa con IA.",
+    });
+    return;
+  }
+  const contextBlock = buildFarmContext({ farm: access.farm, sectors, soil, leaf, water, active });
+  const catalog = fertilizers
+    .filter((f) => f.isActive !== false && (f.usage ?? "fertirrigacion") === "fertirrigacion")
+    .map((f) => `- ${f.name} (${f.formulaType ?? "?"})`)
+    .join("\n");
+
+  const model = credential.selectedModel ?? "gpt-4o-mini";
+  const start = Date.now();
+  let extracted: {
+    title: string;
+    rationale: string;
+    items: { fertilizerName: string; weeklyDose: number; unit: string; reason?: string | null }[];
+  };
+  try {
+    const client = clientFor(credential);
+    const completion = await client.chat.completions.create({
+      model,
+      response_format: { type: "json_schema", json_schema: aiProgramSchema },
+      messages: [
+        { role: "system", content: agronomistSystemPrompt(access.farm, contextBlock) },
+        {
+          role: "user",
+          content: `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
+Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
+${catalog}
+
+Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.`,
+        },
+      ],
+    });
+    const raw = completion.choices[0]?.message?.content ?? "";
+    extracted = JSON.parse(raw);
+    const inputTokens = completion.usage?.prompt_tokens ?? 0;
+    const outputTokens = completion.usage?.completion_tokens ?? 0;
+    await recordUsage({
+      userId: req.user!.id,
+      farmId,
+      model,
+      operation: "ai_draft_program",
+      inputTokens,
+      outputTokens,
+      estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
+      durationMs: Date.now() - start,
+      result: "ok",
+    });
+  } catch (err) {
+    req.log.error({ err: (err as Error).message }, "OpenAI ai-draft program failed");
+    await recordUsage({
+      userId: req.user!.id,
+      farmId,
+      model,
+      operation: "ai_draft_program",
+      durationMs: Date.now() - start,
+      result: "error",
+    });
+    res.status(502).json({
+      error: "No se ha podido generar el programa con IA. Inténtalo de nuevo en unos momentos.",
+    });
+    return;
+  }
+
+  if (!Array.isArray(extracted.items) || extracted.items.length === 0) {
+    res.status(422).json({
+      error: "La IA no ha propuesto ningún fertilizante. Revisa que las analíticas tengan datos y vuelve a intentarlo.",
+    });
+    return;
+  }
+
+  const byName = new Map(fertilizers.map((f) => [f.name.toLowerCase(), f]));
+  const items: RecommendationItem[] = extracted.items.map((i) => ({
+    fertilizerId: byName.get(i.fertilizerName.toLowerCase())?.id ?? null,
+    fertilizerName: i.fertilizerName,
+    weeklyDose: i.weeklyDose,
+    unit: i.unit === "L" ? "L" : "kg",
+    reason: i.reason ?? null,
+  }));
+  const out = runEngine({ farm: access.farm, waterAnalysis: water, fertilizers, items });
+
+  const [rec] = await db
+    .insert(recommendationsTable)
+    .values({
+      farmId,
+      title: extracted.title || "Programa propuesto por el técnico virtual",
+      items,
+      rationale: extracted.rationale || null,
+      status: "draft",
+      source: "ai",
+      createdBy: req.user!.id,
+      estimatedEcDsM: out.estimatedEcDsM,
+      estimatedWeeklyNKg: out.nutrients.n ?? null,
+      warnings: [...out.warnings, ...out.compatibilityIssues],
+    })
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "recommendation_created",
+    entityType: "recommendation",
+    entityId: rec.id,
+    detail: `${rec.title} (borrador IA desde analíticas)`,
+  });
+  res.status(201).json(GenerateAiDraftRecommendationResponse.parse(await fullSerialize(rec)));
 });
 
 router.get("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {

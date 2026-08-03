@@ -1,11 +1,18 @@
-import { useState } from "react";
-import { useRunCalculation, useListFertilizers } from "@workspace/api-client-react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
+import {
+  useRunCalculation,
+  useListFertilizers,
+  useGenerateAiDraftRecommendation,
+  useCreateRecommendation,
+  getListRecommendationsQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calculator, Plus, Trash2, Droplets, FlaskConical, AlertTriangle, ArrowRight } from "lucide-react";
+import { Calculator, Plus, Trash2, Droplets, FlaskConical, AlertTriangle, ArrowRight, Bot, Save } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +41,50 @@ export default function CalculadoraTab({
   ]);
 
   const calcMutation = useRunCalculation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [aiDraft, setAiDraft] = useState<{ title: string; rationale: string | null } | null>(null);
+  const [edited, setEdited] = useState(false);
 
-  const handleCalculate = () => {
-    const validItems = items
+  const aiMutation = useGenerateAiDraftRecommendation({
+    mutation: {
+      onSuccess: (rec) => {
+        setAiDraft({ title: rec.title, rationale: rec.rationale ?? null });
+        setEdited(false);
+        setItems(
+          rec.items.map((i, idx) => ({
+            id: Date.now() + idx,
+            fertId: i.fertilizerId != null ? String(i.fertilizerId) : "",
+            dose: i.weeklyDose,
+          })),
+        );
+        queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        toast({
+          title: "Plan generado con IA",
+          description: "Guardado como borrador en Nutrición. Revísalo y ajústalo antes de usarlo.",
+        });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast({ title: "No se pudo generar el plan", description: msg ?? "Inténtalo de nuevo.", variant: "destructive" });
+      },
+    },
+  });
+
+  const saveMutation = useCreateRecommendation({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        toast({
+          title: "Programa del técnico guardado",
+          description: "Disponible en la pestaña Nutrición y al generar informes.",
+        });
+      },
+    },
+  });
+
+  const buildValidItems = () =>
+    items
       .filter(i => i.fertId && i.dose > 0)
       .map(i => {
         const fert = fertilizers?.find(f => f.id.toString() === i.fertId);
@@ -48,6 +96,21 @@ export default function CalculadoraTab({
         };
       });
 
+  const handleSaveAsTechnician = () => {
+    const validItems = buildValidItems();
+    if (validItems.length === 0) return;
+    saveMutation.mutate({
+      farmId,
+      data: {
+        title: aiDraft ? `${aiDraft.title} (ajustado por el técnico)` : "Programa del técnico",
+        rationale: aiDraft?.rationale ?? undefined,
+        items: validItems,
+      },
+    });
+  };
+
+  const handleCalculate = () => {
+    const validItems = buildValidItems();
     if (validItems.length === 0 || !farmId) return;
 
     calcMutation.mutate({
@@ -110,16 +173,39 @@ export default function CalculadoraTab({
               <CardTitle className="text-base flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-secondary" /> Plan de Abonado Semanal
               </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setItems([...items, { id: Date.now(), fertId: "", dose: 0 }])}
-                className="h-8 gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" /> Añadir
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => aiMutation.mutate({ farmId })}
+                  disabled={aiMutation.isPending}
+                  className="h-8 gap-1"
+                >
+                  <Bot className="w-3.5 h-3.5" /> {aiMutation.isPending ? "Generando..." : "Generar con IA"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setItems([...items, { id: Date.now(), fertId: "", dose: 0 }])}
+                  className="h-8 gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Añadir
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {aiDraft && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+                  <p className="font-medium flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-primary" /> {aiDraft.title}
+                    {edited && <Badge variant="outline" className="text-[10px]">modificado</Badge>}
+                  </p>
+                  {aiDraft.rationale && <p className="text-muted-foreground text-xs">{aiDraft.rationale}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    Propuesta basada en las últimas analíticas, guardada como borrador IA en Nutrición. Ajusta las dosis y guarda tu versión si haces cambios.
+                  </p>
+                </div>
+              )}
               {items.map((item, index) => (
                 <div key={item.id} className="flex gap-3 items-end">
                   <div className="flex-1 space-y-1.5">
@@ -130,6 +216,7 @@ export default function CalculadoraTab({
                         const newItems = [...items];
                         newItems[index].fertId = val;
                         setItems(newItems);
+                        setEdited(true);
                       }}
                     >
                       <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
@@ -151,6 +238,7 @@ export default function CalculadoraTab({
                           const newItems = [...items];
                           newItems[index].dose = parseFloat(e.target.value) || 0;
                           setItems(newItems);
+                          setEdited(true);
                         }} 
                       />
                       <span className="absolute right-3 top-2 text-xs text-muted-foreground">
@@ -179,6 +267,15 @@ export default function CalculadoraTab({
                 {calcMutation.isPending ? "Calculando..." : (
                   <>Calcular Aportes <ArrowRight className="w-4 h-4 ml-2" /></>
                 )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleSaveAsTechnician}
+                disabled={saveMutation.isPending || !items.some(i => i.fertId && i.dose > 0)}
+              >
+                <Save className="w-4 h-4" />
+                {saveMutation.isPending ? "Guardando..." : "Guardar como programa del técnico"}
               </Button>
             </CardContent>
           </Card>
