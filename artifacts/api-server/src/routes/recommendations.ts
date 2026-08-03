@@ -140,7 +140,7 @@ const aiProgramSchema = {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["fertilizerName", "weeklyDose", "unit"],
+          required: ["fertilizerName", "weeklyDose", "unit", "reason"],
           properties: {
             fertilizerName: { type: "string" },
             weeklyDose: { type: "number", description: "Dosis semanal total de la finca" },
