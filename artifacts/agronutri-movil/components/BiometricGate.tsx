@@ -5,9 +5,8 @@ import { Image } from 'expo-image';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { useBiometricPref } from '@/context/BiometricPrefContext';
 import { useColors } from '@/hooks/useColors';
-
-const BACKGROUND_LOCK_MS = 60_000;
 
 /**
  * Locks the app behind biometrics (Face ID / huella) when there is an active
@@ -18,16 +17,16 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { token, isLoading, signOut } = useAuth();
+  const { biometricLockEnabled } = useBiometricPref();
 
   // null = still checking device capabilities
   const [supported, setSupported] = useState<boolean | null>(Platform.OS === 'web' ? false : null);
   const [locked, setLocked] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [appActive, setAppActive] = useState(
+    Platform.OS === 'web' ? true : AppState.currentState === 'active',
+  );
   const authInProgress = useRef(false);
-  const backgroundedAt = useRef<number | null>(null);
-  // Lock epoch: invalidates any pending authentication result from a previous
-  // foreground session so a stale success cannot bypass a re-lock.
-  const lockEpoch = useRef(0);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -48,14 +47,11 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
     if (authInProgress.current) return;
     authInProgress.current = true;
     setAuthError(null);
-    const epoch = lockEpoch.current;
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Desbloquea AgroNutri',
         cancelLabel: 'Cancelar',
       });
-      // Ignore results from a previous foreground session (app was re-locked).
-      if (epoch !== lockEpoch.current) return;
       if (result.success) {
         setLocked(false);
       } else {
@@ -68,35 +64,28 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const needsLock = !!token && supported === true && locked;
+  const needsLock = !!token && supported === true && biometricLockEnabled === true && locked;
 
-  // Prompt automatically when the lock screen appears.
+  // Prompt automatically when the lock screen appears (only while foregrounded:
+  // prompting from the background fails silently on both platforms).
   useEffect(() => {
-    if (needsLock && !isLoading) authenticate();
-  }, [needsLock, isLoading, authenticate]);
+    if (needsLock && !isLoading && appActive) authenticate();
+  }, [needsLock, isLoading, appActive, authenticate]);
 
-  // Re-lock after the app spends a while in background.
+  // Re-lock immediately whenever the app is sent to the background, so
+  // reopening always requires biometrics (no grace window).
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') {
-        // Record the first departure from active (covers iOS 'inactive' and
-        // Android 'background'); do not reset on intermediate transitions.
-        if (backgroundedAt.current == null) backgroundedAt.current = Date.now();
-      } else if (backgroundedAt.current != null) {
-        if (Date.now() - backgroundedAt.current > BACKGROUND_LOCK_MS) {
-          lockEpoch.current += 1;
-          setLocked(true);
-        }
-        backgroundedAt.current = null;
-      }
+      setAppActive(state === 'active');
+      if (state === 'background') setLocked(true);
     });
     return () => sub.remove();
   }, []);
 
   if (isLoading) return null;
-  // Still checking capabilities with an active session: avoid flashing content.
-  if (token && supported === null) return null;
+  // Still checking capabilities/preference with an active session: avoid flashing content.
+  if (token && (supported === null || biometricLockEnabled === null)) return null;
 
   if (!needsLock) return <>{children}</>;
 

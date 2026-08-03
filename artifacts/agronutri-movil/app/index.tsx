@@ -5,6 +5,7 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -20,6 +21,7 @@ import {
 } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { useBiometricPref } from '@/context/BiometricPrefContext';
 import { useColors } from '@/hooks/useColors';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -34,6 +36,7 @@ export default function FarmsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token, user, isLoading, signOut } = useAuth();
+  const { biometricLockEnabled, setBiometricLockEnabled } = useBiometricPref();
 
   const farmsQuery = useListFarms({
     query: { queryKey: getListFarmsQueryKey(), enabled: !!token },
@@ -107,6 +110,29 @@ export default function FarmsScreen() {
               onRefresh={() => farmsQuery.refetch()}
               tintColor={c.primary}
             />
+          }
+          ListFooterComponent={
+            Platform.OS !== 'web' ? (
+              <Card style={styles.settingsCard}>
+                <View style={[styles.farmIcon, { backgroundColor: '#e3efe7' }]}>
+                  <Feather name="lock" size={18} color={c.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: c.foreground }]}>
+                    Bloqueo biométrico
+                  </Text>
+                  <Text style={[styles.settingSubtitle, { color: c.mutedForeground }]}>
+                    Pide huella o Face ID al abrir la app
+                  </Text>
+                </View>
+                <Switch
+                  testID="switch-biometric-lock"
+                  value={biometricLockEnabled === true}
+                  onValueChange={setBiometricLockEnabled}
+                  trackColor={{ true: c.primary }}
+                />
+              </Card>
+            ) : null
           }
           ListEmptyComponent={
             <EmptyState
@@ -191,6 +217,21 @@ const styles = StyleSheet.create({
   },
   farmCard: {
     gap: 12,
+  },
+  settingsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
+  },
+  settingTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  settingSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
   },
   farmHeader: {
     flexDirection: 'row',

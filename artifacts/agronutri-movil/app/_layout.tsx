@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BiometricGate } from '@/components/BiometricGate';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, getStoredToken } from '@/context/AuthContext';
+import { BiometricPrefProvider } from '@/context/BiometricPrefContext';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import {
   Inter_400Regular,
@@ -61,9 +62,11 @@ export default function RootLayout() {
           <AuthProvider>
             <GestureHandlerRootView>
               <KeyboardProvider>
-                <BiometricGate>
-                  <RootLayoutNav />
-                </BiometricGate>
+                <BiometricPrefProvider>
+                  <BiometricGate>
+                    <RootLayoutNav />
+                  </BiometricGate>
+                </BiometricPrefProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </AuthProvider>
