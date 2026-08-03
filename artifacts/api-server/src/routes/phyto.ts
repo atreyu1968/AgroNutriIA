@@ -77,7 +77,7 @@ router.get("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =>
     .where(eq(phytoTreatmentsTable.farmId, farmId))
     .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
   const sectors = await sectorMap(farmId);
-        let result: unknown;
+  const result = [];
   for (const t of rows) {
     result.push(
       serializeTreatment(
@@ -98,10 +98,10 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     return;
   }
   if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
+    res.status(403).json({ error: "Sin permisos para registrar tratamientos" });
     return;
   }
-  const parsed = PhytoConsultBody.safeParse(req.body);
+  const parsed = CreatePhytoTreatmentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -111,7 +111,10 @@ router.post("/farms/:farmId/phyto/treatments", async (req, res): Promise<void> =
     res.status(400).json({ error: "El sector no pertenece a esta finca" });
     return;
   }
-  const [t] = await db.select().from(phytoTreatmentsTable).where(eq(phytoTreatmentsTable.id, treatmentId));
+  const [t] = await db
+    .insert(phytoTreatmentsTable)
+    .values({ ...parsed.data, farmId, createdBy: req.user!.id })
+    .returning();
   await audit({
     userId: req.user!.id,
     farmId,
@@ -196,8 +199,25 @@ type ProductInput = {
   sourceUrl?: string | null;
 };
 
-// Editar el catálogo compartido exige ser administrador, propietario de
-// alguna finca o técnico (miembro con rol owner/technician).
+// Upsert por número de registro (preferido) o por nombre comercial (igualdad
+// sin distinguir mayúsculas; nunca patrones). Los índices únicos de la tabla
+// evitan duplicados en peticiones concurrentes: si el insert choca, se
+// reintenta como actualización.
+async function findExistingProduct(data: ProductInput): Promise<PhytoProduct[]> {
+  return data.registryNumber
+    ? db
+        .select()
+        .from(phytoProductsTable)
+        .where(eq(phytoProductsTable.registryNumber, data.registryNumber))
+    : db
+        .select()
+        .from(phytoProductsTable)
+        .where(sql`lower(${phytoProductsTable.productName}) = lower(${data.productName.trim()})`);
+}
+
+// Solo administradores, propietarios de alguna finca o técnicos pueden
+// modificar el catálogo global; los miembros de solo lectura y los usuarios
+// sin fincas no.
 async function canEditCatalog(user: User): Promise<boolean> {
   if (user.isAdmin) return true;
   const [owned] = await db
@@ -230,9 +250,8 @@ export function isValidSourceUrl(url: string): boolean {
   }
 }
 
-// Política de escritura del catálogo compartido: crear puede cualquiera con
-// sesión, pero sobrescribir una entrada existente solo el administrador o
-// quien la creó (misma regla que el borrado).
+// Política de escritura del catálogo compartido: sobrescribir una entrada
+// existente solo puede el administrador o quien la creó (igual que el borrado).
 export function canMutateProduct(
   user: { id: number; isAdmin: boolean },
   existing: { createdBy: number | null } | undefined,
@@ -241,27 +260,25 @@ export function canMutateProduct(
   return user.isAdmin || existing.createdBy === user.id;
 }
 
-// Upsert por número de registro (preferido) o por nombre comercial (igualdad
-// sin distinguir mayúsculas; nunca patrones). Los índices únicos de la tabla
-// evitan duplicados en peticiones concurrentes: si el insert choca, se
-// reintenta como actualización.
-async function findExistingProduct(data: ProductInput): Promise<PhytoProduct[]> {
-  return data.registryNumber
-    ? db
-        .select()
-        .from(phytoProductsTable)
-        .where(eq(phytoProductsTable.registryNumber, data.registryNumber))
-    : db
-        .select()
-        .from(phytoProductsTable)
-        .where(sql`lower(${phytoProductsTable.productName}) = lower(${data.productName.trim()})`);
+// Error de dominio: intento de sobrescribir un producto ajeno.
+class CatalogOwnershipError extends Error {
+  constructor() {
+    super("Solo el administrador o quien lo añadió puede modificarlo");
+  }
+}
+
+function assertCanOverwrite(existing: PhytoProduct, user: User): void {
+  if (!canMutateProduct(user, existing)) {
+    throw new CatalogOwnershipError();
+  }
 }
 
 async function upsertProduct(
   data: ProductInput,
-  userId: number,
+  user: User,
   verified: boolean,
 ): Promise<{ product: PhytoProduct; created: boolean }> {
+  const userId = user.id;
   const existing = await findExistingProduct(data);
   const values = {
     productName: data.productName.trim(),
@@ -279,6 +296,7 @@ async function upsertProduct(
     updatedAt: new Date(),
   };
   if (existing.length) {
+    assertCanOverwrite(existing[0], user);
     const [product] = await db
       .update(phytoProductsTable)
       .set(values)
@@ -297,6 +315,7 @@ async function upsertProduct(
     if ((err as { code?: string }).code !== "23505") throw err;
     const raced = await findExistingProduct(data);
     if (!raced.length) throw err;
+    assertCanOverwrite(raced[0], user);
     const [product] = await db
       .update(phytoProductsTable)
       .set(values)
@@ -309,10 +328,9 @@ async function upsertProduct(
 router.get("/phyto/products", async (_req, res): Promise<void> => {
   const rows = await db
     .select()
-    .from(phytoTreatmentsTable)
-    .where(eq(phytoTreatmentsTable.farmId, farmId))
-    .orderBy(desc(phytoTreatmentsTable.applicationDate), desc(phytoTreatmentsTable.id));
-        let result: unknown;
+    .from(phytoProductsTable)
+    .orderBy(desc(phytoProductsTable.updatedAt));
+  const result = [];
   for (const p of rows) {
     result.push(serializeProduct(p, await userName(p.createdBy)));
   }
@@ -320,25 +338,30 @@ router.get("/phyto/products", async (_req, res): Promise<void> => {
 });
 
 router.post("/phyto/products", async (req, res): Promise<void> => {
-  const parsed = PhytoConsultBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  if (!(await canEditCatalog(req.user!))) {
+    res.status(403).json({ error: "Sin permisos para modificar el catálogo" });
     return;
   }
-  if (!(await canEditCatalog(req.user!))) {
-    res.status(403).json({ error: "Sin permisos para editar el catálogo" });
+  const parsed = CreatePhytoProductBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
     return;
   }
   if (parsed.data.sourceUrl && !isValidSourceUrl(parsed.data.sourceUrl)) {
     res.status(400).json({ error: "La URL de la fuente debe ser una dirección http(s) válida" });
     return;
   }
-  const existing = await findExistingProduct(parsed.data);
-  if (!canMutateProduct(req.user!, existing[0])) {
-    res.status(403).json({ error: "Solo el administrador o quien lo añadió puede modificarlo" });
-    return;
+  let upserted: { product: PhytoProduct; created: boolean };
+  try {
+    upserted = await upsertProduct(parsed.data, req.user!, false);
+  } catch (err) {
+    if (err instanceof CatalogOwnershipError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    throw err;
   }
-              const { product, created } = await upsertProduct(check.data, req.user!.id, true);
+  const { product, created } = upserted;
   await audit({
     userId: req.user!.id,
     farmId: null,
@@ -453,11 +476,7 @@ router.post("/farms/:farmId/phyto/plan-pdf", async (req, res): Promise<void> => 
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos para usar el asesor de fitosanitarios" });
-    return;
-  }
-  const parsed = PhytoConsultBody.safeParse(req.body);
+  const parsed = PhytoPlanPdfBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -641,7 +660,7 @@ INSTRUCCIONES DE RESPUESTA:
             if (!check.success) {
               result = { ok: false, error: "Datos del producto no válidos" };
             } else {
-              const { product, created } = await upsertProduct(check.data, req.user!.id, true);
+              const { product, created } = await upsertProduct(check.data, req.user!, true);
               await audit({
                 userId: req.user!.id,
                 farmId,
