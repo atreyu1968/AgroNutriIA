@@ -1,4 +1,8 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, ReferenceArea, ReferenceLine,
+} from "recharts";
 import { 
   useListSectors, useCreateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis,
@@ -32,7 +36,7 @@ import { z } from "zod";
 import { formatDateTime, formatDate, formatNumber } from "@/lib/utils";
 
 // --- Sectors Tab ---
-import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot } from "lucide-react";
+import { Trash2, Plus, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot, TrendingUp } from "lucide-react";
 export function SectorsTab({ farmId }: { farmId: number }) {
   const { data: sectors, isLoading } = useListSectors(farmId);
   const { toast } = useToast();
@@ -586,6 +590,140 @@ function AnalysisDetailDialog({
   );
 }
 
+const analysisTypeLabel: Record<string, string> = { soil: "Suelo", leaf: "Foliar", water: "Agua de riego" };
+
+function ParameterTrendCard({ analyses }: { analyses: AnalysisRow[] }) {
+  const [type, setType] = useState<"soil" | "leaf" | "water">("soil");
+  const [paramName, setParamName] = useState<string>("");
+
+  const typed = useMemo(
+    () =>
+      (analyses ?? [])
+        .filter((a) => a.type === type)
+        .slice()
+        .sort((a, b) => (a.sampleDate < b.sampleDate ? -1 : 1)),
+    [analyses, type],
+  );
+
+  const paramNames = useMemo(() => {
+    const names = new Set<string>();
+    typed.forEach((a) => (a.parameters ?? []).forEach((p) => { if (p.name) names.add(p.name); }));
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "es"));
+  }, [typed]);
+
+  const effectiveParam = paramNames.includes(paramName) ? paramName : (paramNames[0] ?? "");
+
+  const points = useMemo(
+    () =>
+      typed.flatMap((a) => {
+        const p = (a.parameters ?? []).find((pp) => pp.name === effectiveParam);
+        if (!p || p.value == null) return [];
+        return [{
+          date: a.sampleDate,
+          label: formatDate(a.sampleDate),
+          value: p.value,
+          unit: p.unit,
+          refLow: p.refLow ?? null,
+          refHigh: p.refHigh ?? null,
+          reference: a.reference,
+        }];
+      }),
+    [typed, effectiveParam],
+  );
+
+  const latestWithRef = [...points].reverse().find((p) => p.refLow != null || p.refHigh != null);
+  const refLow = latestWithRef?.refLow ?? null;
+  const refHigh = latestWithRef?.refHigh ?? null;
+  const unit = points.find((p) => p.unit)?.unit ?? "";
+
+  const values = points.map((p) => p.value);
+  const domainCandidates = [...values];
+  if (refLow != null) domainCandidates.push(refLow);
+  if (refHigh != null) domainCandidates.push(refHigh);
+  const min = Math.min(...domainCandidates);
+  const max = Math.max(...domainCandidates);
+  const pad = (max - min) * 0.15 || Math.abs(max) * 0.15 || 1;
+  const yDomain: [number, number] = [Math.min(0, min - pad) === 0 && min - pad > 0 ? 0 : min - pad, max + pad];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" /> Evolución de parámetros
+            </CardTitle>
+            <CardDescription>Compara un parámetro entre analíticas del mismo tipo.</CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="soil">Suelo</SelectItem>
+                <SelectItem value="leaf">Foliar</SelectItem>
+                <SelectItem value="water">Agua de riego</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={effectiveParam} onValueChange={setParamName} disabled={paramNames.length === 0}>
+              <SelectTrigger className="w-48 h-9">
+                <SelectValue placeholder="Parámetro" />
+              </SelectTrigger>
+              <SelectContent>
+                {paramNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {paramNames.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            No hay analíticas de {analysisTypeLabel[type].toLowerCase()} con parámetros registrados.
+          </p>
+        ) : points.length < 2 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Se necesitan al menos dos analíticas de {analysisTypeLabel[type].toLowerCase()} con «{effectiveParam}» para ver la evolución.
+            {points.length === 1 && (
+              <span className="block mt-1">
+                Único valor: <span className="font-medium text-foreground">{formatNumber(points[0].value)} {unit}</span> ({points[0].label})
+              </span>
+            )}
+          </p>
+        ) : (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={points} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <YAxis domain={yDomain} tick={{ fontSize: 12 }} width={55} tickFormatter={(v: number) => formatNumber(v)} />
+                <RechartsTooltip
+                  formatter={(value: number) => [`${formatNumber(value)}${unit ? ` ${unit}` : ""}`, effectiveParam]}
+                  labelFormatter={(label) => `Muestreo: ${label}`}
+                />
+                {refLow != null && refHigh != null && (
+                  <ReferenceArea y1={refLow} y2={refHigh} fill="hsl(142 70% 45%)" fillOpacity={0.08} stroke="none" />
+                )}
+                {refLow != null && (
+                  <ReferenceLine y={refLow} stroke="hsl(142 60% 40%)" strokeDasharray="4 4" label={{ value: `Mín ${formatNumber(refLow)}`, fontSize: 11, position: "insideBottomLeft", fill: "hsl(142 60% 30%)" }} />
+                )}
+                {refHigh != null && (
+                  <ReferenceLine y={refHigh} stroke="hsl(142 60% 40%)" strokeDasharray="4 4" label={{ value: `Máx ${formatNumber(refHigh)}`, fontSize: 11, position: "insideTopLeft", fill: "hsl(142 60% 30%)" }} />
+                )}
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {points.length >= 2 && (refLow != null || refHigh != null) && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Rango de referencia{unit ? ` (${unit})` : ""}: {refLow != null ? formatNumber(refLow) : "…"} – {refHigh != null ? formatNumber(refHigh) : "…"}, según la analítica más reciente que lo indica.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEdit?: boolean }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
   const [selected, setSelected] = useState<AnalysisRow | null>(null);
@@ -601,6 +739,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
       <p className="text-sm text-muted-foreground -mt-2">
         Sube el PDF del laboratorio y el técnico virtual extraerá los parámetros automáticamente (requiere clave de OpenAI en Ajustes).
       </p>
+      {!isLoading && analyses && analyses.length > 0 && <ParameterTrendCard analyses={analyses} />}
       <Card>
         <Table>
           <TableHeader>
