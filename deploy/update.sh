@@ -16,6 +16,12 @@
 # ============================================================================
 set -euo pipefail
 
+# Todo el script vive dentro de main() y se invoca en la última línea.
+# Así bash lo carga COMPLETO en memoria antes de ejecutar nada: si el
+# "git reset --hard" de dentro reescribe este mismo fichero, la ejecución
+# en curso no se ve afectada (evita errores por mezclar versiones).
+main() {
+
 APP_DIR="${APP_DIR:-/opt/agronutri}"
 GIT_REF="${GIT_REF:-main}"
 DB_NAME="agronutri"
@@ -146,3 +152,6 @@ echo "============================================================"
 echo " Actualización completada."
 echo " Recarga la web en el navegador con Ctrl+Mayús+R."
 echo "============================================================"
+
+}
+main "$@"
