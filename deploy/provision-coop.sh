@@ -175,7 +175,15 @@ if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then
     -v email="$DEMO_ACCOUNT_EMAIL" -v hash="$DEMO_HASH" <<'EOF'
 INSERT INTO users (email, password_hash, name, is_admin, active, role)
 VALUES (:'email', :'hash', 'Cuenta de demostración', false, true, 'technician')
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  -- Cada ejecución genera una DEMO_PASSWORD nueva que se escribe en el ENV;
+  -- en un reintento del aprovisionamiento hay que actualizar el hash para que
+  -- ENV y base de datos sigan coincidiendo (y reafirmar que la cuenta sigue
+  -- activa y sin privilegios).
+  password_hash = EXCLUDED.password_hash,
+  is_admin = false,
+  active = true,
+  role = 'technician';
 EOF
 fi
 

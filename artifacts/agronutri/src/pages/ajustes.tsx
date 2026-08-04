@@ -13,7 +13,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useEffect } from "react";
-import { Key, User, Shield, CheckCircle2, XCircle, Trash2, Edit2, Play, Plus, Smartphone } from "lucide-react";
+import { Key, User, Shield, CheckCircle2, XCircle, Trash2, Edit2, Play, Plus, Smartphone, AlertTriangle } from "lucide-react";
 
 function MobileAppCard() {
   const { data, isLoading } = useGetMobileAppUrl();
@@ -304,6 +304,7 @@ function CredentialItem({ credential }: { credential: any }) {
             <span>Modelo: {credential.selectedModel || 'Por defecto'}</span>
             {credential.monthlyLimitEur && <span>Límite: {credential.monthlyLimitEur}€/mes</span>}
           </div>
+          <ProviderLimitations provider={credential.provider} className="mt-2" />
         </div>
         <div className="flex flex-col gap-2 shrink-0">
           <Button 
@@ -331,10 +332,11 @@ function CredentialItem({ credential }: { credential: any }) {
   );
 }
 
-const AI_PROVIDERS: Record<string, { label: string; defaultModel: string; models: { value: string; label: string }[] }> = {
+const AI_PROVIDERS: Record<string, { label: string; defaultModel: string; models: { value: string; label: string }[]; limitations: string[] }> = {
   openai: {
     label: "OpenAI",
     defaultModel: "gpt-4o",
+    limitations: [],
     models: [
       { value: "gpt-4o", label: "GPT-4o (Recomendado)" },
       { value: "gpt-4o-mini", label: "GPT-4o Mini (Rápido)" },
@@ -347,6 +349,9 @@ const AI_PROVIDERS: Record<string, { label: string; defaultModel: string; models
   mistral: {
     label: "Mistral",
     defaultModel: "mistral-small-latest",
+    limitations: [
+      "Verificación de fitosanitarios no disponible (requiere búsqueda web)",
+    ],
     models: [
       { value: "mistral-large-latest", label: "Mistral Large" },
       { value: "mistral-medium-latest", label: "Mistral Medium" },
@@ -356,12 +361,37 @@ const AI_PROVIDERS: Record<string, { label: string; defaultModel: string; models
   deepseek: {
     label: "DeepSeek",
     defaultModel: "deepseek-chat",
+    limitations: [
+      "Verificación de fitosanitarios no disponible (requiere búsqueda web)",
+      "Análisis de fotos y PDF escaneados no disponible (sin visión)",
+    ],
     models: [
       { value: "deepseek-chat", label: "DeepSeek Chat" },
       { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
     ],
   },
 };
+
+function ProviderLimitations({ provider, className }: { provider: string; className?: string }) {
+  const limitations = AI_PROVIDERS[provider]?.limitations;
+  if (!limitations || limitations.length === 0) return null;
+  return (
+    <div
+      className={`rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 ${className ?? ""}`}
+      data-testid={`provider-limitations-${provider}`}
+    >
+      <div className="flex items-center gap-1.5 font-medium mb-1">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+        Funciones no disponibles con {AI_PROVIDERS[provider]?.label ?? provider}
+      </div>
+      <ul className="list-disc list-inside space-y-0.5">
+        {limitations.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 const editCredentialSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -577,6 +607,7 @@ function CredentialDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                  <ProviderLimitations provider={provider} />
                 </FormItem>
               )}
             />
