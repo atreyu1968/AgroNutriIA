@@ -61,6 +61,10 @@ DATABASE_URL="$(grep '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)"
 export DATABASE_URL
 pnpm --filter @workspace/db run push-force
 
+# Catálogo base de fertilizantes: solo se carga si el catálogo está vacío
+# (no pisa productos añadidos o editados por el usuario).
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" -f "$APP_DIR/deploy/seed-fertilizers.sql"
+
 # ----------------------------------------------------------------------------
 # La compilación de la web necesita bastante memoria; misma red de seguridad
 # que en install.sh (swap + heap ampliado) para servidores pequeños.

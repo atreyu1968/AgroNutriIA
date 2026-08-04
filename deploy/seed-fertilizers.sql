@@ -1,0 +1,38 @@
+INSERT INTO fertilizers
+  (name, formula_type, n_pct, n_nitric_pct, n_ammoniacal_pct, n_ureic_pct,
+   p2o5_pct, k2o_pct, cao_pct, mgo_pct, so3_pct,
+   density_kg_l, ec_contribution, incompatible_with, notes)
+SELECT * FROM (VALUES
+  ('Ácido nítrico 54%', 'liquid', 12.5, 12.5, 0, 0, 0, 0, 0, 0, 0,
+   1.33::real, 1.2::real, ARRAY[]::text[],
+   'Acidificación del agua de riego: neutraliza la alcalinidad y limpia goteros.'),
+  ('Nitrato de calcio', 'solid', 15.5, 14.4, 1.1, 0, 0, 0, 26.5, 0, 0,
+   NULL, 1.2, ARRAY['sulfatos','fosfatos'],
+   'Fuente principal de calcio. No mezclar en tanque con sulfatos ni fosfatos.'),
+  ('Nitrato potásico', 'solid', 13, 13, 0, 0, 0, 46, 0, 0, 0,
+   NULL, 1.3, ARRAY[]::text[],
+   'Fuente principal de potasio y nitrógeno nítrico en platanera.'),
+  ('Sulfato amónico', 'solid', 21, 0, 21, 0, 0, 0, 0, 0, 60,
+   NULL, 1.9, ARRAY['nitrato de calcio'],
+   'Aporta N amoniacal y azufre; efecto acidificante.'),
+  ('Sulfato potásico', 'solid', 0, 0, 0, 0, 0, 50, 0, 0, 45,
+   NULL, 1.5, ARRAY['nitrato de calcio'],
+   'Potasio sin cloruros con aporte de azufre.'),
+  ('Urea 46%', 'solid', 46, 0, 0, 46, 0, 0, 0, 0, 0,
+   NULL, 0.1, ARRAY[]::text[],
+   'Nitrógeno ureico de liberación gradual; vigilar en suelos muy alcalinos.'),
+  ('Fosfato monoamónico (MAP)', 'solid', 12, 0, 12, 0, 61, 0, 0, 0, 0,
+   NULL, 0.9, ARRAY['nitrato de calcio'],
+   'Fuente de fósforo; usar según los niveles de fósforo del suelo.'),
+  ('Nitrato amónico 34,5%', 'solid', 34.5, 17.25, 17.25, 0, 0, 0, 0, 0, 0,
+   NULL, 1.6, ARRAY[]::text[], NULL),
+  ('Sulfato de magnesio', 'solid', 0, 0, 0, 0, 0, 0, 0, 16, 32,
+   NULL, 1.1, ARRAY['nitrato de calcio'],
+   'Aporte de magnesio y azufre en fertirrigación.'),
+  ('Quelato de hierro EDDHA 6%', 'solid', 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   NULL, 0.2, ARRAY[]::text[],
+   'Corrección de hierro en suelos calizos/alcalinos.')
+) AS v(name, formula_type, n_pct, n_nitric_pct, n_ammoniacal_pct, n_ureic_pct,
+       p2o5_pct, k2o_pct, cao_pct, mgo_pct, so3_pct,
+       density_kg_l, ec_contribution, incompatible_with, notes)
+WHERE NOT EXISTS (SELECT 1 FROM fertilizers);
