@@ -5,6 +5,7 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { GenerateAiDraftRecommendationBodyAcidType } from './generateAiDraftRecommendationBodyAcidType';
 
 export type GenerateAiDraftRecommendationBody = {
   /**
@@ -21,4 +22,9 @@ export type GenerateAiDraftRecommendationBody = {
      * @nullable
      */
   targetPh?: number | null;
+  /**
+     * Ácido preferido por el agricultor para bajar el pH; si se omite, la IA elige el más adecuado y justifica la elección
+     * @nullable
+     */
+  acidType?: GenerateAiDraftRecommendationBodyAcidType;
 };

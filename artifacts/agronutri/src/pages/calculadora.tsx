@@ -42,6 +42,7 @@ export default function CalculadoraTab({
   const { data: sectors } = useListSectors(farmId);
   const [aiSectorId, setAiSectorId] = useState<string>("global");
   const [useAcid, setUseAcid] = useState(false);
+  const [acidType, setAcidType] = useState<"auto" | "nitrico" | "fosforico" | "sulfurico">("auto");
   const [targetPh, setTargetPh] = useState("5.8");
   // Solo se consultan las analíticas cuando el usuario marca la casilla de ácido.
   const { data: analyses, isLoading: analysesLoading } = useListAnalyses(farmId, {
@@ -276,6 +277,19 @@ export default function CalculadoraTab({
                   Uso de ácido para bajar el pH del agua
                 </label>
                 {useAcid && (
+                  <Select value={acidType} onValueChange={(v) => setAcidType(v as typeof acidType)}>
+                    <SelectTrigger className="h-8 w-[190px] text-xs" data-testid="select-acid-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Ácido: que la IA elija</SelectItem>
+                      <SelectItem value="nitrico">Ácido nítrico</SelectItem>
+                      <SelectItem value="fosforico">Ácido fosfórico</SelectItem>
+                      <SelectItem value="sulfurico">Ácido sulfúrico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                {useAcid && (
                   <div className="flex items-center gap-1.5 text-xs">
                     <span className="text-muted-foreground">pH objetivo</span>
                     <Input
@@ -314,6 +328,7 @@ export default function CalculadoraTab({
                         ...(useAcid
                           ? {
                               useAcid: true,
+                              ...(acidType !== "auto" ? { acidType } : {}),
                               ...(Number.isFinite(parseFloat(targetPh))
                                 ? { targetPh: parseFloat(targetPh) }
                                 : {}),

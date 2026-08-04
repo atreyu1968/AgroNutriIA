@@ -186,6 +186,7 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
   const requestedSectorId = parsedBody.data.sectorId ?? null;
   const useAcid = parsedBody.data.useAcid === true;
   const targetPh = useAcid && parsedBody.data.targetPh != null ? parsedBody.data.targetPh : null;
+  const acidType = useAcid ? (parsedBody.data.acidType ?? null) : null;
   let sector: typeof sectorsTable.$inferSelect | null = null;
   if (requestedSectorId != null) {
     const [s] = await db
@@ -264,15 +265,30 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     .map((f) => `- ${f.name} (${f.formulaType ?? "?"})`)
     .join("\n");
 
+  const ACID_LABEL: Record<string, string> = {
+    nitrico: "ácido nítrico",
+    fosforico: "ácido fosfórico",
+    sulfurico: "ácido sulfúrico",
+  };
   const acidBlock = useAcid
     ? `
 
 IMPORTANTE — ACIDIFICACIÓN DEL AGUA: el agricultor ha decidido usar ácido para bajar el pH del agua de riego. Tenlo en cuenta al diseñar el programa:
 - Calcula los LITROS de ácido necesarios POR SEMANA a partir del pH y los bicarbonatos del análisis de agua y del volumen semanal de riego, para llevar el agua a ${targetPh != null ? `un pH objetivo de ${targetPh}` : "un pH objetivo de 5,5–6,0"}.
-- Si el catálogo incluye un ácido (p. ej. ácido nítrico, fosfórico o sulfúrico), inclúyelo como un producto más del programa con su dosis semanal en L y el motivo "corrección de pH del agua", y descuenta el nitrógeno o fósforo que aporte del resto del abonado.
-- Si no hay ningún ácido en el catálogo, NO lo inventes como producto: indica en la justificación los litros semanales estimados de ácido y de qué tipo, y ajusta el programa asumiendo el agua ya acidificada.
+${
+  acidType
+    ? `- El agricultor prefiere usar ${ACID_LABEL[acidType]}: usa ESE ácido en el cálculo (si el catálogo tiene ese ácido, inclúyelo como producto; si no, indícalo solo en la justificación). Si por los datos de las analíticas ese ácido fuese claramente desaconsejable, dilo en la justificación y explica por qué, pero respeta su elección en el programa.`
+    : `- Elige el ácido MÁS ADECUADO según las analíticas (no uses ácido nítrico por defecto): valora el fosfórico si falta fósforo, el sulfúrico si conviene azufre o hay exceso de nitrógeno, y el nítrico si el cultivo demanda nitrógeno. JUSTIFICA expresamente en la justificación por qué eliges ese ácido y no los otros.`
+}
+- Descuenta SIEMPRE del resto del abonado el nitrógeno, fósforo o azufre que aporte el ácido elegido.
+- Si el catálogo incluye el ácido elegido, inclúyelo como un producto más del programa con su dosis semanal en L y el motivo "corrección de pH del agua". Si no está en el catálogo, NO lo inventes como producto: indica en la justificación los litros semanales estimados y de qué ácido, y ajusta el programa asumiendo el agua ya acidificada.
 - Evita recomendar productos alcalinizantes o bicarbonatados que contrarresten la acidificación.`
-    : "";
+    : `
+
+IMPORTANTE — SIN ACIDIFICACIÓN: el agricultor NO va a usar ácido para corregir el pH del agua de riego.
+- NO incluyas ningún ácido ni producto de corrección de pH en el programa.
+- Diseña el programa asumiendo el agua tal cual es: si el pH o los bicarbonatos del análisis de agua son altos, compénsalo eligiendo fertilizantes de reacción ácida o quelatados y ajustando las dosis (p. ej. micronutrientes quelatados frente a sales simples que se bloquearían).
+- Si el agua tiene pH o bicarbonatos altos, adviértelo en la justificación y explica cómo el programa lo compensa y qué limitaciones tendrá frente a un agua acidificada.`;
 
   const model = modelFor(credential);
   const start = Date.now();
@@ -359,12 +375,22 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
   }
 
   const byName = new Map(fertilizers.map((f) => [f.name.toLowerCase(), f]));
+  // Salvaguarda: si el agricultor NO marcó el uso de ácido, ningún ácido de
+  // corrección de pH debe llegar al programa aunque el modelo lo devuelva.
+  const isAcidProduct = (name: string) => {
+    const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return /\bacido\b/.test(n) || /\b(nitric|fosforic|sulfuric)o?\b/.test(n);
+  };
   const items: RecommendationItem[] = [];
   const discarded: string[] = [];
   for (const i of extracted.items) {
     const fert = byName.get(i.fertilizerName.toLowerCase());
     const doseOk = Number.isFinite(i.weeklyDose) && i.weeklyDose > 0 && i.weeklyDose <= 10000;
     if (!fert || fert.isActive === false || !doseOk) {
+      discarded.push(i.fertilizerName);
+      continue;
+    }
+    if (!useAcid && isAcidProduct(fert.name)) {
       discarded.push(i.fertilizerName);
       continue;
     }

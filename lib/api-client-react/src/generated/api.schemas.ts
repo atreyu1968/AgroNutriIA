@@ -1642,6 +1642,19 @@ export type GetMobileAppUrl200 = {
   url: string | null;
 };
 
+/**
+ * Ácido preferido por el agricultor para bajar el pH; si se omite, la IA elige el más adecuado y justifica la elección
+ * @nullable
+ */
+export type GenerateAiDraftRecommendationBodyAcidType = typeof GenerateAiDraftRecommendationBodyAcidType[keyof typeof GenerateAiDraftRecommendationBodyAcidType] | null;
+
+
+export const GenerateAiDraftRecommendationBodyAcidType = {
+  nitrico: 'nitrico',
+  fosforico: 'fosforico',
+  sulfurico: 'sulfurico',
+} as const;
+
 export type GenerateAiDraftRecommendationBody = {
   /**
      * Sector objetivo del programa; null u omitido = programa global de la finca
@@ -1657,6 +1670,11 @@ export type GenerateAiDraftRecommendationBody = {
      * @nullable
      */
   targetPh?: number | null;
+  /**
+     * Ácido preferido por el agricultor para bajar el pH; si se omite, la IA elige el más adecuado y justifica la elección
+     * @nullable
+     */
+  acidType?: GenerateAiDraftRecommendationBodyAcidType;
 };
 
 export type UploadConversationAttachmentBody = {

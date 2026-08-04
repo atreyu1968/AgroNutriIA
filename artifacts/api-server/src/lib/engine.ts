@@ -165,7 +165,7 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     const alk = param(wa, ["alcalinidad", "bicarbonato"]);
     if (alk != null && alk > 200) {
       warnings.push(
-        `Alcalinidad del agua alta (${alk} mg/L CaCO3): mantener acidificación (ácido nítrico) para evitar bloqueos de Ca/Fe y obstrucción de goteros.`,
+        `Alcalinidad del agua alta (${alk} mg/L CaCO3): mantener acidificación del agua (ácido nítrico, fosfórico o sulfúrico según necesidades) para evitar bloqueos de Ca/Fe y obstrucción de goteros.`,
       );
     }
   } else if (!wa) {

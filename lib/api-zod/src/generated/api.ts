@@ -1071,7 +1071,8 @@ export const generateAiDraftRecommendationBodyTargetPhMax = 7.5;
 export const GenerateAiDraftRecommendationBody = zod.object({
   "sectorId": zod.number().int().nullish().describe('Sector objetivo del programa; null u omitido = programa global de la finca'),
   "useAcid": zod.boolean().optional().describe('Si es true, la finca usa ácido para bajar el pH del agua de riego y la IA debe tenerlo en cuenta'),
-  "targetPh": zod.number().min(generateAiDraftRecommendationBodyTargetPhMin).max(generateAiDraftRecommendationBodyTargetPhMax).nullish().describe('pH objetivo del agua de riego cuando se usa ácido; si se omite, se usa el rango 5,5–6,0')
+  "targetPh": zod.number().min(generateAiDraftRecommendationBodyTargetPhMin).max(generateAiDraftRecommendationBodyTargetPhMax).nullish().describe('pH objetivo del agua de riego cuando se usa ácido; si se omite, se usa el rango 5,5–6,0'),
+  "acidType": zod.union([zod.literal('nitrico'),zod.literal('fosforico'),zod.literal('sulfurico'),zod.literal(null)]).nullish().describe('Ácido preferido por el agricultor para bajar el pH; si se omite, la IA elige el más adecuado y justifica la elección')
 })
 
 export const GenerateAiDraftRecommendationResponse = zod.object({

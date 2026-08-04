@@ -84,6 +84,7 @@ export * from './fertilizerUpdate';
 export * from './fertilizerUpdateUsage';
 export * from './forgotPasswordInput';
 export * from './generateAiDraftRecommendationBody';
+export * from './generateAiDraftRecommendationBodyAcidType';
 export * from './getMobileAppUrl200';
 export * from './getUsageParams';
 export * from './healthStatus';
