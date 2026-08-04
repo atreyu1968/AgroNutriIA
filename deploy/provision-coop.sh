@@ -152,7 +152,7 @@ Type=simple
 User=agronutri
 WorkingDirectory=${APP_DIR}/artifacts/api-server
 EnvironmentFile=${ENV_FILE}
-ExecStart=$(command -v node) ${APP_DIR}/artifacts/api-server/dist/index.js
+ExecStart=$(command -v node) --enable-source-maps ${APP_DIR}/artifacts/api-server/dist/index.mjs
 Restart=always
 RestartSec=5
 
@@ -195,7 +195,7 @@ EOF
 fi
 
 echo "== [5/6] nginx =="
-WEB_ROOT="${APP_DIR}/artifacts/agronutri/dist"
+WEB_ROOT="${APP_DIR}/artifacts/agronutri/dist/public"
 cat > "$NGINX_SITE" <<EOF
 server {
     listen 80;

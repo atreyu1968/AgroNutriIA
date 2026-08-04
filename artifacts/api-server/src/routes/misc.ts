@@ -86,10 +86,15 @@ router.get("/mobile-app", async (req, res): Promise<void> => {
   // Prioridad: URL explícita > entorno Replit > servidor propio (la versión
   // web del móvil se sirve en MOBILE_APP_PATH, p. ej. /movil, en el mismo host).
   const mobilePath = process.env.MOBILE_APP_PATH;
+  // Detrás de nginx la conexión local es HTTP: se respeta X-Forwarded-Proto
+  // (que nginx fija) para no generar enlaces http:// en sitios servidos por HTTPS.
+  const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = forwardedProto === "https" || forwardedProto === "http" ? forwardedProto : req.protocol;
+  const host = req.get("x-forwarded-host")?.split(",")[0]?.trim() || req.get("host");
   const url =
     process.env.MOBILE_APP_URL ??
     (process.env.REPLIT_EXPO_DEV_DOMAIN ? `https://${process.env.REPLIT_EXPO_DEV_DOMAIN}` : null) ??
-    (mobilePath ? `${req.protocol}://${req.get("host")}${mobilePath}` : null);
+    (mobilePath && host ? `${proto}://${host}${mobilePath}` : null);
   res.json(GetMobileAppUrlResponse.parse({ url }));
 });
 
