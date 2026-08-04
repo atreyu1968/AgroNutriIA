@@ -162,6 +162,9 @@ DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}"
 
 # ----------------------------------------------------------------------------
 log "Descargando el código desde GitHub"
+# El código pertenece al usuario de servicio pero git se ejecuta como root:
+# sin esta excepción git aborta con "detected dubious ownership".
+git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 if [[ -d "$APP_DIR/.git" ]]; then
   git -C "$APP_DIR" fetch --all
   git -C "$APP_DIR" checkout "$GIT_REF"

@@ -1,0 +1,62 @@
+root@agrinutri:~# sudo bash /opt/agronutri/deploy/install.sh https://github.com/atreyu1968/AgroNutriIA.git tudominio.com
+Correo del administrador: 
+root@agrinutri:~# sudo bash /opt/agronutri/deploy/install.sh https://github.com/atreyu1968/AgroNutriIA.git agronutri.agrosabina.cloud
+Correo del administrador: fjgr1968@gmail.com
+Contraseña del administrador (mínimo 8 caracteres): 
+Repite la contraseña: 
+Clave de API de Resend para emails (opcional, Enter para omitir): 
+Token del túnel de Cloudflare (opcional). Pégalo y pulsa Enter; se mostrará en pantalla mientras lo escribes (o pulsa Enter sin más para omitir).
+Token: eyJhIjoiZGE4OTRmNzMzNjAzNGJhZThkNjliYjY2MzBkYjExMzQiLCJ0IjoiM2UxYzRiYWYtYWMzMS00MDhhLWE5NzQtZDA5N2Y3MTYzNjg0IiwicyI6Ik1HSmlPREUyWlRZdE9UbGlOQzAwWldVeExXRmhORGN0TXpnNU9HSXdOemM1TVRRMyJ9
+✔ Token de Cloudflare recibido (184 caracteres): se configurará el túnel.
+Dominio público del túnel (obligatorio, p. ej. agronutri.midominio.com): agronutri.agrosabina.cloud
+
+==> Actualizando el sistema e instalando utilidades básicas
+Hit:1 https://deb.nodesource.com/node_24.x nodistro InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu plucky InRelease
+Hit:3 https://pkg.cloudflare.com/cloudflared any InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu plucky-updates InRelease
+Hit:5 http://archive.ubuntu.com/ubuntu plucky-security InRelease
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Calculating upgrade... Done
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+curl is already the newest version (8.12.1-3ubuntu1).
+ca-certificates is already the newest version (20241223).
+gnupg is already the newest version (2.4.4-2ubuntu23.2).
+git is already the newest version (1:2.48.1-0ubuntu1.1).
+build-essential is already the newest version (12.12ubuntu1).
+openssl is already the newest version (3.4.1-1ubuntu4).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
+==> Instalando Node.js 24 (repositorio NodeSource con clave GPG verificada)
+v24.18.1
+
+==> Instalando pnpm (corepack)
+Preparing pnpm@10.26.1 for immediate activation...
+10.26.1
+
+==> Instalando y arrancando PostgreSQL
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Note, selecting 'postgresql' instead of 'postgresql-contrib'
+postgresql is already the newest version (17+274).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Synchronizing state of postgresql.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable postgresql
+
+==> Creando base de datos y usuario
+DO
+GRANT
+
+==> Descargando el código desde GitHub
+fatal: detected dubious ownership in repository at '/opt/agronutri'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /opt/agronutri
+root@agrinutri:~# 
