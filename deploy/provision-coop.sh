@@ -112,11 +112,14 @@ install -d -o agronutri -g agronutri "${APP_DIR}/artifacts/api-server/storage/re
 # tipo (exporta DEMO_MODE=1 al invocar este script).
 if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then
   echo "DEMO_MODE=true" >> "$ENV_FILE"
-  # La pantalla de login muestra estas credenciales de prueba y un botón
-  # "Probar la demo" (solo se exponen cuando DEMO_MODE=true).
+  # Cuenta de demostración SEPARADA y sin privilegios de administrador: es la
+  # que se expone en la pantalla de login (botón "Probar la demo"). La cuenta
+  # de administrador real (ADMIN_EMAIL) se conserva aparte y nunca se expone.
+  DEMO_ACCOUNT_EMAIL="demo@${DOMAIN}"
+  DEMO_ACCOUNT_PASSWORD="$(openssl rand -hex 8)"
   cat >> "$ENV_FILE" <<EOF
-DEMO_EMAIL=${ADMIN_EMAIL}
-DEMO_PASSWORD=${ADMIN_PASSWORD}
+DEMO_EMAIL=${DEMO_ACCOUNT_EMAIL}
+DEMO_PASSWORD=${DEMO_ACCOUNT_PASSWORD}
 EOF
   echo "   (instancia de DEMOSTRACIÓN: 1 finca y 1 informe de cada tipo)"
 fi
@@ -162,6 +165,19 @@ INSERT INTO users (email, password_hash, name, is_admin, active, role)
 VALUES (:'email', :'hash', :'name', true, true, 'owner')
 ON CONFLICT (email) DO NOTHING;
 EOF
+
+# Instancia de demostración: cuenta "demo" adicional SIN privilegios de
+# administrador (rol técnico). Es la que exponen DEMO_EMAIL/DEMO_PASSWORD.
+if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then
+  echo "== [4b/6] Cuenta de demostración (sin privilegios) =="
+  DEMO_HASH="$(cd "$APP_DIR/artifacts/api-server" && DEMO_ACCOUNT_PASSWORD="$DEMO_ACCOUNT_PASSWORD" node -e "console.log(require('bcryptjs').hashSync(process.env.DEMO_ACCOUNT_PASSWORD, 10))")"
+  sudo -u postgres psql -d "$DB_NAME" \
+    -v email="$DEMO_ACCOUNT_EMAIL" -v hash="$DEMO_HASH" <<'EOF'
+INSERT INTO users (email, password_hash, name, is_admin, active, role)
+VALUES (:'email', :'hash', 'Cuenta de demostración', false, true, 'technician')
+ON CONFLICT (email) DO NOTHING;
+EOF
+fi
 
 echo "== [5/6] nginx =="
 WEB_ROOT="${APP_DIR}/artifacts/agronutri/dist"
@@ -216,4 +232,7 @@ echo " Instalación creada: https://${DOMAIN}"
 echo "   Servicio : ${SERVICE_NAME} (puerto ${API_PORT})"
 echo "   BD       : ${DB_NAME}"
 echo "   Admin    : ${ADMIN_EMAIL}"
+if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then
+  echo "   Demo     : ${DEMO_ACCOUNT_EMAIL} (cuenta limitada; credenciales en ${ENV_FILE})"
+fi
 echo "=================================================================="
