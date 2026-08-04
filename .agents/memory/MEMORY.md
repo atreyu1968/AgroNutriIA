@@ -18,3 +18,4 @@
 - [Reports use persisted snapshots](report-snapshots.md) — render program-time snapshots (e.g. stage_comparison) in PDFs; never recompute from current farm state.
 - [Demo-mode limit tests](demo-mode-tests.md) — DEMO_MODE is per-process: own test file; demo limits count reports globally, so neutralize dev-seed rows and restore after.
 - [Pre-push data migrations](pre-push-migrations.md) — SQL run before drizzle push must CREATE TABLE IF NOT EXISTS its target; on old DBs the new table doesn't exist yet and push then drops the source columns.
+- [Reports route merge breakage](reports-merge-breakage.md) — merges corrompen reports.ts de 3 formas: parser incorrecto, INSERT→SELECT con reportId no declarado, y resolveCredential(farm,user) sin declarar.
