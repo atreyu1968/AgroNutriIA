@@ -66,12 +66,43 @@ echo "Copia de seguridad guardada en ${BACKUP_DIR}"
 DATABASE_URL="$(grep '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)"
 export DATABASE_URL
 
+# Normalizar el dueño de todas las tablas y secuencias al usuario de la
+# aplicación: los scripts históricos que corrieron como postgres pudieron
+# dejar tablas (p. ej. water_sources) con dueño postgres, y entonces
+# drizzle push falla con "must be owner of table" y el esquema queda a
+# medias mientras el código sigue avanzando. Idempotente.
+DB_APP_USER="$(sed -E 's|^[a-z]+://([^:/@]+).*$|\1|' <<<"$DATABASE_URL")"
+if [[ -n "$DB_APP_USER" && "$DB_APP_USER" != "$DATABASE_URL" ]]; then
+  sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" <<SQL
+DO \$\$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO ${DB_APP_USER}', r.tablename);
+  END LOOP;
+  FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER SEQUENCE public.%I OWNER TO ${DB_APP_USER}', r.sequencename);
+  END LOOP;
+END
+\$\$;
+SQL
+fi
+
 # Columnas nuevas ambiguas para drizzle: crearlas antes del push para que
 # no pregunte interactivamente si son un renombrado (idempotente).
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" \
   -c "ALTER TABLE IF EXISTS farms ADD COLUMN IF NOT EXISTS stage_nutrient_ranges jsonb;"
 
 pnpm --filter @workspace/db run push-force
+
+# Verificación tras el push: si el esquema no coincide con el código, es
+# mejor pararse aquí (con la copia de seguridad recién hecha) que reiniciar
+# la API con un código que espera columnas inexistentes.
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM information_schema.columns WHERE table_name='farms' AND column_name='stage_nutrient_ranges'" -d "${DB_NAME}" | grep -q 1; then
+  echo "ERROR: el push del esquema no se completó (falta farms.stage_nutrient_ranges)." >&2
+  echo "NO se ha reiniciado la API. Revisa el error de drizzle más arriba y vuelve a ejecutar update.sh." >&2
+  exit 1
+fi
 
 # Catálogo base de fertilizantes: solo se carga si el catálogo está vacío
 # (no pisa productos añadidos o editados por el usuario).
