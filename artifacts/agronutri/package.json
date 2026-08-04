@@ -76,6 +76,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "qrcode.react": "^4.2.0"
+    "qrcode.react": "^4.2.0",
+    "workbox-window": "7.4.1"
   }
 }

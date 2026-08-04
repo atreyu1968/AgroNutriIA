@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { Route, Switch, Redirect, Router as WouterRouter } from 'wouter';
 import { AppLayout } from '@/components/layout/app-layout';
+import { UpdatePrompt } from '@/components/update-prompt';
 
 import Login from '@/pages/login';
 import Register from '@/pages/register';
@@ -96,6 +97,7 @@ function App() {
         <Router />
       </WouterRouter>
       <Toaster />
+      <UpdatePrompt />
     </QueryClientProvider>
   );
 }

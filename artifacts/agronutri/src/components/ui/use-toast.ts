@@ -8,6 +8,10 @@ export interface ToastProps {
   title?: ReactNode;
   description?: ReactNode;
   variant?: "default" | "destructive";
+  /** Nodo extra (p. ej. un botón de acción) que se muestra bajo el texto. */
+  action?: ReactNode;
+  /** Duración en ms. Infinity = el toast no se cierra solo. */
+  duration?: number;
 }
 
 let memoryState: ToastProps[] = [];
@@ -19,10 +23,13 @@ export function toast(props: Omit<ToastProps, "id">) {
   memoryState = [...memoryState, newToast];
   listeners.forEach((l) => l(memoryState));
 
-  setTimeout(() => {
-    memoryState = memoryState.filter((t) => t.id !== id);
-    listeners.forEach((l) => l(memoryState));
-  }, TOAST_TIMEOUT);
+  const duration = props.duration ?? TOAST_TIMEOUT;
+  if (Number.isFinite(duration)) {
+    setTimeout(() => {
+      memoryState = memoryState.filter((t) => t.id !== id);
+      listeners.forEach((l) => l(memoryState));
+    }, duration);
+  }
 }
 
 export function useToast() {

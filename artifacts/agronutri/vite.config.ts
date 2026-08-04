@@ -37,7 +37,10 @@ export default defineConfig({
     // PWA: permite "instalar" la web desde el navegador (móvil y escritorio)
     // como si fuera una app nativa, con icono y pantalla completa.
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': cuando hay una versión nueva con la pestaña abierta, la app
+      // muestra un aviso "Recargar" (ver src/components/update-prompt.tsx) en
+      // vez de esperar a la siguiente navegación.
+      registerType: 'prompt',
       includeAssets: ['favicon.png', 'logo.png', 'logo-blanco.png'],
       manifest: {
         name: 'AgroNutri AI',
