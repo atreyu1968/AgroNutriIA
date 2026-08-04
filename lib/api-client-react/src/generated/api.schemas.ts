@@ -1344,11 +1344,25 @@ export interface Credential {
   status?: string | null;
 }
 
+/**
+ * Proveedor de IA compatible con la API de OpenAI (por defecto openai)
+ */
+export type CredentialInputProvider = typeof CredentialInputProvider[keyof typeof CredentialInputProvider];
+
+
+export const CredentialInputProvider = {
+  openai: 'openai',
+  mistral: 'mistral',
+  deepseek: 'deepseek',
+} as const;
+
 export interface CredentialInput {
   /** @minLength 1 */
   name: string;
   /** @minLength 10 */
   apiKey: string;
+  /** Proveedor de IA compatible con la API de OpenAI (por defecto openai) */
+  provider?: CredentialInputProvider;
   selectedModel?: string;
   monthlyLimitEur?: number;
   isDefault?: boolean;

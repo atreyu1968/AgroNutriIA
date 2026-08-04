@@ -5,12 +5,15 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { CredentialInputProvider } from './credentialInputProvider';
 
 export interface CredentialInput {
   /** @minLength 1 */
   name: string;
   /** @minLength 10 */
   apiKey: string;
+  /** Proveedor de IA compatible con la API de OpenAI (por defecto openai) */
+  provider?: CredentialInputProvider;
   selectedModel?: string;
   monthlyLimitEur?: number;
   isDefault?: boolean;

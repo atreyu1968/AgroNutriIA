@@ -300,6 +300,7 @@ function CredentialItem({ credential }: { credential: any }) {
             {credential.maskedKey}
           </div>
           <div className="text-xs text-muted-foreground mt-2 flex gap-4">
+            <span>{AI_PROVIDERS[credential.provider]?.label ?? credential.provider}</span>
             <span>Modelo: {credential.selectedModel || 'Por defecto'}</span>
             {credential.monthlyLimitEur && <span>Límite: {credential.monthlyLimitEur}€/mes</span>}
           </div>
@@ -329,9 +330,42 @@ function CredentialItem({ credential }: { credential: any }) {
   );
 }
 
+const AI_PROVIDERS: Record<string, { label: string; defaultModel: string; models: { value: string; label: string }[] }> = {
+  openai: {
+    label: "OpenAI",
+    defaultModel: "gpt-4o",
+    models: [
+      { value: "gpt-4o", label: "GPT-4o (Recomendado)" },
+      { value: "gpt-4o-mini", label: "GPT-4o Mini (Rápido)" },
+      { value: "gpt-4.1", label: "GPT-4.1" },
+      { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+      { value: "gpt-5", label: "GPT-5" },
+      { value: "gpt-5-mini", label: "GPT-5 Mini" },
+    ],
+  },
+  mistral: {
+    label: "Mistral",
+    defaultModel: "mistral-small-latest",
+    models: [
+      { value: "mistral-large-latest", label: "Mistral Large" },
+      { value: "mistral-medium-latest", label: "Mistral Medium" },
+      { value: "mistral-small-latest", label: "Mistral Small (Económico)" },
+    ],
+  },
+  deepseek: {
+    label: "DeepSeek",
+    defaultModel: "deepseek-chat",
+    models: [
+      { value: "deepseek-chat", label: "DeepSeek Chat" },
+      { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
+    ],
+  },
+};
+
 const credentialSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   apiKey: z.string().min(10, "API Key inválida"),
+  provider: z.enum(["openai", "mistral", "deepseek"]).default("openai"),
   selectedModel: z.string().optional(),
   monthlyLimitEur: z.coerce.number().optional(),
   isDefault: z.boolean().default(true),
@@ -346,11 +380,14 @@ function CredentialDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
     defaultValues: {
       name: "OpenAI Clave Principal",
       apiKey: "",
+      provider: "openai",
       selectedModel: "gpt-4o",
       monthlyLimitEur: 20,
       isDefault: true,
     }
   });
+  const provider = form.watch("provider") ?? "openai";
+  const providerInfo = AI_PROVIDERS[provider] ?? AI_PROVIDERS.openai;
 
   const createMutation = useCreateCredential({
     mutation: {
@@ -369,14 +406,39 @@ function CredentialDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="w-full"><Plus className="w-4 h-4 mr-2" /> Añadir Credencial OpenAI</Button>
+        <Button className="w-full"><Plus className="w-4 h-4 mr-2" /> Añadir Credencial de IA</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Añadir API Key de OpenAI</DialogTitle>
+          <DialogTitle>Añadir clave de IA</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((v) => createMutation.mutate({ data: v }))} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="provider"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Proveedor</FormLabel>
+                  <Select
+                    onValueChange={(v) => {
+                      field.onChange(v);
+                      const info = AI_PROVIDERS[v];
+                      if (info) form.setValue("selectedModel", info.defaultModel);
+                    }}
+                    value={field.value}
+                  >
+                    <FormControl><SelectTrigger data-testid="select-provider"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {Object.entries(AI_PROVIDERS).map(([value, info]) => (
+                        <SelectItem key={value} value={value}>{info.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="name"
@@ -393,7 +455,7 @@ function CredentialDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
               name="apiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>API Key (sk-...)</FormLabel>
+                  <FormLabel>API Key</FormLabel>
                   <FormControl><Input type="password" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -406,11 +468,12 @@ function CredentialDialog({ open, onOpenChange }: { open: boolean, onOpenChange:
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Modelo Preferido</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger data-testid="select-model"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="gpt-4o">GPT-4o (Recomendado)</SelectItem>
-                        <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido)</SelectItem>
+                        {providerInfo.models.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormItem>

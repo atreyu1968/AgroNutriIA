@@ -62,6 +62,7 @@ export * from './conversationDetail';
 export * from './conversationInput';
 export * from './credential';
 export * from './credentialInput';
+export * from './credentialInputProvider';
 export * from './credentialTestResult';
 export * from './credentialUpdate';
 export * from './dashboardSummary';

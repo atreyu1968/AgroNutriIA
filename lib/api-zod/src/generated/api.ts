@@ -1271,6 +1271,7 @@ export const createCredentialBodyApiKeyMin = 10;
 export const CreateCredentialBody = zod.object({
   "name": zod.string().min(1),
   "apiKey": zod.string().min(createCredentialBodyApiKeyMin),
+  "provider": zod.enum(['openai', 'mistral', 'deepseek']).optional().describe('Proveedor de IA compatible con la API de OpenAI (por defecto openai)'),
   "selectedModel": zod.string().optional(),
   "monthlyLimitEur": zod.number().optional(),
   "isDefault": zod.boolean().optional()

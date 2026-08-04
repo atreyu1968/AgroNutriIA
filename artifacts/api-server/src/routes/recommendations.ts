@@ -44,8 +44,13 @@ import {
   clientFor,
   agronomistSystemPrompt,
   estimateCostEur,
+  maxOutputTokensParam,
+  modelFor,
+  parseJsonLoose,
   recordUsage,
+  supportsJsonResponseFormat,
   checkMonthlyLimit,
+  usesResponsesApi,
 } from "../lib/openai";
 
 const router: IRouter = Router();
@@ -269,7 +274,7 @@ IMPORTANTE — ACIDIFICACIÓN DEL AGUA: el agricultor ha decidido usar ácido pa
 - Evita recomendar productos alcalinizantes o bicarbonatados que contrarresten la acidificación.`
     : "";
 
-  const model = credential.selectedModel ?? "gpt-4o-mini";
+  const model = modelFor(credential);
   const start = Date.now();
   let extracted: {
     title: string;
@@ -280,9 +285,24 @@ IMPORTANTE — ACIDIFICACIÓN DEL AGUA: el agricultor ha decidido usar ácido pa
     const client = clientFor(credential);
     const completion = await client.chat.completions.create({
       model,
-      response_format: { type: "json_schema", json_schema: aiProgramSchema },
+      ...maxOutputTokensParam(credential, 4000),
+      // Algunos proveedores compatibles no soportan json_schema estricto:
+      // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
+      // y la estructura se describe en el prompt.
+      ...(usesResponsesApi(credential)
+        ? { response_format: { type: "json_schema" as const, json_schema: aiProgramSchema } }
+        : supportsJsonResponseFormat(credential)
+          ? { response_format: { type: "json_object" as const } }
+          : {}),
       messages: [
-        { role: "system", content: agronomistSystemPrompt(access.farm, contextBlock) },
+        {
+          role: "system",
+          content:
+            agronomistSystemPrompt(access.farm, contextBlock) +
+            (usesResponsesApi(credential)
+              ? ""
+              : `\n\nResponde SOLO con un objeto JSON válido con esta estructura exacta: ${JSON.stringify(aiProgramSchema.schema)}`),
+        },
         {
           role: "user",
           content: sector
@@ -301,7 +321,7 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
       ],
     });
     const raw = completion.choices[0]?.message?.content ?? "";
-    extracted = JSON.parse(raw);
+    extracted = parseJsonLoose(raw);
     const inputTokens = completion.usage?.prompt_tokens ?? 0;
     const outputTokens = completion.usage?.completion_tokens ?? 0;
     await recordUsage({

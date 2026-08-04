@@ -12,7 +12,7 @@ import {
 import { requireAuth, parseIntParam } from "../middlewares/auth";
 import { encryptSecret, maskApiKey } from "../lib/crypto";
 import { serializeCredential } from "../lib/serializers";
-import { clientFor } from "../lib/openai";
+import { AI_PROVIDERS, clientFor, providerFor } from "../lib/openai";
 import { audit } from "../lib/audit";
 
 const router: IRouter = Router();
@@ -45,10 +45,21 @@ router.post("/settings/openai", async (req, res): Promise<void> => {
       .set({ isDefault: false })
       .where(eq(credentialsTable.userId, req.user!.id));
   }
+  const provider = providerFor({ provider: rest.provider ?? "openai" });
+  if (rest.selectedModel && !AI_PROVIDERS[provider].models.includes(rest.selectedModel)) {
+    res.status(400).json({
+      error: `El modelo «${rest.selectedModel}» no es válido para ${AI_PROVIDERS[provider].label}.`,
+    });
+    return;
+  }
   const [cred] = await db
     .insert(credentialsTable)
     .values({
       ...rest,
+      provider,
+      // Sin modelo elegido, usa el modelo por defecto del proveedor (el
+      // default de la columna es de OpenAI y no vale para otros proveedores).
+      selectedModel: rest.selectedModel ?? AI_PROVIDERS[provider].defaultModel,
       userId: req.user!.id,
       encryptedKey: encryptSecret(apiKey),
       maskedKey: maskApiKey(apiKey),
@@ -73,6 +84,23 @@ router.patch("/settings/openai/:credentialId", async (req, res): Promise<void> =
     return;
   }
   const { apiKey, isDefault, ...rest } = parsed.data;
+  if (rest.selectedModel) {
+    const [current] = await db
+      .select()
+      .from(credentialsTable)
+      .where(and(eq(credentialsTable.id, id), eq(credentialsTable.userId, req.user!.id)));
+    if (!current) {
+      res.status(404).json({ error: "Credencial no encontrada" });
+      return;
+    }
+    const provider = providerFor(current);
+    if (!AI_PROVIDERS[provider].models.includes(rest.selectedModel)) {
+      res.status(400).json({
+        error: `El modelo «${rest.selectedModel}» no es válido para ${AI_PROVIDERS[provider].label}.`,
+      });
+      return;
+    }
+  }
   const update: Record<string, unknown> = { ...rest };
   if (apiKey) {
     update.encryptedKey = encryptSecret(apiKey);

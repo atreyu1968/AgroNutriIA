@@ -41,9 +41,17 @@ import {
   clientFor,
   agronomistSystemPrompt,
   estimateCostEur,
+  generateText,
+  maxOutputTokensParam,
+  modelFor,
+  parseJsonLoose,
+  supportsJsonResponseFormat,
   recordUsage,
   checkMonthlyLimit,
+  supportsVision,
+  usesResponsesApi,
 } from "../lib/openai";
+import { createAiChatSession, WebSearchUnsupportedError } from "../lib/aiChat";
 import { audit } from "../lib/audit";
 
 const router: IRouter = Router();
@@ -366,10 +374,9 @@ router.post(
     }
     const sources = contextSources({ soil, leaf, water, active });
 
-    const model = credential.selectedModel ?? "gpt-4o-mini";
+    const model = modelFor(credential);
     const start = Date.now();
     try {
-      const client = clientFor(credential);
       const chatHistory = history
         .reverse()
         .filter((m) => m.role === "user" || m.role === "assistant")
@@ -383,69 +390,43 @@ router.post(
 - No guardes fichas duplicadas ni productos sin relación con la nutrición vegetal.`;
 
       const canSaveSheets = canEdit(access.role);
-      let input: OpenAI.Responses.ResponseInput = chatHistory;
       const toolsUsed = new Set(["contexto_finca", "analiticas", "programa_vigente"]);
       let inputTokens = 0;
       let outputTokens = 0;
-      let response: OpenAI.Responses.Response | null = null;
-      let webSearchFailed = false;
+      let finalText: string | null = null;
+      // La búsqueda web solo está disponible con OpenAI (Responses API).
+      let webSearchFailed = !usesResponsesApi(credential);
+      const session = createAiChatSession({ credential, instructions, history: chatHistory });
 
       const MAX_ITER = 4;
       for (let iter = 0; iter < MAX_ITER; iter++) {
         // On the last iteration, offer no function tools so the model must
         // produce a final answer that consumes pending function outputs.
         const lastIter = iter === MAX_ITER - 1;
-        const functionTools: OpenAI.Responses.Tool[] =
-          canSaveSheets && !lastIter ? [saveProductSheetTool] : [];
-        const tools: OpenAI.Responses.Tool[] = webSearchFailed
-          ? functionTools
-          : [{ type: "web_search" }, ...functionTools];
+        const functionTools = canSaveSheets && !lastIter ? [saveProductSheetTool] : [];
+        let turn;
         try {
-          response = await client.responses.create({
-            model,
-            instructions,
-            input,
-            tools,
-            max_output_tokens: 2500,
+          turn = await session.send({
+            tools: functionTools,
+            webSearch: !webSearchFailed,
+            maxOutputTokens: 2500,
           });
         } catch (err) {
-          if (!webSearchFailed && /web_search/i.test((err as Error).message)) {
+          if (!webSearchFailed && err instanceof WebSearchUnsupportedError) {
             webSearchFailed = true;
-            response = await client.responses.create({
-              model,
-              instructions,
-              input,
-              tools: functionTools,
-              max_output_tokens: 2500,
-            });
+            turn = await session.send({ tools: functionTools, webSearch: false, maxOutputTokens: 2500 });
           } else {
             throw err;
           }
         }
-        inputTokens += response.usage?.input_tokens ?? 0;
-        outputTokens += response.usage?.output_tokens ?? 0;
+        inputTokens += turn.inputTokens;
+        outputTokens += turn.outputTokens;
+        if (turn.webSearchUsed) toolsUsed.add("busqueda_web");
+        sources.push(...turn.urls);
+        if (turn.text) finalText = turn.text;
+        if (!turn.toolCalls.length) break;
 
-        const functionCalls = response.output.filter(
-          (o): o is OpenAI.Responses.ResponseFunctionToolCall => o.type === "function_call",
-        );
-        if (response.output.some((o) => o.type === "web_search_call")) {
-          toolsUsed.add("busqueda_web");
-        }
-        for (const item of response.output) {
-          if (item.type === "message") {
-            for (const part of item.content) {
-              if (part.type === "output_text") {
-                for (const ann of part.annotations ?? []) {
-                  if (ann.type === "url_citation" && ann.url) sources.push(ann.url);
-                }
-              }
-            }
-          }
-        }
-        if (!functionCalls.length) break;
-
-        input = input.concat(response.output as OpenAI.Responses.ResponseInputItem[]);
-        for (const call of functionCalls) {
+        for (const call of turn.toolCalls) {
           let result: unknown;
           if (call.name === "guardar_ficha_producto" && canSaveSheets) {
             try {
@@ -467,15 +448,11 @@ router.post(
           } else {
             result = { ok: false, error: "Herramienta desconocida" };
           }
-          input.push({
-            type: "function_call_output",
-            call_id: call.call_id,
-            output: JSON.stringify(result),
-          });
+          session.addToolResult(call, JSON.stringify(result));
         }
       }
 
-      const answer = response?.output_text?.trim() || "No he podido generar una respuesta.";
+      const answer = finalText || "No he podido generar una respuesta.";
       const cost = estimateCostEur(model, inputTokens, outputTokens);
       const [assistantMsg] = await db
         .insert(messagesTable)
@@ -638,38 +615,27 @@ router.post(
           res.status(429).json({ error: limitMsg });
           return;
         }
-        const model = credential.selectedModel ?? "gpt-4o-mini";
+        if (!supportsVision(credential)) {
+          res.status(409).json({
+            error:
+              "El proveedor de IA configurado no admite análisis de imágenes, necesario para leer un PDF escaneado. Usa una clave de OpenAI o Mistral en Ajustes.",
+          });
+          return;
+        }
+        const model = modelFor(credential);
         const start = Date.now();
         try {
-          const client = clientFor(credential);
-          const response = await client.responses.create({
-            model,
+          const { text: description, inputTokens, outputTokens } = await generateText({
+            credential,
             instructions:
               "Eres un técnico agrónomo. Describe con detalle técnico y objetivo el contenido de estas páginas escaneadas de un documento (texto legible, valores de tablas, etiquetas, gráficos...). No inventes datos. Responde en español.",
-            input: [
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "input_text",
-                    text:
-                      note ||
-                      "Describe el contenido de este documento escaneado para incorporarlo al informe técnico.",
-                  },
-                  ...pageImages.map((dataUrl) => ({
-                    type: "input_image" as const,
-                    image_url: dataUrl,
-                    detail: "auto" as const,
-                  })),
-                ],
-              },
-            ],
-            max_output_tokens: 1500,
+            input:
+              note ||
+              "Describe el contenido de este documento escaneado para incorporarlo al informe técnico.",
+            images: pageImages,
+            maxOutputTokens: 1500,
           });
-          const description = response.output_text?.trim();
           if (!description) throw new Error("Respuesta vacía");
-          const inputTokens = response.usage?.input_tokens ?? 0;
-          const outputTokens = response.usage?.output_tokens ?? 0;
           await recordUsage({
             userId: req.user!.id,
             farmId,
@@ -720,30 +686,26 @@ router.post(
         res.status(429).json({ error: limitMsg });
         return;
       }
-      const model = credential.selectedModel ?? "gpt-4o-mini";
+      if (!supportsVision(credential)) {
+        res.status(409).json({
+          error:
+            "El proveedor de IA configurado no admite análisis de imágenes. Usa una clave de OpenAI o Mistral en Ajustes para adjuntar fotos.",
+        });
+        return;
+      }
+      const model = modelFor(credential);
       const start = Date.now();
       try {
-        const client = clientFor(credential);
         const dataUrl = `data:${mime};base64,${req.file.buffer.toString("base64")}`;
-        const response = await client.responses.create({
-          model,
+        const { text: description, inputTokens, outputTokens } = await generateText({
+          credential,
           instructions:
             "Eres un técnico agrónomo. Describe la imagen con detalle técnico y objetivo (cultivo, síntomas visibles, colores, texturas, texto legible, valores de tablas o etiquetas...). No inventes datos. Responde en español.",
-          input: [
-            {
-              role: "user",
-              content: [
-                { type: "input_text", text: note || "Describe esta imagen para incorporarla al informe técnico." },
-                { type: "input_image", image_url: dataUrl, detail: "auto" },
-              ],
-            },
-          ],
-          max_output_tokens: 800,
+          input: note || "Describe esta imagen para incorporarla al informe técnico.",
+          images: [dataUrl],
+          maxOutputTokens: 800,
         });
-        const description = response.output_text?.trim();
         if (!description) throw new Error("Respuesta vacía");
-        const inputTokens = response.usage?.input_tokens ?? 0;
-        const outputTokens = response.usage?.output_tokens ?? 0;
         await recordUsage({
           userId: req.user!.id,
           farmId,
@@ -879,7 +841,7 @@ router.post(
       .map((f) => `- id ${f.id}: ${f.name} (${f.formulaType ?? "?"})`)
       .join("\n");
 
-    const model = credential.selectedModel ?? "gpt-4o-mini";
+    const model = modelFor(credential);
     const start = Date.now();
     let extracted: {
       title: string;
@@ -890,11 +852,20 @@ router.post(
       const client = clientFor(credential);
       const completion = await client.chat.completions.create({
         model,
-        response_format: { type: "json_schema", json_schema: extractionSchema },
+        ...maxOutputTokensParam(credential, 4000),
+        // Algunos proveedores compatibles no soportan json_schema estricto:
+        // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
+        // y la estructura se describe en el prompt.
+        ...(usesResponsesApi(credential)
+          ? { response_format: { type: "json_schema" as const, json_schema: extractionSchema } }
+          : supportsJsonResponseFormat(credential)
+            ? { response_format: { type: "json_object" as const } }
+            : {}),
         messages: [
           {
             role: "system",
             content: `Eres un asistente que convierte una respuesta de un técnico agrícola en un programa semanal de fertirrigación estructurado.
+${usesResponsesApi(credential) ? "" : `Responde SOLO con un objeto JSON válido con esta estructura exacta: ${JSON.stringify(extractionSchema.schema)}\n`}
 Extrae EXCLUSIVAMENTE los fertilizantes y dosis semanales que aparecen en el texto; no inventes productos ni dosis.
 Usa dosis semanales totales para la finca en kg o L. Si el texto da g/planta, conviértelo si el propio texto da el número de plantas; si no, usa el valor total indicado.
 Catálogo de fertilizantes disponibles (usa estos nombres cuando coincidan):
@@ -904,7 +875,7 @@ ${catalog}`,
         ],
       });
       const raw = completion.choices[0]?.message?.content ?? "";
-      extracted = JSON.parse(raw);
+      extracted = parseJsonLoose(raw);
       const inputTokens = completion.usage?.prompt_tokens ?? 0;
       const outputTokens = completion.usage?.completion_tokens ?? 0;
       await recordUsage({

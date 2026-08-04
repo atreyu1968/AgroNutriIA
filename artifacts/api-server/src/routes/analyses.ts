@@ -16,7 +16,16 @@ import {
 import { requireAuth, farmAccess, canEdit, parseIntParam } from "../middlewares/auth";
 import { serializeAnalysis } from "../lib/serializers";
 import { resolveCredential } from "../lib/farmContext";
-import { clientFor, estimateCostEur, recordUsage, checkMonthlyLimit } from "../lib/openai";
+import {
+  clientFor,
+  estimateCostEur,
+  maxOutputTokensParam,
+  modelFor,
+  parseJsonLoose,
+  recordUsage,
+  checkMonthlyLimit,
+  supportsJsonResponseFormat,
+} from "../lib/openai";
 import { audit } from "../lib/audit";
 
 const upload = multer({
@@ -144,15 +153,17 @@ router.post(
       return;
     }
 
-    const model = credential.selectedModel ?? "gpt-4o-mini";
+    const model = modelFor(credential);
     const start = Date.now();
     let usageRecorded = false;
     try {
       const client = clientFor(credential);
       const completion = await client.chat.completions.create({
         model,
-        response_format: { type: "json_object" },
-        max_completion_tokens: 8000,
+        ...(supportsJsonResponseFormat(credential)
+          ? { response_format: { type: "json_object" as const } }
+          : {}),
+        ...maxOutputTokensParam(credential, 8000),
         messages: [
           { role: "system", content: EXTRACTION_PROMPT },
           { role: "user", content: `<<<PDF>>>\n${text}\n<<<FIN_PDF>>>` },
@@ -177,7 +188,7 @@ router.post(
 
       let json: unknown;
       try {
-        json = JSON.parse(raw);
+        json = parseJsonLoose(raw);
       } catch {
         res.status(422).json({ error: "El asistente no ha devuelto datos válidos. Inténtalo de nuevo." });
         return;

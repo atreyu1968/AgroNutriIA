@@ -2836,6 +2836,10 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         apiKey: { type: string, minLength: 10 }
+        provider:
+          type: string
+          enum: [openai, mistral, deepseek]
+          description: "Proveedor de IA compatible con la API de OpenAI (por defecto openai)"
         selectedModel: { type: string }
         monthlyLimitEur: { type: number }
         isDefault: { type: boolean }

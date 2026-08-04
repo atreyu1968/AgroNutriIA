@@ -9,6 +9,110 @@ import {
 } from "@workspace/db";
 import { decryptSecret } from "./crypto";
 
+/** Proveedores de IA compatibles con la API de OpenAI. */
+export type AiProvider = "openai" | "mistral" | "deepseek";
+
+export const AI_PROVIDERS: Record<
+  AiProvider,
+  { label: string; baseURL?: string; defaultModel: string; models: string[]; vision: boolean }
+> = {
+  openai: {
+    label: "OpenAI",
+    defaultModel: "gpt-4o-mini",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-5", "gpt-5-mini"],
+    vision: true,
+  },
+  mistral: {
+    label: "Mistral",
+    baseURL: "https://api.mistral.ai/v1",
+    defaultModel: "mistral-small-latest",
+    models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
+    vision: true,
+  },
+  deepseek: {
+    label: "DeepSeek",
+    baseURL: "https://api.deepseek.com",
+    defaultModel: "deepseek-chat",
+    models: ["deepseek-chat", "deepseek-reasoner"],
+    vision: false,
+  },
+};
+
+/** Credenciales antiguas o valores desconocidos se tratan como OpenAI. */
+export function providerFor(credential: Pick<Credential, "provider">): AiProvider {
+  const p = (credential.provider ?? "openai") as AiProvider;
+  return AI_PROVIDERS[p] ? p : "openai";
+}
+
+/** Modelo efectivo de una credencial (con el modelo por defecto del proveedor). */
+export function modelFor(credential: Pick<Credential, "provider" | "selectedModel">): string {
+  return credential.selectedModel ?? AI_PROVIDERS[providerFor(credential)].defaultModel;
+}
+
+/** Solo OpenAI soporta la Responses API (web_search, input_image...). */
+export function usesResponsesApi(credential: Pick<Credential, "provider">): boolean {
+  return providerFor(credential) === "openai";
+}
+
+/**
+ * Parámetro de límite de salida para Chat Completions según proveedor:
+ * OpenAI usa max_completion_tokens; Mistral/DeepSeek esperan max_tokens.
+ */
+export function maxOutputTokensParam(
+  credential: Pick<Credential, "provider">,
+  n: number,
+): { max_completion_tokens: number } | { max_tokens: number } {
+  return usesResponsesApi(credential) ? { max_completion_tokens: n } : { max_tokens: n };
+}
+
+/** Si el proveedor admite análisis de imágenes (visión). */
+export function supportsVision(credential: Pick<Credential, "provider">): boolean {
+  return AI_PROVIDERS[providerFor(credential)].vision;
+}
+
+/**
+ * deepseek-reasoner no soporta function calling ni response_format JSON;
+ * el resto de modelos ofertados sí.
+ */
+export function supportsFunctionCalling(
+  credential: Pick<Credential, "provider" | "selectedModel">,
+): boolean {
+  return modelFor(credential) !== "deepseek-reasoner";
+}
+
+/** Si el modelo admite response_format de tipo JSON (json_object/json_schema). */
+export function supportsJsonResponseFormat(
+  credential: Pick<Credential, "provider" | "selectedModel">,
+): boolean {
+  return modelFor(credential) !== "deepseek-reasoner";
+}
+
+/**
+ * Parsea JSON tolerando envoltorios habituales de modelos sin JSON mode:
+ * vallas ```json ... ``` o texto alrededor del primer objeto {...}.
+ */
+export function parseJsonLoose<T = unknown>(raw: string): T {
+  const trimmed = raw.trim();
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) {
+      try {
+        return JSON.parse(fenced[1].trim()) as T;
+      } catch {
+        /* sigue con el siguiente intento */
+      }
+    }
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1)) as T;
+    }
+    throw new Error("La respuesta del modelo no contiene un JSON válido");
+  }
+}
+
 /** €/1M tokens (approximate, for cost tracking only). */
 const PRICES: Record<string, { input: number; output: number }> = {
   "gpt-4o": { input: 2.5, output: 10 },
@@ -17,6 +121,11 @@ const PRICES: Record<string, { input: number; output: number }> = {
   "gpt-4.1-mini": { input: 0.4, output: 1.6 },
   "gpt-5": { input: 1.25, output: 10 },
   "gpt-5-mini": { input: 0.25, output: 2 },
+  "mistral-large-latest": { input: 1.8, output: 5.5 },
+  "mistral-medium-latest": { input: 0.4, output: 2 },
+  "mistral-small-latest": { input: 0.1, output: 0.3 },
+  "deepseek-chat": { input: 0.25, output: 1.05 },
+  "deepseek-reasoner": { input: 0.5, output: 2 },
 };
 
 export function estimateCostEur(model: string, inputTokens: number, outputTokens: number): number {
@@ -25,7 +134,75 @@ export function estimateCostEur(model: string, inputTokens: number, outputTokens
 }
 
 export function clientFor(credential: Credential): OpenAI {
-  return new OpenAI({ apiKey: decryptSecret(credential.encryptedKey) });
+  const { baseURL } = AI_PROVIDERS[providerFor(credential)];
+  return new OpenAI({ apiKey: decryptSecret(credential.encryptedKey), ...(baseURL ? { baseURL } : {}) });
+}
+
+/**
+ * Genera texto (con imágenes opcionales) de forma independiente del
+ * proveedor: usa la Responses API con OpenAI y Chat Completions con el resto.
+ */
+export async function generateText(opts: {
+  credential: Credential;
+  instructions: string;
+  input: string;
+  /** Data URLs de imágenes adjuntas (visión). */
+  images?: string[];
+  maxOutputTokens: number;
+}): Promise<{ text: string | null; inputTokens: number; outputTokens: number }> {
+  const { credential, instructions, input, images = [], maxOutputTokens } = opts;
+  const client = clientFor(credential);
+  const model = modelFor(credential);
+  if (usesResponsesApi(credential)) {
+    const response = await client.responses.create({
+      model,
+      instructions,
+      input: images.length
+        ? [
+            {
+              role: "user",
+              content: [
+                { type: "input_text", text: input },
+                ...images.map((dataUrl) => ({
+                  type: "input_image" as const,
+                  image_url: dataUrl,
+                  detail: "auto" as const,
+                })),
+              ],
+            },
+          ]
+        : input,
+      max_output_tokens: maxOutputTokens,
+    });
+    return {
+      text: response.output_text?.trim() || null,
+      inputTokens: response.usage?.input_tokens ?? 0,
+      outputTokens: response.usage?.output_tokens ?? 0,
+    };
+  }
+  // Los proveedores compatibles (Mistral, DeepSeek) esperan max_tokens,
+  // no el max_completion_tokens moderno de OpenAI.
+  const completion = await client.chat.completions.create({
+    model,
+    max_tokens: maxOutputTokens,
+    messages: [
+      { role: "system", content: instructions },
+      images.length
+        ? {
+            role: "user",
+            content: [
+              { type: "text", text: input },
+              ...images.map((dataUrl) => ({ type: "image_url" as const, image_url: { url: dataUrl } })),
+            ],
+          }
+        : { role: "user", content: input },
+    ],
+  });
+  return {
+    text: completion.choices[0]?.message?.content?.trim() || null,
+    inputTokens: completion.usage?.prompt_tokens ?? 0,
+    outputTokens: completion.usage?.completion_tokens ?? 0,
+  };
 }
 
 export async function monthlySpendEur(userId: number): Promise<number> {
