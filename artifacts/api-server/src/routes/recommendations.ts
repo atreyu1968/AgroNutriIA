@@ -897,7 +897,14 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
   }
   const parsed = RunCalculationBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    // Mensaje legible en vez del JSON crudo de zod; el caso más común es una
+    // CE máxima fuera de rango (introducida en µS/cm en lugar de dS/m).
+    const ecIssue = parsed.error.issues.find((i) => i.path.includes("maxEcDsM"));
+    res.status(400).json({
+      error: ecIssue
+        ? "La CE máxima debe estar entre 0,1 y 10 dS/m. Si tu valor viene en µS/cm, divídelo entre 1000 (p. ej. 2500 µS/cm = 2,5 dS/m)."
+        : `Datos del cálculo no válidos: ${parsed.error.issues.map((i) => `${i.path.join(".")} (${i.message})`).join("; ")}`,
+    });
     return;
   }
   let sector = null;

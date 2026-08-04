@@ -249,6 +249,14 @@ export default function CalculadoraTab({
   const handleCalculate = () => {
     const validItems = buildValidItems();
     if (validItems.length === 0 || !farmId) return;
+    if (maxEc > 10) {
+      toast({
+        title: "Revisa la CE máxima",
+        description: `La CE se indica en dS/m (entre 0,1 y 10). El valor ${formatNumber(maxEc)} parece estar en µS/cm: equivale a ${formatNumber(maxEc / 1000)} dS/m. Corrígelo y vuelve a calcular.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     calcMutation.mutate(
       {
@@ -343,12 +351,20 @@ export default function CalculadoraTab({
                   size="sm"
                   className="w-full"
                   disabled={farmSaveMutation.isPending || plantCount <= 0 || weeklyLitresPerPlant <= 0 || !(maxEc > 0)}
-                  onClick={() =>
+                  onClick={() => {
+                    if (maxEc > 10) {
+                      toast({
+                        title: "Revisa la CE máxima",
+                        description: `La CE se indica en dS/m (entre 0,1 y 10). El valor ${formatNumber(maxEc)} parece estar en µS/cm: equivale a ${formatNumber(maxEc / 1000)} dS/m.`,
+                        variant: "destructive",
+                      });
+                      return;
+                    }
                     farmSaveMutation.mutate({
                       farmId,
                       data: { plantCount, weeklyLitresPerPlant, maxEcDsM: maxEc },
-                    })
-                  }
+                    });
+                  }}
                   data-testid="button-save-farm-params"
                 >
                   <Save className="w-4 h-4 mr-1" />
