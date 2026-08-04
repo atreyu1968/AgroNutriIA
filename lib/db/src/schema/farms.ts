@@ -7,8 +7,14 @@ import {
   integer,
   real,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { usersTable, credentialsTable } from "./auth";
+
+/** Rangos por fase (g/planta/semana) modulables por el técnico. */
+export type StageNutrientRanges = {
+  [stageKey: string]: { n: [number, number]; k2o: [number, number] };
+};
 
 export const farmsTable = pgTable("farms", {
   id: serial("id").primaryKey(),
@@ -36,6 +42,8 @@ export const farmsTable = pgTable("farms", {
   desalinatedWaterPct: real("desalinated_water_pct"),
   weeklyLitresPerPlant: real("weekly_litres_per_plant"),
   maxEcDsM: real("max_ec_ds_m"),
+  /** Rangos orientativos por fase modulados por el técnico (g/planta/semana). */
+  stageNutrientRanges: jsonb("stage_nutrient_ranges").$type<StageNutrientRanges | null>(),
   managementNotes: text("management_notes"),
   responsibleTechnician: text("responsible_technician"),
   contactName: text("contact_name"),

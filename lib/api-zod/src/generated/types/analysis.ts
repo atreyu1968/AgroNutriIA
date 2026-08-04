@@ -11,6 +11,7 @@ import type { AnalysisType } from './analysisType';
 export interface Analysis {
   id: number;
   farmId: number;
+  hasPdf: boolean;
   /** @nullable */
   sectorId?: number | null;
   type: AnalysisType;

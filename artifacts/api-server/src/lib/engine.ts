@@ -29,6 +29,8 @@ export type CalculationOutput = {
 
 export type StageComparison = {
   stageLabel: string;
+  /** "tecnico" si los rangos fueron modulados por el técnico de la finca. */
+  rangeSource: "orientativo" | "tecnico";
   nPerPlantG: number;
   k2oPerPlantG: number;
   nMinG: number;
@@ -43,37 +45,58 @@ export type StageComparison = {
  * Orientative weekly targets for platanera by phenological stage,
  * in grams per plant per week. Matched against the free-text stage.
  */
-const STAGE_PROFILES: {
+export const STAGE_PROFILES: {
+  key: string;
   label: string;
   match: RegExp;
   n: [number, number];
   k2o: [number, number];
 }[] = [
   {
+    key: "prefloracion",
     label: "pre-floración / parición",
     match: /(pre.?flor|paric|belote|pre.?paric)/i,
     n: [15, 25],
     k2o: [25, 40],
   },
   {
+    key: "engorde",
     label: "engorde / llenado del racimo",
     match: /(engord|llenad|racimo|cuaj)/i,
     n: [10, 18],
     k2o: [30, 50],
   },
   {
+    key: "paron",
     label: "parón invernal",
     match: /(paron|parón|invern|invierno)/i,
     n: [3, 8],
     k2o: [5, 15],
   },
   {
+    key: "postcosecha",
     label: "postcosecha / arranque vegetativo",
     match: /(post.?cosech|corte|arranque|vegetativ)/i,
     n: [12, 20],
     k2o: [15, 30],
   },
 ];
+
+/** Rango [min, max] de números finitos no negativos con min <= max. */
+export function validStageRange(r: unknown): r is [number, number] {
+  return (
+    Array.isArray(r) &&
+    r.length === 2 &&
+    r.every((x) => typeof x === "number" && Number.isFinite(x) && x >= 0) &&
+    r[0] <= r[1]
+  );
+}
+
+/** Texto estándar sobre el origen de los rangos por fase, para informes y UI. */
+export const STAGE_RANGES_PROVENANCE =
+  "Los rangos por fase son orientativos: derivan de referencias generales de fertirrigación de platanera en Canarias " +
+  "(≈350–500 kg N/ha·año y ≈700–1000 kg K2O/ha·año con 1800–2400 plantas/ha, modulados estacionalmente) y no de una tabla oficial. " +
+  "El técnico responsable puede modularlos para cada finca; deben interpretarse según densidad, variedad, riego y suelo.";
 
 export function param(a: Analysis | null | undefined, names: string[]): number | null {
   return paramEntry(a, names)?.value ?? null;
@@ -297,28 +320,38 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     input.stageOverride ?? input.sector?.phenologicalStage ?? input.farm.phenologicalStage ?? "";
   const profile = stageText ? STAGE_PROFILES.find((p) => p.match.test(stageText)) : undefined;
   if (profile && plantCount > 0) {
+    // El técnico puede modular los rangos por finca; si no, se usan los orientativos.
+    const custom = input.farm.stageNutrientRanges?.[profile.key];
+    // Solo se aplica la modulación del técnico si AMBOS rangos son válidos;
+    // así nunca se mezclan rangos propios con orientativos bajo la misma etiqueta.
+    const useCustom = !!custom && validStageRange(custom.n) && validStageRange(custom.k2o);
+    const nRange: [number, number] = useCustom ? (custom!.n as [number, number]) : profile.n;
+    const k2oRange: [number, number] = useCustom ? (custom!.k2o as [number, number]) : profile.k2o;
+    const rangeSource: "orientativo" | "tecnico" = useCustom ? "tecnico" : "orientativo";
     const nPerPlantG = round((nutrients.n * 1000) / plantCount, 1);
     const k2oPerPlantG = round((nutrients.k2o * 1000) / plantCount, 1);
     const statusOf = (v: number, [lo, hi]: [number, number]) =>
       v < lo ? ("low" as const) : v > hi ? ("high" as const) : ("ok" as const);
     stageComparison = {
       stageLabel: profile.label,
+      rangeSource,
       nPerPlantG,
       k2oPerPlantG,
-      nMinG: profile.n[0],
-      nMaxG: profile.n[1],
-      k2oMinG: profile.k2o[0],
-      k2oMaxG: profile.k2o[1],
-      nStatus: statusOf(nPerPlantG, profile.n),
-      k2oStatus: statusOf(k2oPerPlantG, profile.k2o),
+      nMinG: nRange[0],
+      nMaxG: nRange[1],
+      k2oMinG: k2oRange[0],
+      k2oMaxG: k2oRange[1],
+      nStatus: statusOf(nPerPlantG, nRange),
+      k2oStatus: statusOf(k2oPerPlantG, k2oRange),
     };
+    const rangeWord = rangeSource === "tecnico" ? "rango fijado por el técnico" : "rango orientativo";
     const describe = (label: string, v: number, [lo, hi]: [number, number], status: "low" | "ok" | "high") =>
       status === "ok"
         ? null
-        : `${label} ${status === "high" ? "por encima" : "por debajo"} del rango orientativo para ${profile.label} (${v} g/planta/semana frente a ${lo}–${hi}): revisar con el técnico.`;
+        : `${label} ${status === "high" ? "por encima" : "por debajo"} del ${rangeWord} para ${profile.label} (${v} g/planta/semana frente a ${lo}–${hi}): revisar con el técnico.`;
     for (const w of [
-      describe("Aporte de N", stageComparison.nPerPlantG, profile.n, stageComparison.nStatus),
-      describe("Aporte de K2O", stageComparison.k2oPerPlantG, profile.k2o, stageComparison.k2oStatus),
+      describe("Aporte de N", stageComparison.nPerPlantG, nRange, stageComparison.nStatus),
+      describe("Aporte de K2O", stageComparison.k2oPerPlantG, k2oRange, stageComparison.k2oStatus),
     ]) {
       if (w) warnings.push(w);
     }

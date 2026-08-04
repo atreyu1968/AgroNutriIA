@@ -41,7 +41,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { Pencil, Trash2 } from "lucide-react";
+
+/** Rangos orientativos por defecto (g/planta/semana), espejo de los del servidor. */
+const DEFAULT_STAGE_RANGES: { key: string; label: string; n: [number, number]; k2o: [number, number] }[] = [
+  { key: "prefloracion", label: "Pre-floración / parición", n: [15, 25], k2o: [25, 40] },
+  { key: "engorde", label: "Engorde / llenado del racimo", n: [10, 18], k2o: [30, 50] },
+  { key: "paron", label: "Parón invernal", n: [3, 8], k2o: [5, 15] },
+  { key: "postcosecha", label: "Postcosecha / arranque vegetativo", n: [12, 20], k2o: [15, 30] },
+];
 
 const numField = z.preprocess(
   (v) => (v === "" || v == null ? undefined : Number(v)),
@@ -78,6 +87,36 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const canDelete = farm.myRole === "owner";
+  const savedRanges = (farm as { stageNutrientRanges?: Record<string, { n: number[]; k2o: number[] }> | null })
+    .stageNutrientRanges;
+  const [customRanges, setCustomRanges] = useState(!!savedRanges);
+  const [ranges, setRanges] = useState<Record<string, { n: [number, number]; k2o: [number, number] }>>(() =>
+    Object.fromEntries(
+      DEFAULT_STAGE_RANGES.map((d) => {
+        const s = savedRanges?.[d.key];
+        return [
+          d.key,
+          {
+            n: (s?.n?.length === 2 ? [s.n[0], s.n[1]] : d.n) as [number, number],
+            k2o: (s?.k2o?.length === 2 ? [s.k2o[0], s.k2o[1]] : d.k2o) as [number, number],
+          },
+        ];
+      }),
+    ),
+  );
+  const setRangeVal = (key: string, nutrient: "n" | "k2o", idx: 0 | 1, value: number) =>
+    setRanges((prev) => {
+      const cur = prev[key];
+      const next = [...cur[nutrient]] as [number, number];
+      next[idx] = value;
+      return { ...prev, [key]: { ...cur, [nutrient]: next } };
+    });
+  const rangesValid =
+    !customRanges ||
+    DEFAULT_STAGE_RANGES.every((d) => {
+      const r = ranges[d.key];
+      return r.n[0] >= 0 && r.n[0] <= r.n[1] && r.k2o[0] >= 0 && r.k2o[0] <= r.k2o[1];
+    });
 
   const form = useForm<EditFarmValues>({
     resolver: zodResolver(editFarmSchema),
@@ -149,7 +188,18 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
         return [k, v];
       }),
     );
-    updateMutation.mutate({ farmId: farm.id, data: clean });
+    if (!rangesValid) {
+      toast({
+        title: "Rangos por fase no válidos",
+        description: "En cada rango, el mínimo no puede superar al máximo ni ser negativo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateMutation.mutate({
+      farmId: farm.id,
+      data: { ...clean, stageNutrientRanges: customRanges ? ranges : null },
+    });
   };
 
   const textField = (
@@ -226,6 +276,49 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
               {numberField("maxEcDsM", "CE máx. (dS/m)")}
             </div>
             {textField("soilType", "Tipo de suelo")}
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Rangos por fase fenológica (g/planta/semana)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Por defecto se usan rangos orientativos generales de platanera. Actívalo para que el técnico
+                    los module para esta finca; se aplican en la calculadora, los avisos y los informes.
+                  </p>
+                </div>
+                <Switch
+                  checked={customRanges}
+                  onCheckedChange={setCustomRanges}
+                  data-testid="switch-custom-stage-ranges"
+                />
+              </div>
+              {customRanges && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-5 gap-2 text-xs text-muted-foreground">
+                    <span>Fase</span>
+                    <span>N mín</span>
+                    <span>N máx</span>
+                    <span>K₂O mín</span>
+                    <span>K₂O máx</span>
+                  </div>
+                  {DEFAULT_STAGE_RANGES.map((d) => (
+                    <div key={d.key} className="grid grid-cols-5 gap-2 items-center">
+                      <span className="text-xs">{d.label}</span>
+                      {([["n", 0], ["n", 1], ["k2o", 0], ["k2o", 1]] as const).map(([nu, idx]) => (
+                        <Input
+                          key={`${nu}${idx}`}
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          value={ranges[d.key][nu][idx]}
+                          onChange={(e) => setRangeVal(d.key, nu, idx, parseFloat(e.target.value) || 0)}
+                          data-testid={`input-range-${d.key}-${nu}-${idx === 0 ? "min" : "max"}`}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="border-t pt-4 space-y-4">
               <p className="text-sm font-medium text-muted-foreground">Persona de contacto</p>
               {textField("contactName", "Nombre de contacto")}

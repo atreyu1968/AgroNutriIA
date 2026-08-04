@@ -136,6 +136,18 @@ export const UpdateMeResponse = zod.object({
 })
 
 
+export const listFarmsResponseStageNutrientRangesNItemMin = 0;
+
+export const listFarmsResponseStageNutrientRangesNMin = 2;
+export const listFarmsResponseStageNutrientRangesNMax = 2;
+
+export const listFarmsResponseStageNutrientRangesK2oItemMin = 0;
+
+export const listFarmsResponseStageNutrientRangesK2oMin = 2;
+export const listFarmsResponseStageNutrientRangesK2oMax = 2;
+
+
+
 export const ListFarmsResponseItem = zod.object({
   "id": zod.number().int(),
   "ownerId": zod.number().int(),
@@ -160,6 +172,10 @@ export const ListFarmsResponseItem = zod.object({
   "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
+  "stageNutrientRanges": zod.record(zod.string(), zod.object({
+  "n": zod.array(zod.number().min(listFarmsResponseStageNutrientRangesNItemMin)).min(listFarmsResponseStageNutrientRangesNMin).max(listFarmsResponseStageNutrientRangesNMax),
+  "k2o": zod.array(zod.number().min(listFarmsResponseStageNutrientRangesK2oItemMin)).min(listFarmsResponseStageNutrientRangesK2oMin).max(listFarmsResponseStageNutrientRangesK2oMax)
+})).nullish().describe('Rangos por fase modulados por el técnico (g\/planta\/semana)'),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
   "contactName": zod.string().nullish(),
@@ -203,6 +219,18 @@ export const CreateFarmBody = zod.object({
   "contactEmail": zod.string().optional()
 })
 
+export const createFarmResponseStageNutrientRangesNItemMin = 0;
+
+export const createFarmResponseStageNutrientRangesNMin = 2;
+export const createFarmResponseStageNutrientRangesNMax = 2;
+
+export const createFarmResponseStageNutrientRangesK2oItemMin = 0;
+
+export const createFarmResponseStageNutrientRangesK2oMin = 2;
+export const createFarmResponseStageNutrientRangesK2oMax = 2;
+
+
+
 export const CreateFarmResponse = zod.object({
   "id": zod.number().int(),
   "ownerId": zod.number().int(),
@@ -227,6 +255,10 @@ export const CreateFarmResponse = zod.object({
   "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
+  "stageNutrientRanges": zod.record(zod.string(), zod.object({
+  "n": zod.array(zod.number().min(createFarmResponseStageNutrientRangesNItemMin)).min(createFarmResponseStageNutrientRangesNMin).max(createFarmResponseStageNutrientRangesNMax),
+  "k2o": zod.array(zod.number().min(createFarmResponseStageNutrientRangesK2oItemMin)).min(createFarmResponseStageNutrientRangesK2oMin).max(createFarmResponseStageNutrientRangesK2oMax)
+})).nullish().describe('Rangos por fase modulados por el técnico (g\/planta\/semana)'),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
   "contactName": zod.string().nullish(),
@@ -240,6 +272,18 @@ export const CreateFarmResponse = zod.object({
 export const GetFarmParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
+
+export const getFarmResponseStageNutrientRangesNItemMin = 0;
+
+export const getFarmResponseStageNutrientRangesNMin = 2;
+export const getFarmResponseStageNutrientRangesNMax = 2;
+
+export const getFarmResponseStageNutrientRangesK2oItemMin = 0;
+
+export const getFarmResponseStageNutrientRangesK2oMin = 2;
+export const getFarmResponseStageNutrientRangesK2oMax = 2;
+
+
 
 export const GetFarmResponse = zod.object({
   "id": zod.number().int(),
@@ -265,6 +309,10 @@ export const GetFarmResponse = zod.object({
   "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
+  "stageNutrientRanges": zod.record(zod.string(), zod.object({
+  "n": zod.array(zod.number().min(getFarmResponseStageNutrientRangesNItemMin)).min(getFarmResponseStageNutrientRangesNMin).max(getFarmResponseStageNutrientRangesNMax),
+  "k2o": zod.array(zod.number().min(getFarmResponseStageNutrientRangesK2oItemMin)).min(getFarmResponseStageNutrientRangesK2oMin).max(getFarmResponseStageNutrientRangesK2oMax)
+})).nullish().describe('Rangos por fase modulados por el técnico (g\/planta\/semana)'),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
   "contactName": zod.string().nullish(),
@@ -279,6 +327,16 @@ export const UpdateFarmParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
 
+
+export const updateFarmBodyStageNutrientRangesNItemMin = 0;
+
+export const updateFarmBodyStageNutrientRangesNMin = 2;
+export const updateFarmBodyStageNutrientRangesNMax = 2;
+
+export const updateFarmBodyStageNutrientRangesK2oItemMin = 0;
+
+export const updateFarmBodyStageNutrientRangesK2oMin = 2;
+export const updateFarmBodyStageNutrientRangesK2oMax = 2;
 
 
 
@@ -304,12 +362,28 @@ export const UpdateFarmBody = zod.object({
   "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
+  "stageNutrientRanges": zod.record(zod.string(), zod.object({
+  "n": zod.array(zod.number().min(updateFarmBodyStageNutrientRangesNItemMin)).min(updateFarmBodyStageNutrientRangesNMin).max(updateFarmBodyStageNutrientRangesNMax),
+  "k2o": zod.array(zod.number().min(updateFarmBodyStageNutrientRangesK2oItemMin)).min(updateFarmBodyStageNutrientRangesK2oMin).max(updateFarmBodyStageNutrientRangesK2oMax)
+})).nullish().describe('Rangos por fase modulados por el técnico (g\/planta\/semana); null restaura los orientativos'),
   "managementNotes": zod.string().optional(),
   "responsibleTechnician": zod.string().optional(),
   "contactName": zod.string().optional(),
   "contactPhone": zod.string().optional(),
   "contactEmail": zod.string().optional()
 })
+
+export const updateFarmResponseStageNutrientRangesNItemMin = 0;
+
+export const updateFarmResponseStageNutrientRangesNMin = 2;
+export const updateFarmResponseStageNutrientRangesNMax = 2;
+
+export const updateFarmResponseStageNutrientRangesK2oItemMin = 0;
+
+export const updateFarmResponseStageNutrientRangesK2oMin = 2;
+export const updateFarmResponseStageNutrientRangesK2oMax = 2;
+
+
 
 export const UpdateFarmResponse = zod.object({
   "id": zod.number().int(),
@@ -335,6 +409,10 @@ export const UpdateFarmResponse = zod.object({
   "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
+  "stageNutrientRanges": zod.record(zod.string(), zod.object({
+  "n": zod.array(zod.number().min(updateFarmResponseStageNutrientRangesNItemMin)).min(updateFarmResponseStageNutrientRangesNMin).max(updateFarmResponseStageNutrientRangesNMax),
+  "k2o": zod.array(zod.number().min(updateFarmResponseStageNutrientRangesK2oItemMin)).min(updateFarmResponseStageNutrientRangesK2oMin).max(updateFarmResponseStageNutrientRangesK2oMax)
+})).nullish().describe('Rangos por fase modulados por el técnico (g\/planta\/semana)'),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
   "contactName": zod.string().nullish(),
@@ -355,6 +433,18 @@ export const DeleteFarmResponse = zod.void()
 export const GetFarmSummaryParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
+
+export const getFarmSummaryResponseFarmStageNutrientRangesNItemMin = 0;
+
+export const getFarmSummaryResponseFarmStageNutrientRangesNMin = 2;
+export const getFarmSummaryResponseFarmStageNutrientRangesNMax = 2;
+
+export const getFarmSummaryResponseFarmStageNutrientRangesK2oItemMin = 0;
+
+export const getFarmSummaryResponseFarmStageNutrientRangesK2oMin = 2;
+export const getFarmSummaryResponseFarmStageNutrientRangesK2oMax = 2;
+
+
 
 export const GetFarmSummaryResponse = zod.object({
   "farm": zod.object({
@@ -381,6 +471,10 @@ export const GetFarmSummaryResponse = zod.object({
   "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
+  "stageNutrientRanges": zod.record(zod.string(), zod.object({
+  "n": zod.array(zod.number().min(getFarmSummaryResponseFarmStageNutrientRangesNItemMin)).min(getFarmSummaryResponseFarmStageNutrientRangesNMin).max(getFarmSummaryResponseFarmStageNutrientRangesNMax),
+  "k2o": zod.array(zod.number().min(getFarmSummaryResponseFarmStageNutrientRangesK2oItemMin)).min(getFarmSummaryResponseFarmStageNutrientRangesK2oMin).max(getFarmSummaryResponseFarmStageNutrientRangesK2oMax)
+})).nullish().describe('Rangos por fase modulados por el técnico (g\/planta\/semana)'),
   "managementNotes": zod.string().nullish(),
   "responsibleTechnician": zod.string().nullish(),
   "contactName": zod.string().nullish(),
@@ -393,6 +487,7 @@ export const GetFarmSummaryResponse = zod.object({
   "latestSoilAnalysis": zod.union([zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -414,6 +509,7 @@ export const GetFarmSummaryResponse = zod.object({
   "latestLeafAnalysis": zod.union([zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -435,6 +531,7 @@ export const GetFarmSummaryResponse = zod.object({
   "latestWaterAnalysis": zod.union([zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -676,6 +773,7 @@ export const ListAnalysesParams = zod.object({
 export const ListAnalysesResponseItem = zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -723,6 +821,7 @@ export const CreateAnalysisBody = zod.object({
 export const CreateAnalysisResponse = zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -782,6 +881,7 @@ export const GetAnalysisParams = zod.object({
 export const GetAnalysisResponse = zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -829,6 +929,7 @@ export const UpdateAnalysisBody = zod.object({
 export const UpdateAnalysisResponse = zod.object({
   "id": zod.number().int(),
   "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
   "waterSourceId": zod.number().int().nullish(),
@@ -855,6 +956,53 @@ export const DeleteAnalysisParams = zod.object({
 })
 
 export const DeleteAnalysisResponse = zod.void()
+
+
+/**
+ * @summary Attach (or replace) the original lab PDF of an analysis
+ */
+export const UploadAnalysisPdfParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "analysisId": zod.coerce.number().int()
+})
+
+export const UploadAnalysisPdfBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const UploadAnalysisPdfResponse = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "hasPdf": zod.boolean(),
+  "sectorId": zod.number().int().nullish(),
+  "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
+  "reference": zod.string().nullish(),
+  "laboratory": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "sampleDate": zod.string().describe('YYYY-MM-DD'),
+  "parameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.number(),
+  "unit": zod.string().nullish(),
+  "refLow": zod.number().nullish(),
+  "refHigh": zod.number().nullish(),
+  "status": zod.string().nullish().describe('muy_bajo | bajo | normal | alto | muy_alto')
+})),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary View the original lab PDF of an analysis
+ */
+export const GetAnalysisPdfParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "analysisId": zod.coerce.number().int()
+})
+
+export const GetAnalysisPdfResponse = zod.unknown()
 
 
 export const ListFertilizersResponseItem = zod.object({
@@ -1328,6 +1476,7 @@ export const RunCalculationResponse = zod.object({
   "compatibilityIssues": zod.array(zod.string()),
   "stageComparison": zod.union([zod.object({
   "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
   "nPerPlantG": zod.number(),
   "k2oPerPlantG": zod.number(),
   "nMinG": zod.number(),

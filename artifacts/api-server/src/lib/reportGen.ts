@@ -19,6 +19,7 @@ import {
   ImageRun,
 } from "docx";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
+import { STAGE_RANGES_PROVENANCE } from "./engine";
 
 // Directorio de informes. En producción cada instancia de cooperativa define
 // REPORTS_DIR en su fichero de entorno (provision-coop.sh) apuntando a un
@@ -64,6 +65,8 @@ export type ReportData = {
   recommendation: Recommendation | null;
   authorName: string;
   date: string;
+  /** Contraste del programa con los rangos por fase (orientativos o del técnico). */
+  stageComparison?: import("./engine").StageComparison | null;
   technicianNotes?: string | null;
   phytoTreatments?: {
     applicationDate: string;
@@ -186,6 +189,43 @@ function buildSections(d: ReportData): Section[] {
       ],
     });
     n++;
+    if (d.stageComparison) {
+      const sc = d.stageComparison;
+      const fmt = (v: number) => String(v);
+      const statusText = (s: "low" | "ok" | "high") =>
+        s === "ok" ? "Dentro del rango" : s === "low" ? "Por debajo del rango" : "Por encima del rango";
+      const outOfRange = sc.nStatus !== "ok" || sc.k2oStatus !== "ok";
+      sections.push({
+        heading: `${n}. Contraste con los rangos de la fase fenológica`,
+        paragraphs: [
+          `Fase considerada: ${sc.stageLabel}. Rangos aplicados: ${
+            sc.rangeSource === "tecnico"
+              ? "modulados por el técnico responsable para esta finca."
+              : "orientativos por defecto de la aplicación."
+          }`,
+          STAGE_RANGES_PROVENANCE,
+          ...(outOfRange
+            ? [
+                `El programa queda fuera del rango en ${[
+                  sc.nStatus !== "ok" ? "nitrógeno (N)" : null,
+                  sc.k2oStatus !== "ok" ? "potasio (K2O)" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" y ")}. Motivo según la justificación técnica del programa: ${
+                  d.recommendation?.rationale?.trim() ||
+                  "no consta una justificación específica; debe valorarlo el técnico responsable."
+                }`,
+              ]
+            : ["El programa se encuentra dentro de los rangos aplicados para esta fase."]),
+        ],
+        table: [
+          ["Nutriente", "Aporte del programa (g/planta/semana)", "Rango aplicado", "Situación"],
+          ["N", fmt(sc.nPerPlantG), `${fmt(sc.nMinG)} – ${fmt(sc.nMaxG)}`, statusText(sc.nStatus)],
+          ["K2O", fmt(sc.k2oPerPlantG), `${fmt(sc.k2oMinG)} – ${fmt(sc.k2oMaxG)}`, statusText(sc.k2oStatus)],
+        ],
+      });
+      n++;
+    }
     if (r.warnings?.length) {
       sections.push({
         heading: `${n}. Advertencias y compatibilidades`,

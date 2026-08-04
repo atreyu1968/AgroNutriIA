@@ -106,8 +106,13 @@ COOP_INSTANCE=true
 # base de datos) colisionarían entre cooperativas en un directorio común.
 # También permite al reinicio nocturno de la demo limpiar sus PDFs huérfanos.
 REPORTS_DIR=${APP_DIR}/artifacts/api-server/storage/reports/${SUB}
+# Directorio de PDFs de analíticas EXCLUSIVO de esta instancia, por el mismo
+# motivo: los nombres analitica-<farmId>-<analysisId> usan ids serial por base
+# de datos y colisionarían entre cooperativas en un directorio común.
+ANALYSES_DIR=${APP_DIR}/artifacts/api-server/storage/analyses/${SUB}
 EOF
 install -d -o agronutri -g agronutri "${APP_DIR}/artifacts/api-server/storage/reports/${SUB}"
+install -d -o agronutri -g agronutri "${APP_DIR}/artifacts/api-server/storage/analyses/${SUB}"
 # Instancia de demostración: limita el uso a una finca y un informe de cada
 # tipo (exporta DEMO_MODE=1 al invocar este script).
 if [[ "${DEMO_MODE:-}" == "1" || "${DEMO_MODE:-}" == "true" ]]; then

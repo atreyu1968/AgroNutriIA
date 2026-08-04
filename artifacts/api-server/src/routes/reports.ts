@@ -10,6 +10,7 @@ import {
   conversationsTable,
   messagesTable,
   phytoTreatmentsTable,
+  fertilizersTable,
 } from "@workspace/db";
 import {
   ListReportsResponse,
@@ -39,6 +40,7 @@ import {
   mergeCoherenceIssues,
 } from "../lib/reportCoherence";
 import { generatePdf, generateDocx, REPORTS_DIR } from "../lib/reportGen";
+import { runEngine } from "../lib/engine";
 import { audit } from "../lib/audit";
 import { demoMode, DEMO_REPORT_LIMIT_MESSAGE } from "../lib/demo";
 
@@ -295,9 +297,22 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
           log,
         });
       }
+      // Contraste del programa con los rangos por fase (orientativos o
+      // modulados por el técnico), para explicarlo en el informe.
+      let stageComparison = null;
+      if (recommendation) {
+        const ferts = await db.select().from(fertilizersTable);
+        stageComparison = runEngine({
+          farm,
+          waterAnalysis: blendedWater.analysis,
+          fertilizers: ferts,
+          items: recommendation.items,
+        }).stageComparison;
+      }
       const data = {
         title,
         technicianNotes,
+        stageComparison,
         farm: access.farm,
         sectors,
         soil,

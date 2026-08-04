@@ -50,6 +50,7 @@ export function serializeFarm(f: Farm, myRole: string, sectorCount?: number) {
     desalinatedWaterPct: f.desalinatedWaterPct,
     weeklyLitresPerPlant: f.weeklyLitresPerPlant,
     maxEcDsM: f.maxEcDsM,
+    stageNutrientRanges: f.stageNutrientRanges ?? null,
     managementNotes: f.managementNotes,
     responsibleTechnician: f.responsibleTechnician,
     contactName: f.contactName,
@@ -73,6 +74,7 @@ export function serializeAnalysis(a: Analysis) {
     sampleDate: a.sampleDate,
     parameters: a.parameters,
     notes: a.notes,
+    hasPdf: !!a.sourcePdf,
     createdAt: a.createdAt.toISOString(),
   };
 }

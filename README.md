@@ -18,12 +18,15 @@ Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canari
 - Registro de analíticas de suelo, foliar y agua, con parámetros, laboratorio y fecha de muestreo.
 - Ámbito global de la finca o por sector, con selección del ámbito al darlas de alta.
 - Importación asistida: sube el PDF del laboratorio y la IA extrae los parámetros.
+- El PDF original del laboratorio se guarda junto a la analítica y puede consultarse en cualquier momento desde su detalle ("Ver PDF del laboratorio").
 
 ### Nutrición y calculadora
 - Calculadora de fertirrigación: plan de abonado semanal con dosis por fertilizante, estimación de CE y de nutrientes aportados, y avisos de compatibilidad entre productos.
-- Programas de abonado con estados (borrador, aprobado, activo…) y flujo de aprobación.
-- Borrador de programa generado por IA a partir de las últimas analíticas, para toda la finca o para un sector concreto.
-- Opción de acidificación del agua: si se usa ácido para bajar el pH de riego, la IA calcula los litros de ácido necesarios por semana a partir del pH, los bicarbonatos y el volumen de riego (con validación previa de que existen esos datos). Se puede elegir el ácido (nítrico, fosfórico o sulfúrico) o dejar que la IA elija el más adecuado justificando la elección; si no se marca el uso de ácido, el programa nunca incluye ácidos y compensa aguas alcalinas con productos adecuados.
+- CE objetivo ajustable en la propia calculadora, con opción de guardar en la finca los parámetros usados (plantas, riego semanal y CE máxima).
+- Contraste automático del plan con los rangos orientativos de N y K₂O de la fase fenológica; el técnico puede modular esos rangos por fase desde la ficha de la finca (y restaurar los orientativos cuando quiera).
+- Programas de abonado con estados (borrador, aprobado, activo…) y flujo de aprobación; al guardar un programa manual es obligatoria una justificación técnica, que después se recoge en los informes.
+- Borrador de programa generado por IA a partir de las últimas analíticas, para toda la finca o para un sector concreto, respetando los rangos de la fase (orientativos o del técnico).
+- Opción de acidificación del agua: si se usa ácido para bajar el pH de riego, la IA calcula los litros de ácido necesarios por semana a partir del pH, los bicarbonatos y el volumen de riego (si faltan datos, usa estimaciones prudentes y lo advierte). Se puede elegir el ácido (nítrico, fosfórico o sulfúrico) o dejar que la IA elija el más adecuado justificando la elección; si no se marca el uso de ácido, el programa solo puede incluir ácidos como fuente de nutrientes, con aviso para que el técnico lo verifique.
 
 ### Técnico virtual (IA)
 - Chat con un técnico agrónomo virtual con el contexto de la finca (analíticas, sectores, programa vigente).
@@ -42,6 +45,7 @@ Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canari
 
 ### Informes
 - Informes técnicos en PDF y Word con los datos de la finca, analíticas y programa de abonado, con resumen redactado por IA y logo personalizable.
+- Sección de contraste con los rangos de la fase fenológica: compara los aportes de N y K₂O del programa con los rangos aplicados (orientativos o modulados por el técnico), explica su procedencia y, si el programa queda fuera de rango, recoge el motivo de la justificación técnica.
 - Informe de enmiendas del terreno con dos escenarios (arranque y siembra, época de lluvias), redactado por IA a partir de las analíticas.
 - Revisión automática de coherencia agronómica antes de entregar cada informe (detecta contradicciones típicas, como recomendar caliza en suelos alcalinos).
 
@@ -195,6 +199,7 @@ Todo el tráfico HTTP se redirige a HTTPS y las cookies de sesión se envían so
 | `/etc/systemd/system/agronutri-api.service` | Servicio de la API |
 | `/etc/nginx/sites-available/agronutri` | Configuración web |
 | `/opt/agronutri/artifacts/api-server/storage/reports` | Informes PDF/DOCX generados |
+| `/opt/agronutri/artifacts/api-server/storage/analyses` | PDFs originales de laboratorio de las analíticas |
 
 ## Desarrollo local
 

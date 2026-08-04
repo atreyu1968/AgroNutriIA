@@ -6,6 +6,7 @@ import {
 import { 
   useListSectors, useCreateSector, useUpdateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis, useUpdateAnalysis,
+  useUploadAnalysisPdf, getGetAnalysisPdfUrl,
   useListRecommendations, useChangeRecommendationStatus, useListConversations, getListConversationsQueryKey,
   useListReports, useCreateReport, usePreviewReportNotes, useDeleteReport, useDeleteRecommendation,
   useListWaterSources, useSetWaterSources, getListWaterSourcesQueryKey,
@@ -318,7 +319,23 @@ const emptyDraft = (): EditableDraft => ({
 export function ImportAnalysisButton({ farmId }: { farmId: number }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState<EditableDraft | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
+
+  const uploadPdf = useUploadAnalysisPdf({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+      },
+      onError: () =>
+        toast({
+          title: "La analítica se guardó, pero no su PDF",
+          description: "Puedes volver a importar el PDF o consultarlo en tu archivo original.",
+          variant: "destructive",
+        }),
+    },
+  });
 
   const importPdf = useImportAnalysisPdf({
     mutation: {
@@ -337,7 +354,10 @@ export function ImportAnalysisButton({ farmId }: { farmId: number }) {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) importPdf.mutate({ farmId, data: { file } });
+          if (file) {
+            pendingFileRef.current = file;
+            importPdf.mutate({ farmId, data: { file } });
+          }
           e.target.value = "";
         }}
       />
@@ -355,6 +375,11 @@ export function ImportAnalysisButton({ farmId }: { farmId: number }) {
         title="Revisa los datos extraídos"
         description="El técnico virtual ha extraído estos datos del PDF. Corrige lo que necesites antes de guardar."
         successDescription="La analítica importada ya se usa en la calculadora y en las recomendaciones."
+        onCreated={(created) => {
+          const file = pendingFileRef.current;
+          pendingFileRef.current = null;
+          if (file) uploadPdf.mutate({ farmId, analysisId: created.id, data: { file } });
+        }}
       />
     </>
   );
@@ -501,6 +526,16 @@ function AnalysisDetailDialog({
             </div>
             {analysis.description && <p className="text-sm text-muted-foreground">{analysis.description}</p>}
             {analysis.notes && <p className="text-sm text-muted-foreground italic">{analysis.notes}</p>}
+            {analysis.hasPdf && (
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid="button-view-analysis-pdf"
+                onClick={() => window.open(getGetAnalysisPdfUrl(farmId, analysis.id), "_blank", "noopener")}
+              >
+                <FileText className="w-4 h-4 mr-2" /> Ver PDF del laboratorio
+              </Button>
+            )}
             <div className="max-h-80 overflow-y-auto border rounded-md">
               <Table>
                 <TableHeader>
@@ -1643,6 +1678,7 @@ function AnalysisDraftDialog({
   title,
   description,
   successDescription,
+  onCreated,
 }: {
   farmId: number;
   draft: EditableDraft | null;
@@ -1650,6 +1686,7 @@ function AnalysisDraftDialog({
   title: string;
   description: string;
   successDescription: string;
+  onCreated?: (created: AnalysisRow) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1657,11 +1694,12 @@ function AnalysisDraftDialog({
 
   const saveAnalysis = useCreateAnalysis({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (created) => {
         queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
         setDraft(null);
         setShowErrors(false);
         toast({ title: "Analítica guardada", description: successDescription });
+        onCreated?.(created);
       },
       onError: (err: unknown) =>
         toast({ title: "No se pudo guardar la analítica", description: errorDescription(err), variant: "destructive" }),

@@ -5,6 +5,7 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { FarmStageNutrientRanges } from './farmStageNutrientRanges';
 
 export interface Farm {
   id: number;
@@ -50,6 +51,11 @@ export interface Farm {
   weeklyLitresPerPlant?: number | null;
   /** @nullable */
   maxEcDsM?: number | null;
+  /**
+     * Rangos por fase modulados por el técnico (g/planta/semana)
+     * @nullable
+     */
+  stageNutrientRanges?: FarmStageNutrientRanges;
   /** @nullable */
   managementNotes?: string | null;
   /** @nullable */

@@ -152,6 +152,17 @@ EOF
     else
       bash "${SCRIPT_DIR}/clean-orphan-reports.sh" "agronutri_${SUB//-/_}" "$DEMO_REPORTS_DIR"
     fi
+    # --- PDFs de analíticas huérfanos (solo demo), mismo criterio ------------
+    DEMO_ANALYSES_DIR="$(grep -E '^ANALYSES_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
+    SHARED_ANALYSES_DIR="$(realpath -m -- "${APP_DIR}/artifacts/api-server/storage/analyses")"
+    if [[ -z "$DEMO_ANALYSES_DIR" ]]; then
+      echo "AVISO: ${ENV_FILE} no define ANALYSES_DIR; se omite la limpieza de PDFs de analíticas." >&2
+      echo "       Añade ANALYSES_DIR=<dir exclusivo de la demo> (ver deploy/README.md) y reinicia el servicio." >&2
+    elif [[ "$(realpath -m -- "$DEMO_ANALYSES_DIR")" == "$SHARED_ANALYSES_DIR" ]]; then
+      echo "AVISO: ANALYSES_DIR de la demo apunta al directorio compartido ${SHARED_ANALYSES_DIR}; se omite la limpieza." >&2
+    else
+      bash "${SCRIPT_DIR}/clean-orphan-analyses.sh" "agronutri_${SUB//-/_}" "$DEMO_ANALYSES_DIR"
+    fi
     ;;
   notify-failure)
     TS="$(date -Is)"

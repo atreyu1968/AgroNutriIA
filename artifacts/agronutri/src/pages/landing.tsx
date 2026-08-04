@@ -70,12 +70,12 @@ const features = [
   {
     icon: TestTube,
     title: "Analíticas centralizadas",
-    text: "Suelo, foliar y agua en un solo lugar, por finca o por sector. Sube el PDF del laboratorio y la IA extrae los parámetros por ti.",
+    text: "Suelo, foliar y agua en un solo lugar, por finca o por sector. Sube el PDF del laboratorio, la IA extrae los parámetros y el documento original queda guardado para consultarlo cuando quieras.",
   },
   {
     icon: Calculator,
     title: "Calculadora de fertirrigación",
-    text: "Plan de abonado semanal con estimación de CE, nutrientes aportados y avisos de incompatibilidad entre productos.",
+    text: "Plan de abonado semanal con CE objetivo ajustable, contraste con los rangos de la fase fenológica (modulables por el técnico) y avisos de incompatibilidad entre productos.",
   },
   {
     icon: Bot,
@@ -95,7 +95,7 @@ const features = [
   {
     icon: FileText,
     title: "Informes profesionales",
-    text: "Informes técnicos en PDF y Word con tus datos, analíticas y programa, con resumen redactado por IA y tu logo.",
+    text: "Informes técnicos en PDF y Word con tus datos, analíticas y programa, contraste con los rangos de la fase y justificación técnica, con resumen redactado por IA y tu logo.",
   },
   {
     icon: Users,

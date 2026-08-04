@@ -1,7 +1,10 @@
+import path from "node:path";
+import fs from "node:fs";
 import { Router, type IRouter } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
+  analysesTable,
   farmsTable,
   farmMembersTable,
   sectorsTable,
@@ -40,6 +43,8 @@ import {
   resolveCredential,
   userName,
 } from "../lib/farmContext";
+import { STAGE_PROFILES, validStageRange } from "../lib/engine";
+import { ANALYSES_DIR } from "./analyses";
 import { audit } from "../lib/audit";
 import { demoMode, DEMO_FARM_LIMIT_MESSAGE } from "../lib/demo";
 
@@ -128,9 +133,27 @@ router.patch("/farms/:farmId", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  // Validación semántica de los rangos por fase modulados por el técnico.
+  if (parsed.data.stageNutrientRanges != null) {
+    const allowed = new Set(STAGE_PROFILES.map((p) => p.key));
+    for (const [key, r] of Object.entries(parsed.data.stageNutrientRanges)) {
+      if (!allowed.has(key) || !validStageRange(r?.n) || !validStageRange(r?.k2o)) {
+        res.status(422).json({
+          error: `Rangos por fase no válidos («${key}»): cada fase debe ser una de ${[...allowed].join(", ")} y sus rangos de N y K2O deben ser [mínimo, máximo] con números finitos no negativos y mínimo ≤ máximo.`,
+        });
+        return;
+      }
+    }
+  }
   const [farm] = await db
     .update(farmsTable)
-    .set(parsed.data)
+    .set({
+      ...parsed.data,
+      stageNutrientRanges: parsed.data.stageNutrientRanges as
+        | import("@workspace/db").StageNutrientRanges
+        | null
+        | undefined,
+    })
     .where(eq(farmsTable.id, farmId))
     .returning();
   await audit({
@@ -154,7 +177,22 @@ router.delete("/farms/:farmId", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Solo el propietario puede eliminar la finca" });
     return;
   }
+  // Borrado (mejor esfuerzo) de los PDFs de laboratorio de la finca ANTES de
+  // que el cascade elimine las filas de analyses; siempre por nombre exacto.
+  const farmAnalyses = await db
+    .select({ sourcePdf: analysesTable.sourcePdf })
+    .from(analysesTable)
+    .where(eq(analysesTable.farmId, farmId));
   await db.delete(farmsTable).where(eq(farmsTable.id, farmId));
+  for (const a of farmAnalyses) {
+    if (a.sourcePdf) {
+      try {
+        fs.rmSync(path.join(ANALYSES_DIR, path.basename(a.sourcePdf)), { force: true });
+      } catch {
+        // mejor esfuerzo: no bloquear el borrado de la finca por un fichero
+      }
+    }
+  }
   await audit({
     userId: req.user!.id,
     action: "farm_deleted",

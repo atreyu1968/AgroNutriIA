@@ -50,6 +50,8 @@ export const analysesTable = pgTable("analyses", {
   sampleDate: date("sample_date", { mode: "string" }).notNull(),
   parameters: jsonb("parameters").$type<AnalysisParameter[]>().notNull().default([]),
   notes: text("notes"),
+  /** Nombre del archivo PDF de laboratorio guardado en ANALYSES_DIR. */
+  sourcePdf: text("source_pdf"),
   createdBy: integer("created_by").references(() => usersTable.id, {
     onDelete: "set null",
   }),

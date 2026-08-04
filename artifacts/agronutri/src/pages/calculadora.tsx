@@ -716,7 +716,14 @@ export default function CalculadoraTab({
               {calcMutation.data.stageComparison && (
                 <Card className="shadow-sm">
                   <CardHeader className="pb-3 border-b">
-                    <CardTitle className="text-lg">Fase fenológica: {calcMutation.data.stageComparison.stageLabel}</CardTitle>
+                    <CardTitle className="text-lg">
+                      Fase fenológica: {calcMutation.data.stageComparison.stageLabel}{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {calcMutation.data.stageComparison.rangeSource === "tecnico"
+                          ? "(rangos modulados por el técnico)"
+                          : "(rangos orientativos)"}
+                      </span>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 space-y-2 text-sm">
                     {([

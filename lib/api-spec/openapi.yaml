@@ -484,6 +484,48 @@ paths:
         "204":
           description: Deleted
 
+  /farms/{farmId}/analyses/{analysisId}/pdf:
+    post:
+      operationId: uploadAnalysisPdf
+      tags: [analyses]
+      summary: Attach (or replace) the original lab PDF of an analysis
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/AnalysisId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Analysis with the PDF attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
+    get:
+      operationId: getAnalysisPdf
+      tags: [analyses]
+      summary: View the original lab PDF of an analysis
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/AnalysisId"
+      responses:
+        "200":
+          description: The PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
   /fertilizers:
     get:
       operationId: listFertilizers
@@ -2511,6 +2553,15 @@ components:
         desalinatedWaterPct: { type: ["number", "null"] }
         weeklyLitresPerPlant: { type: ["number", "null"] }
         maxEcDsM: { type: ["number", "null"] }
+        stageNutrientRanges:
+          type: ["object", "null"]
+          description: Rangos por fase modulados por el técnico (g/planta/semana)
+          additionalProperties:
+            type: object
+            required: [n, k2o]
+            properties:
+              n: { type: array, items: { type: number, minimum: 0 }, minItems: 2, maxItems: 2 }
+              k2o: { type: array, items: { type: number, minimum: 0 }, minItems: 2, maxItems: 2 }
         managementNotes: { type: ["string", "null"] }
         responsibleTechnician: { type: ["string", "null"] }
         contactName: { type: ["string", "null"] }
@@ -2572,6 +2623,16 @@ components:
         desalinatedWaterPct: { type: number, nullable: true }
         weeklyLitresPerPlant: { type: number, nullable: true }
         maxEcDsM: { type: number, nullable: true }
+        stageNutrientRanges:
+          type: object
+          nullable: true
+          description: Rangos por fase modulados por el técnico (g/planta/semana); null restaura los orientativos
+          additionalProperties:
+            type: object
+            required: [n, k2o]
+            properties:
+              n: { type: array, items: { type: number, minimum: 0 }, minItems: 2, maxItems: 2 }
+              k2o: { type: array, items: { type: number, minimum: 0 }, minItems: 2, maxItems: 2 }
         managementNotes: { type: string }
         responsibleTechnician: { type: string }
         contactName: { type: string }
@@ -2668,10 +2729,11 @@ components:
 
     Analysis:
       type: object
-      required: [id, farmId, type, sampleDate, parameters]
+      required: [id, farmId, type, sampleDate, parameters, hasPdf]
       properties:
         id: { type: integer }
         farmId: { type: integer }
+        hasPdf: { type: boolean }
         sectorId: { type: ["integer", "null"] }
         type: { type: string, enum: [soil, leaf, water] }
         waterSourceId: { type: ["integer", "null"] }
@@ -2937,9 +2999,10 @@ components:
     StageComparison:
       type: object
       description: Orientative comparison of the weekly program against phenological stage targets (g/plant/week)
-      required: [stageLabel, nPerPlantG, k2oPerPlantG, nMinG, nMaxG, k2oMinG, k2oMaxG, nStatus, k2oStatus]
+      required: [stageLabel, rangeSource, nPerPlantG, k2oPerPlantG, nMinG, nMaxG, k2oMinG, k2oMaxG, nStatus, k2oStatus]
       properties:
         stageLabel: { type: string }
+        rangeSource: { type: string, enum: [orientativo, tecnico] }
         nPerPlantG: { type: number }
         k2oPerPlantG: { type: number }
         nMinG: { type: number }

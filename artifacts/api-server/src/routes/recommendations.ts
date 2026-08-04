@@ -41,7 +41,7 @@ import {
   resolveCredential,
   userName,
 } from "../lib/farmContext";
-import { runEngine } from "../lib/engine";
+import { runEngine, STAGE_PROFILES, validStageRange } from "../lib/engine";
 import { audit } from "../lib/audit";
 import { buildFarmContext } from "../lib/contextBlock";
 import {
@@ -306,6 +306,21 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     fosforico: "ácido fosfórico",
     sulfurico: "ácido sulfúrico",
   };
+  // Rangos objetivo de la fase (orientativos o modulados por el técnico) para el prompt.
+  const draftStageText = sector?.phenologicalStage ?? access.farm.phenologicalStage ?? "";
+  const draftProfile = draftStageText
+    ? STAGE_PROFILES.find((p) => p.match.test(draftStageText))
+    : undefined;
+  let stageRangesBlock = "";
+  if (draftProfile) {
+    const custom = access.farm.stageNutrientRanges?.[draftProfile.key];
+    const useCustom = !!custom && validStageRange(custom.n) && validStageRange(custom.k2o);
+    const nR = useCustom ? custom!.n : draftProfile.n;
+    const kR = useCustom ? custom!.k2o : draftProfile.k2o;
+    stageRangesBlock = `\n\nRangos objetivo para la fase «${draftProfile.label}» (${
+      useCustom ? "fijados por el técnico de la finca" : "orientativos"
+    }, en g/planta/semana): N ${nR[0]}–${nR[1]}, K2O ${kR[0]}–${kR[1]}. El programa debe situarse dentro de estos rangos; si te apartas de ellos, explica el motivo expresamente en la justificación.`;
+  }
   const acidBlock = useAcid
     ? `
 
@@ -364,12 +379,12 @@ Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"
 Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
 ${catalog}
 
-Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${acidBlock}`
+Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`
             : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
 Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
 ${catalog}
 
-Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${acidBlock}`,
+Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`,
         },
       ],
     });

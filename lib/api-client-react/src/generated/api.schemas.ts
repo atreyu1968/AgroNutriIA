@@ -830,6 +830,25 @@ export interface AdminFarm {
   createdAt?: string | null;
 }
 
+/**
+ * Rangos por fase modulados por el técnico (g/planta/semana)
+ * @nullable
+ */
+export type FarmStageNutrientRanges = {[key: string]: {
+  /**
+     * @minItems 2
+     * @maxItems 2
+     * @items.minimum 0
+     */
+  n: number[];
+  /**
+     * @minItems 2
+     * @maxItems 2
+     * @items.minimum 0
+     */
+  k2o: number[];
+}} | null;
+
 export interface Farm {
   id: number;
   ownerId: number;
@@ -874,6 +893,11 @@ export interface Farm {
   weeklyLitresPerPlant?: number | null;
   /** @nullable */
   maxEcDsM?: number | null;
+  /**
+     * Rangos por fase modulados por el técnico (g/planta/semana)
+     * @nullable
+     */
+  stageNutrientRanges?: FarmStageNutrientRanges;
   /** @nullable */
   managementNotes?: string | null;
   /** @nullable */
@@ -920,6 +944,24 @@ export interface FarmInput {
   contactEmail?: string;
 }
 
+/**
+ * Rangos por fase modulados por el técnico (g/planta/semana); null restaura los orientativos
+ */
+export type FarmUpdateStageNutrientRanges = {[key: string]: {
+  /**
+     * @minItems 2
+     * @maxItems 2
+     * @items.minimum 0
+     */
+  n: number[];
+  /**
+     * @minItems 2
+     * @maxItems 2
+     * @items.minimum 0
+     */
+  k2o: number[];
+}} | null;
+
 export interface FarmUpdate {
   /** @minLength 1 */
   name?: string;
@@ -943,6 +985,8 @@ export interface FarmUpdate {
   desalinatedWaterPct?: number | null;
   weeklyLitresPerPlant?: number | null;
   maxEcDsM?: number | null;
+  /** Rangos por fase modulados por el técnico (g/planta/semana); null restaura los orientativos */
+  stageNutrientRanges?: FarmUpdateStageNutrientRanges;
   managementNotes?: string;
   responsibleTechnician?: string;
   contactName?: string;
@@ -978,6 +1022,7 @@ export interface AnalysisParameter {
 export interface Analysis {
   id: number;
   farmId: number;
+  hasPdf: boolean;
   /** @nullable */
   sectorId?: number | null;
   type: AnalysisType;
@@ -1361,6 +1406,14 @@ export type CalculationResultNutrients = {[key: string]: number};
  */
 export type CalculationResultWaterContribution = {[key: string]: number};
 
+export type StageComparisonRangeSource = typeof StageComparisonRangeSource[keyof typeof StageComparisonRangeSource];
+
+
+export const StageComparisonRangeSource = {
+  orientativo: 'orientativo',
+  tecnico: 'tecnico',
+} as const;
+
 export type StageComparisonNStatus = typeof StageComparisonNStatus[keyof typeof StageComparisonNStatus];
 
 
@@ -1384,6 +1437,7 @@ export const StageComparisonK2oStatus = {
  */
 export interface StageComparison {
   stageLabel: string;
+  rangeSource: StageComparisonRangeSource;
   nPerPlantG: number;
   k2oPerPlantG: number;
   nMinG: number;
@@ -1742,6 +1796,10 @@ export interface DashboardSummary {
 }
 
 export type ImportAnalysisPdfBody = {
+  file: Blob;
+};
+
+export type UploadAnalysisPdfBody = {
   file: Blob;
 };
 

@@ -7,12 +7,14 @@
  */
 import type { StageComparisonK2oStatus } from './stageComparisonK2oStatus';
 import type { StageComparisonNStatus } from './stageComparisonNStatus';
+import type { StageComparisonRangeSource } from './stageComparisonRangeSource';
 
 /**
  * Orientative comparison of the weekly program against phenological stage targets (g/plant/week)
  */
 export interface StageComparison {
   stageLabel: string;
+  rangeSource: StageComparisonRangeSource;
   nPerPlantG: number;
   k2oPerPlantG: number;
   nMinG: number;

@@ -109,6 +109,7 @@ import type {
   SignupInput,
   SignupResult,
   SignupStatus,
+  UploadAnalysisPdfBody,
   UploadConversationAttachmentBody,
   UsageSummary,
   UserProfile,
@@ -2193,6 +2194,164 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getDeleteAnalysisMutationOptions(options));
     }
+
+export const getUploadAnalysisPdfUrl = (farmId: number,
+    analysisId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/analyses/${analysisId}/pdf`
+}
+
+/**
+ * @summary Attach (or replace) the original lab PDF of an analysis
+ */
+export const uploadAnalysisPdf = async (farmId: number,
+    analysisId: number,
+    uploadAnalysisPdfBody: UploadAnalysisPdfBody, options?: Parameters<typeof customFetch>[1]): Promise<Analysis> => {
+    const formData = new FormData();
+formData.append(`file`, uploadAnalysisPdfBody.file);
+
+  return customFetch<Analysis>(getUploadAnalysisPdfUrl(farmId,analysisId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAnalysisPdfMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAnalysisPdf>>, TError,{farmId: number;analysisId: number;data: BodyType<UploadAnalysisPdfBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAnalysisPdf>>, TError,{farmId: number;analysisId: number;data: BodyType<UploadAnalysisPdfBody>}, TContext> => {
+
+const mutationKey = ['uploadAnalysisPdf'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAnalysisPdf>>, {farmId: number;analysisId: number;data: BodyType<UploadAnalysisPdfBody>}> = (props) => {
+          const {farmId,analysisId,data} = props ?? {};
+
+          return  uploadAnalysisPdf(farmId,analysisId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAnalysisPdfMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAnalysisPdf>>>
+    export type UploadAnalysisPdfMutationBody = BodyType<UploadAnalysisPdfBody>
+    export type UploadAnalysisPdfMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Attach (or replace) the original lab PDF of an analysis
+ */
+export const useUploadAnalysisPdf = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAnalysisPdf>>, TError,{farmId: number;analysisId: number;data: BodyType<UploadAnalysisPdfBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAnalysisPdf>>,
+        TError,
+        {farmId: number;analysisId: number;data: BodyType<UploadAnalysisPdfBody>},
+        TContext
+      > => {
+      return useMutation(getUploadAnalysisPdfMutationOptions(options));
+    }
+
+export const getGetAnalysisPdfUrl = (farmId: number,
+    analysisId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/analyses/${analysisId}/pdf`
+}
+
+/**
+ * @summary View the original lab PDF of an analysis
+ */
+export const getAnalysisPdf = async (farmId: number,
+    analysisId: number, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetAnalysisPdfUrl(farmId,analysisId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnalysisPdfQueryKey = (farmId: number,
+    analysisId: number,) => {
+    return [
+    `/api/farms/${farmId}/analyses/${analysisId}/pdf`
+    ] as const;
+    }
+
+
+export const getGetAnalysisPdfQueryOptions = <TData = Awaited<ReturnType<typeof getAnalysisPdf>>, TError = ErrorType<unknown>>(farmId: number,
+    analysisId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalysisPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalysisPdfQueryKey(farmId,analysisId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalysisPdf>>> = ({ signal }) => getAnalysisPdf(farmId,analysisId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined && analysisId !== null && analysisId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalysisPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnalysisPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalysisPdf>>>
+export type GetAnalysisPdfQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary View the original lab PDF of an analysis
+ */
+
+export function useGetAnalysisPdf<TData = Awaited<ReturnType<typeof getAnalysisPdf>>, TError = ErrorType<unknown>>(
+ farmId: number,
+    analysisId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalysisPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnalysisPdfQueryOptions(farmId,analysisId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListFertilizersUrl = () => {
 
