@@ -1,5 +1,6 @@
 import { useGetMe, useLogout, getGetMeQueryKey, useGetAuthConfig, getGetAuthConfigQueryKey } from "@workspace/api-client-react";
 import { Link, Redirect, useLocation } from "wouter";
+import { useBrowserLocation } from "wouter/use-browser-location";
 import { Button } from "@/components/ui/button";
 import { 
   Sprout, LayoutDashboard, MapPin, FlaskConical, 
@@ -20,8 +21,20 @@ const NAV_ITEMS = [
   { href: "/ajustes", label: "Ajustes", icon: Settings },
 ];
 
+// Base de la app (prefijo de despliegue, sin barra final). Los enlaces del
+// menú usan rutas absolutas con "~" para que funcionen igual aunque el layout
+// se renderice dentro de una sección anidada del enrutador (p. ej. /fincas).
+const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const absHref = (href: string) => `~${APP_BASE}${href === "/" ? "/" : href}`;
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
+  // Ruta completa del navegador (independiente del anidamiento), sin el
+  // prefijo de despliegue, para resaltar el elemento activo del menú.
+  const [browserPath] = useBrowserLocation();
+  const location = browserPath.startsWith(APP_BASE)
+    ? browserPath.slice(APP_BASE.length) || "/"
+    : browserPath;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -38,7 +51,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     mutation: {
       onSuccess: () => {
         queryClient.removeQueries();
-        setLocation("/login");
+        setLocation(absHref("/login"));
       }
     }
   });
@@ -48,7 +61,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (error || (!isLoading && !user)) {
-    return <Redirect to="/login" />;
+    return <Redirect to={absHref("/login")} />;
   }
 
   if (!user) {
@@ -90,7 +103,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             return (
               <Link 
                 key={item.href} 
-                href={item.href}
+                href={absHref(item.href)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors font-medium text-sm",
                   isActive 
@@ -143,7 +156,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             data-testid="banner-demo-mode"
           >
             Instalación de demostración — limitada a 1 finca y 1 informe de cada tipo.{" "}
-            <Link href="/landing" className="font-medium underline underline-offset-2 hover:text-amber-700">
+            <Link href={absHref("/landing")} className="font-medium underline underline-offset-2 hover:text-amber-700">
               Contrata AgroNutri AI
             </Link>
           </div>
