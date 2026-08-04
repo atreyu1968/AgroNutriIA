@@ -19,3 +19,4 @@
 - [Demo-mode limit tests](demo-mode-tests.md) — DEMO_MODE is per-process: own test file; demo limits count reports globally, so neutralize dev-seed rows and restore after.
 - [Pre-push data migrations](pre-push-migrations.md) — SQL run before drizzle push must CREATE TABLE IF NOT EXISTS its target; on old DBs the new table doesn't exist yet and push then drops the source columns.
 - [Reports route merge breakage](reports-merge-breakage.md) — merges corrompen reports.ts de 3 formas: parser incorrecto, INSERT→SELECT con reportId no declarado, y resolveCredential(farm,user) sin declarar.
+- [Push a GitHub](github-push.md) — git push directo falla; usar gitPush con remoto origin y upstream origin/main (crear ref con update-ref si no existe).
