@@ -83,10 +83,10 @@ fi
 # Puede darse por variables de entorno para instalaciones desatendidas:
 #   CLOUDFLARE_TUNNEL_TOKEN, TUNNEL_HOSTNAME
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]]; then
-  # Se lee sin eco: el token es una credencial y no debe quedar en pantalla.
-  echo "Token del túnel de Cloudflare (opcional). AVISO: se escribe a ciegas, no se muestra nada al teclear ni al pegar; pega el token y pulsa Enter (o pulsa Enter sin más para omitir)."
-  read -rsp "Token: " CLOUDFLARE_TUNNEL_TOKEN || true
-  echo
+  # Se lee con eco visible: algunas consolas (paneles web de VPS, etc.) no
+  # permiten pegar en lecturas ocultas y el usuario no sabe si entró o no.
+  echo "Token del túnel de Cloudflare (opcional). Pégalo y pulsa Enter; se mostrará en pantalla mientras lo escribes (o pulsa Enter sin más para omitir)."
+  read -rp "Token: " CLOUDFLARE_TUNNEL_TOKEN || true
 fi
 # Confirmación inmediata para que no queden dudas de si se recibió o no.
 if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
