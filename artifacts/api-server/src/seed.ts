@@ -254,7 +254,7 @@ async function main() {
     estimatedWeeklyNKg: 13.6,
     warnings: [
       "No mezclar el nitrato de calcio con sulfato amónico ni sulfato potásico en el mismo tanque: aplicar en tanques o días separados.",
-      "Mantener la CE de la solución por debajo de 2,2 dS/m.",
+      "Mantener la CE de la solución por debajo de 2200 µS/cm.",
       "Valorar aplicación de yeso agrícola en invierno para desplazar el sodio de cambio.",
     ],
     items: [

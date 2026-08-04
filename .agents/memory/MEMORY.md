@@ -20,4 +20,5 @@
 - [Pre-push data migrations](pre-push-migrations.md) — SQL run before drizzle push must CREATE TABLE IF NOT EXISTS its target; on old DBs the new table doesn't exist yet and push then drops the source columns.
 - [Reports route merge breakage](reports-merge-breakage.md) — merges corrompen reports.ts de 3 formas: parser incorrecto, INSERT→SELECT con reportId no declarado, y resolveCredential(farm,user) sin declarar.
 - [Unidades de CE](ec-units.md) — normalizar toda CE a dS/m (>10 sin unidad ⇒ µS/cm ÷1000) antes de motor/IA; nunca pasar valores de usuario sin normalizar al prompt.
+- [PDF text extraction](pdf-text-extraction.md) — pdf-parse devuelve µ como μ griega; los tests sobre texto extraído deben aceptar ambas.
 - [Push a GitHub](github-push.md) — git push directo falla; usar gitPush con remoto origin y upstream origin/main (crear ref con update-ref si no existe).

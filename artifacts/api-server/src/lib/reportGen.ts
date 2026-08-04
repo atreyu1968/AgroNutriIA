@@ -20,6 +20,7 @@ import {
 } from "docx";
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
 import { STAGE_RANGES_PROVENANCE } from "./engine";
+import { isEcParam, ecToDsM } from "./contextBlock";
 
 // Directorio de informes. En producción cada instancia de cooperativa define
 // REPORTS_DIR en su fichero de entorno (provision-coop.sh) apuntando a un
@@ -99,13 +100,29 @@ type Section = { heading: string; paragraphs: string[]; table?: string[][] };
 function analysisTable(a: Analysis): string[][] {
   return [
     ["Parámetro", "Valor", "Unidad", "Referencia", "Estado"],
-    ...a.parameters.map((p) => [
-      p.name,
-      String(p.value),
-      p.unit ?? "",
-      p.refLow != null || p.refHigh != null ? `${p.refLow ?? "-"} – ${p.refHigh ?? "-"}` : "",
-      p.status ?? "",
-    ]),
+    ...a.parameters.map((p) => {
+      // La CE se muestra SIEMPRE en µS/cm en los informes, venga en la unidad
+      // que venga de laboratorio (µS/cm, mS/cm o dS/m).
+      if (p.value != null && isEcParam(p.name)) {
+        const toUs = (v: number) => String(Math.round(ecToDsM(v, p.unit) * 1000));
+        return [
+          p.name,
+          toUs(p.value),
+          "µS/cm",
+          p.refLow != null || p.refHigh != null
+            ? `${p.refLow != null ? toUs(p.refLow) : "-"} – ${p.refHigh != null ? toUs(p.refHigh) : "-"}`
+            : "",
+          p.status ?? "",
+        ];
+      }
+      return [
+        p.name,
+        String(p.value),
+        p.unit ?? "",
+        p.refLow != null || p.refHigh != null ? `${p.refLow ?? "-"} – ${p.refHigh ?? "-"}` : "",
+        p.status ?? "",
+      ];
+    }),
   ];
 }
 
@@ -186,7 +203,9 @@ function buildSections(d: ReportData): Section[] {
         `Origen del programa: ${originLabel} · Fecha del programa: ${originDate}.`,
         r.title ?? "",
         r.rationale ?? "",
-        r.estimatedEcDsM != null ? `CE estimada de la solución: ${r.estimatedEcDsM} dS/m.` : "",
+        r.estimatedEcDsM != null
+          ? `CE estimada de la solución: ${Math.round(r.estimatedEcDsM * 1000)} µS/cm.`
+          : "",
         r.estimatedWeeklyNKg != null ? `Aporte semanal de N: ${r.estimatedWeeklyNKg} kg.` : "",
       ].filter(Boolean),
       table: [

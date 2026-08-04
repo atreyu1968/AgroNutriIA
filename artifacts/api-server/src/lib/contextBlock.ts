@@ -45,13 +45,13 @@ function waterBudgetBlock(farm: Farm, water: Analysis | null): string[] {
 }
 
 /** Detecta parámetros de conductividad para anotar su equivalencia en dS/m. */
-function isEcParam(name: string): boolean {
+export function isEcParam(name: string): boolean {
   const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return n.includes("conductividad") || /(^|[^a-z])ce([^a-z]|$)/.test(n) || n.includes("c.e");
 }
 
 /** Normaliza una lectura de CE a dS/m según su unidad (o heurística si falta). */
-function ecToDsM(value: number, unit: string | null | undefined): number {
+export function ecToDsM(value: number, unit: string | null | undefined): number {
   const u = (unit ?? "").toLowerCase().replace(/\s/g, "");
   if (u.includes("µs") || u.includes("us/cm") || u.includes("micros")) return value / 1000;
   if (u.includes("ms/cm") || u.includes("ds/m")) return value;

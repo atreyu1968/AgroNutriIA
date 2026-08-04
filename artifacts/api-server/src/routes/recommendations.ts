@@ -603,8 +603,8 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     ecRetried = true;
     const margin = round2(maxEc - (out.waterEcDsM ?? 0));
     const excess = round2(out.estimatedEcDsM! - maxEc);
-    const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${out.estimatedEcDsM} dS/m (${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos), que supera en ${excess} dS/m la CE máxima permitida de la finca (${maxEc} dS/m).
-Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de menor aporte salino) para que la CE aportada por los abonos no supere ${margin} dS/m. Mantén el equilibrio nutricional en lo posible y usa el mismo catálogo. Responde con la misma estructura JSON.`;
+    const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${Math.round((out.estimatedEcDsM ?? 0) * 1000)} µS/cm (${Math.round((out.waterEcDsM ?? 0) * 1000)} µS/cm del agua + ${Math.round((out.fertilizersEcDsM ?? 0) * 1000)} µS/cm de los abonos), que supera en ${Math.round(excess * 1000)} µS/cm la CE máxima permitida de la finca (${Math.round(maxEc * 1000)} µS/cm).
+Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de menor aporte salino) para que la CE aportada por los abonos no supere ${Math.round(margin * 1000)} µS/cm. Mantén el equilibrio nutricional en lo posible y usa el mismo catálogo. Responde con la misma estructura JSON.`;
     try {
       const second = await requestProgram([
         { role: "assistant", content: JSON.stringify(extracted) },
@@ -938,7 +938,7 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     const ecIssue = parsed.error.issues.find((i) => i.path.includes("maxEcDsM"));
     res.status(400).json({
       error: ecIssue
-        ? "La CE máxima indicada no es válida: debe estar entre 100 y 10000 µS/cm (equivalente a 0,1–10 dS/m)."
+        ? "La CE máxima indicada no es válida: debe estar entre 100 y 10000 µS/cm."
         : `Datos del cálculo no válidos: ${parsed.error.issues.map((i) => `${i.path.join(".")} (${i.message})`).join("; ")}`,
     });
     return;

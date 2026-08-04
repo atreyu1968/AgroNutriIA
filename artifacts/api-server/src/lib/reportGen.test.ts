@@ -239,6 +239,19 @@ test("generatePdf incluye título, secciones, tablas y pie con paginación", asy
   });
 });
 
+test("generatePdf muestra la CE de las analíticas en µS/cm aunque venga en dS/m", async () => {
+  const filePath = path.join(tmpDir, "informe-ce.pdf");
+  await generatePdf(data, filePath);
+  const { text } = await extractPdf(fs.readFileSync(filePath));
+  // La analítica de agua trae CE 1,1 dS/m → debe mostrarse como 1100 µS/cm.
+  assert.ok(text.includes("1100"), "la CE se convierte a µS/cm (1100)");
+  // El extractor de texto puede devolver la micro como µ (U+00B5) o μ (U+03BC).
+  assert.ok(/[\u00B5\u03BC]S\/cm/.test(text), "la unidad mostrada es µS/cm");
+  // La referencia (refHigh 1,5 dS/m) también se convierte.
+  assert.ok(text.includes("1500"), "la referencia de CE se convierte a µS/cm (1500)");
+  assert.ok(!text.includes("dS/m"), "el PDF no muestra ningún dS/m");
+});
+
 test("generatePdf muestra el origen [IA] y la fecha del programa cuando source=\"ai\"", async () => {
   const filePath = path.join(tmpDir, "informe-origen-ia.pdf");
   await generatePdf(data, filePath);
