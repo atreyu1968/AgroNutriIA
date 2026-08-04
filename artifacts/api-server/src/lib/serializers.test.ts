@@ -7,6 +7,7 @@ const now = new Date("2026-08-03T10:00:00Z");
 
 const base: Recommendation = {
   id: 7,
+  stageComparison: null,
   farmId: 1,
   sectorId: null,
   title: "Programa propuesto por IA",

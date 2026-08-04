@@ -113,6 +113,18 @@ export const productSheetsTable = pgTable("product_sheets", {
 });
 export type ProductSheet = typeof productSheetsTable.$inferSelect;
 
+export type StageComparisonSnapshot = {
+  stageLabel: string;
+  rangeSource: "orientativo" | "tecnico";
+  nPerPlantG: number;
+  k2oPerPlantG: number;
+  nMinG: number;
+  nMaxG: number;
+  k2oMinG: number;
+  k2oMaxG: number;
+  nStatus: "low" | "ok" | "high";
+  k2oStatus: "low" | "ok" | "high";
+};
 export type RecommendationItem = {
   fertilizerId?: number | null;
   fertilizerName: string;
@@ -138,6 +150,7 @@ export const recommendationsTable = pgTable("recommendations", {
   estimatedEcDsM: real("estimated_ec_ds_m"),
   estimatedWeeklyNKg: real("estimated_weekly_n_kg"),
   warnings: text("warnings").array(),
+  stageComparison: jsonb("stage_comparison").$type<StageComparisonSnapshot | null>(),
   createdBy: integer("created_by").references(() => usersTable.id, {
     onDelete: "set null",
   }),

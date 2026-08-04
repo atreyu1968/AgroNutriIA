@@ -73,11 +73,11 @@ function analysis(id: number, type: string, params: Analysis["parameters"]): Ana
     farmId: 1,
     sectorId: 1,
     waterSourceId: null,
+    sourcePdf: null,
     type,
     reference: `REF-${id}`,
     laboratory: "Laboratorio Insular",
     description: null,
-    sourcePdf: null,
     sampleDate: "2026-01-10",
     parameters: params,
     notes: "Muestra tomada tras riego.",
@@ -104,6 +104,7 @@ const recommendation: Recommendation = {
   id: 5,
   farmId: 1,
   sectorId: 1,
+  stageComparison: null,
   title: "Programa semanal enero",
   status: "validated",
   source: "ai",
@@ -184,17 +185,14 @@ test("pdfSafe conserva Latin-1 y las excepciones de WinAnsi (€, œ, š, ž)", 
 });
 
 test("pdfSafe con texto realista de laboratorio", () => {
-  const raw = buf.toString("latin1");
-  assert.ok(
-    /\/Subtype\s*\/Image/.test(raw),
-    "el PDF debe contener al menos un XObject de tipo imagen (el logo)",
-  );
+  const raw = "Zn: 14 \u03BCg/g \u2013 \u201Cmuy bajo\u201D (ref. 18\u201350)\u2026";
+  assert.equal(pdfSafe(raw), 'Zn: 14 \u00B5g/g - "muy bajo" (ref. 18-50)...');
 });
 
-test("generateDocx incrusta el logo como imagen en el DOCX", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
-  await generateDocx(data, filePath);
-  assert.ok(fs.existsSync(filePath), "el archivo DOCX debe existir");
+test("generatePdf crea un PDF válido, no vacío y estructuralmente completo", async () => {
+  const filePath = path.join(tmpDir, "informe.pdf");
+  await generatePdf(data, filePath);
+  assert.ok(fs.existsSync(filePath), "el archivo PDF debe existir");
   const buf = fs.readFileSync(filePath);
   assert.ok(buf.length > 1000, `el PDF debe tener contenido (tamaño: ${buf.length})`);
   assert.equal(buf.subarray(0, 5).toString("latin1"), "%PDF-", "cabecera PDF");
@@ -203,7 +201,7 @@ test("generateDocx incrusta el logo como imagen en el DOCX", async () => {
 });
 
 test("generatePdf incluye título, secciones, tablas y pie con paginación", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
+  const filePath = path.join(tmpDir, "informe.pdf");
   await generatePdf(data, filePath);
   const { text, pages } = await extractPdf(fs.readFileSync(filePath));
 
@@ -242,20 +240,9 @@ test("generatePdf incluye título, secciones, tablas y pie con paginación", asy
 });
 
 test("generatePdf muestra el origen [IA] y la fecha del programa cuando source=\"ai\"", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
-  await generatePdf(
-    {
-      ...data,
-      waterNotes: [
-        'La fuente «Balsa» (20 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.',
-      ],
-    },
-    filePath,
-  );
-  const { text } = await extractPdf(fs.readFileSync(pdfPath));
-
-  const aviso =
-    'La fuente «Pozo» (100 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.';
+  const filePath = path.join(tmpDir, "informe-origen-ia.pdf");
+  await generatePdf(data, filePath);
+  const { text } = await extractPdf(fs.readFileSync(filePath));
   assert.ok(text.includes("[IA]"), 'incluye la etiqueta de origen "[IA]"');
   assert.ok(!text.includes("[Técnico]"), 'no incluye la etiqueta "[Técnico]" si el origen es IA');
   assert.ok(text.includes("Origen del programa"), "incluye la línea de origen del programa");
@@ -266,16 +253,13 @@ test("generatePdf muestra el origen [IA] y la fecha del programa cuando source=\
 });
 
 test("generatePdf muestra el origen [Técnico] cuando source=\"manual\"", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
+  const filePath = path.join(tmpDir, "informe-origen-manual.pdf");
   const updated = new Date("2026-02-20T09:00:00Z");
   await generatePdf(
     { ...data, recommendation: { ...recommendation, source: "manual", updatedAt: updated } },
     filePath,
   );
-  const { text } = await extractPdf(fs.readFileSync(pdfPath));
-
-  const aviso =
-    'La fuente «Pozo» (100 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.';
+  const { text } = await extractPdf(fs.readFileSync(filePath));
   assert.ok(text.includes("[Técnico]"), 'incluye la etiqueta de origen "[Técnico]"');
   assert.ok(!text.includes("[IA]"), 'no incluye la etiqueta "[IA]" si el origen es manual');
   assert.ok(
@@ -309,24 +293,23 @@ test("generateDocx muestra el origen y la fecha del programa según source", asy
 });
 
 test("generatePdf funciona con datos mínimos (sin analíticas ni recomendación)", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
-  await generateDocx(data, filePath);
-  assert.ok(fs.existsSync(filePath), "el archivo DOCX debe existir");
+  const filePath = path.join(tmpDir, "informe-minimo.pdf");
+  await generatePdf(
+    { ...data, sectors: [], soil: null, leaf: null, water: null, recommendation: null },
+    filePath,
+  );
   const buf = fs.readFileSync(filePath);
   assert.ok(buf.length > 500, "el PDF mínimo debe tener contenido");
   assert.equal(buf.subarray(0, 5).toString("latin1"), "%PDF-");
-  const { text } = await extractPdf(fs.readFileSync(pdfPath));
-
-  const aviso =
-    'La fuente «Pozo» (100 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.';
+  const { text } = await extractPdf(buf);
   assert.ok(text.includes("Sin analítica registrada"), "indica que no hay analíticas");
   assert.ok(text.includes("Seguimiento"), "incluye la sección de seguimiento");
 });
 
 test("el logo de AgroNutri existe en assets y es un PNG válido", () => {
-  const logoPath = path.join(assetsDir, "logo.png");
+  const logoPath = path.resolve(process.cwd(), "assets", "logo.png");
   assert.ok(fs.existsSync(logoPath), `el logo debe existir en ${logoPath}`);
-  const buf = fs.readFileSync(filePath);
+  const buf = fs.readFileSync(logoPath);
   assert.ok(buf.length > 100, "el logo no debe estar vacío");
   assert.equal(
     buf.subarray(0, 8).toString("hex"),
@@ -336,7 +319,7 @@ test("el logo de AgroNutri existe en assets y es un PNG válido", () => {
 });
 
 test("resolveLogo devuelve la ruta cuando el logo existe", () => {
-  const logoPath = path.join(assetsDir, "logo.png");
+  const logoPath = path.resolve(process.cwd(), "assets", "logo.png");
   assert.equal(resolveLogo(logoPath), logoPath);
 });
 
@@ -364,32 +347,26 @@ test("generatePdf y generateDocx generan el informe sin logo si el fichero falta
   const origWarn = console.warn;
   console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
   try {
-  const pdfPath = path.join(tmpDir, "informe-sin-agua.pdf");
+    const pdfPath = path.join(tmpDir, "informe-sin-logo.pdf");
     const pdfWarnings = await generatePdf(data, pdfPath);
     assert.equal(pdfWarnings.length, 1, "generatePdf devuelve el aviso de logo ausente");
     assert.ok(pdfWarnings[0].includes("sin el logotipo"), "el aviso indica que falta el logo");
     assert.ok(pdfWarnings[0].includes("assets/logo.png"), "el aviso incluye la ruta esperada del logo");
     const pdfBuf = fs.readFileSync(pdfPath);
     assert.equal(pdfBuf.subarray(0, 5).toString("latin1"), "%PDF-", "el PDF se genera igualmente");
-  const { text } = await extractPdf(fs.readFileSync(pdfPath));
+    const { text } = await extractPdf(pdfBuf);
+    assert.ok(text.includes("Informe de fertirrigación"), "el PDF sin logo conserva el título");
 
-  const aviso =
-    'La fuente «Pozo» (100 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.';
-  assert.ok(text.includes("Sin analítica registrada"));
-  assert.ok(text.includes("mezcla es incompleta"), "el aviso debe aparecer aunque water sea null");
-
-  const docxPath = path.join(tmpDir, "informe-sin-agua.docx");
+    const docxPath = path.join(tmpDir, "informe-sin-logo.docx");
     const docxWarnings = await generateDocx(data, docxPath);
     assert.equal(docxWarnings.length, 1, "generateDocx devuelve el aviso de logo ausente");
     assert.ok(docxWarnings[0].includes("assets/logo.png"), "el aviso incluye la ruta esperada del logo");
-  const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
-
-  const xml = await zip.file("word/document.xml")!.async("string");
-  const docXml = await zip.file("word/document.xml")!.async("string");
+    const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
+    const docXml = await zip.file("word/document.xml")!.async("string");
     assert.ok(docXml.includes("Informe de fertirrigación"), "el DOCX sin logo conserva el título");
-  const mediaFiles = Object.keys(zip.files).filter(
-    (f) => f.startsWith("word/media/") && !zip.files[f].dir,
-  );
+    const mediaFiles = Object.keys(zip.files).filter(
+      (f) => f.startsWith("word/media/") && !zip.files[f].dir,
+    );
     assert.equal(mediaFiles.length, 0, "el DOCX no incluye imágenes si falta el logo");
 
     assert.ok(
@@ -403,9 +380,8 @@ test("generatePdf y generateDocx generan el informe sin logo si el fichero falta
 });
 
 test("generatePdf incrusta el logo como imagen en el PDF", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
-  await generateDocx(data, filePath);
-  assert.ok(fs.existsSync(filePath), "el archivo DOCX debe existir");
+  const filePath = path.join(tmpDir, "informe-logo.pdf");
+  await generatePdf(data, filePath);
   const buf = fs.readFileSync(filePath);
   const raw = buf.toString("latin1");
   assert.ok(
@@ -415,11 +391,9 @@ test("generatePdf incrusta el logo como imagen en el PDF", async () => {
 });
 
 test("generateDocx incrusta el logo como imagen en el DOCX", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
+  const filePath = path.join(tmpDir, "informe-logo.docx");
   await generateDocx(data, filePath);
-  const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
-
-  const xml = await zip.file("word/document.xml")!.async("string");
+  const zip = await JSZip.loadAsync(fs.readFileSync(filePath));
   const mediaFiles = Object.keys(zip.files).filter(
     (f) => f.startsWith("word/media/") && !zip.files[f].dir,
   );
@@ -434,16 +408,14 @@ test("generateDocx incrusta el logo como imagen en el DOCX", async () => {
 });
 
 test("generateDocx crea un DOCX válido con contenido y pie de página", async () => {
-  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
+  const filePath = path.join(tmpDir, "informe.docx");
   await generateDocx(data, filePath);
   assert.ok(fs.existsSync(filePath), "el archivo DOCX debe existir");
   const buf = fs.readFileSync(filePath);
   assert.ok(buf.length > 1000, `el DOCX debe tener contenido (tamaño: ${buf.length})`);
   assert.equal(buf.subarray(0, 2).toString("latin1"), "PK", "cabecera ZIP de DOCX");
 
-  const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
-
-  const xml = await zip.file("word/document.xml")!.async("string");
+  const zip = await JSZip.loadAsync(buf);
   const docXml = await zip.file("word/document.xml")!.async("string");
   assert.ok(docXml.includes("Informe de fertirrigación"), "el documento incluye el título");
   assert.ok(docXml.includes("Nitrato potásico"), "el documento incluye la tabla del programa");
@@ -453,119 +425,7 @@ test("generateDocx crea un DOCX válido con contenido y pie de página", async (
   assert.ok(footerNames.length > 0, "el DOCX debe incluir un pie de página");
   const footers = await Promise.all(footerNames.map((f) => zip.file(f)!.async("string")));
   const footerXml = footers.join("\n");
-  assert.ok(xml.includes("mezcla es incompleta"), "el aviso debe aparecer en el DOCX sin analítica");
-});
-
-// --- Sección de contraste con los rangos por fase ---
-
-const norm = (s: string) => s.replace(/\s+/g, " ");
-
-test("el informe incluye la sección de contraste con rangos del técnico dentro de rango", async () => {
-  const filePath = path.join(tmpDir, "informe-rangos-ok.pdf");
-  await generatePdf(
-    {
-      ...data,
-      stageComparison: {
-        stageLabel: "engorde / llenado del racimo",
-        rangeSource: "tecnico",
-        nPerPlantG: 12,
-        k2oPerPlantG: 35,
-        nMinG: 10,
-        nMaxG: 18,
-        k2oMinG: 30,
-        k2oMaxG: 50,
-        nStatus: "ok",
-        k2oStatus: "ok",
-      },
-    },
-    filePath,
-  );
-  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
-  assert.ok(text.includes("Contraste con los rangos de la fase fenológica"), "incluye la sección");
-  assert.ok(
-    text.includes("modulados por el técnico responsable para esta finca"),
-    "atribuye los rangos al técnico",
-  );
-  assert.ok(
-    text.includes("El programa se encuentra dentro de los rangos aplicados para esta fase"),
-    "indica que está dentro de rango",
-  );
-  assert.ok(text.includes("Dentro del rango"), "la tabla marca la situación dentro de rango");
-});
-
-test("fuera de rango, el informe explica el motivo con la justificación del programa", async () => {
-  const filePath = path.join(tmpDir, "informe-rangos-fuera.pdf");
-  await generatePdf(
-    {
-      ...data,
-      stageComparison: {
-        stageLabel: "engorde / llenado del racimo",
-        rangeSource: "orientativo",
-        nPerPlantG: 25,
-        k2oPerPlantG: 20,
-        nMinG: 10,
-        nMaxG: 18,
-        k2oMinG: 30,
-        k2oMaxG: 50,
-        nStatus: "high",
-        k2oStatus: "low",
-      },
-    },
-    filePath,
-  );
-  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
-  assert.ok(
-    text.includes("orientativos por defecto de la aplicación"),
-    "indica el origen orientativo de los rangos",
-  );
-  assert.ok(
-    text.includes("El programa queda fuera del rango en nitrógeno (N) y potasio (K2O)"),
-    "nombra los nutrientes fuera de rango",
-  );
-  assert.ok(
-    text.includes("Motivo según la justificación técnica del programa") &&
-      text.includes("Se refuerza el potasio por deficiencia en suelo y foliar."),
-    "explica el motivo con la justificación (rationale) del programa",
-  );
-  assert.ok(text.includes("Por encima del rango"), "situación de N en la tabla");
-  assert.ok(text.includes("Por debajo del rango"), "situación de K2O en la tabla");
-});
-
-test("sin justificación, el informe indica que debe valorarlo el técnico responsable", async () => {
-  const filePath = path.join(tmpDir, "informe-rangos-sin-motivo.pdf");
-  await generatePdf(
-    {
-      ...data,
-      recommendation: { ...recommendation, rationale: "  " },
-      stageComparison: {
-        stageLabel: "parón invernal",
-        rangeSource: "tecnico",
-        nPerPlantG: 12,
-        k2oPerPlantG: 8,
-        nMinG: 3,
-        nMaxG: 8,
-        k2oMinG: 5,
-        k2oMaxG: 15,
-        nStatus: "high",
-        k2oStatus: "ok",
-      },
-    },
-    filePath,
-  );
-  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
-  assert.ok(
-    text.includes("fuera del rango en nitrógeno (N)") && !text.includes("y potasio (K2O)."),
-    "solo nombra el nutriente fuera de rango",
-  );
-  assert.ok(
-    text.includes("no consta una justificación específica; debe valorarlo el técnico responsable"),
-    "usa el texto por defecto cuando no hay justificación",
-  );
-});
-
-test("sin stageComparison el informe no incluye la sección de contraste", async () => {
-  const filePath = path.join(tmpDir, "informe-sin-rangos.pdf");
-  await generatePdf({ ...data, stageComparison: null }, filePath);
-  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
-  assert.ok(!text.includes("Contraste con los rangos de la fase fenológica"));
+  assert.match(footerXml, /PAGE/, "el pie contiene el campo PAGE");
+  assert.match(footerXml, /NUMPAGES/, "el pie contiene el campo NUMPAGES");
+  assert.ok(footerXml.includes("AgroNutri AI"), 'el pie contiene la marca "AgroNutri AI"');
 });

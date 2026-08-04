@@ -1048,6 +1048,48 @@ export interface RecommendationItem {
   reason?: string | null;
 }
 
+export type StageComparisonRangeSource = typeof StageComparisonRangeSource[keyof typeof StageComparisonRangeSource];
+
+
+export const StageComparisonRangeSource = {
+  orientativo: 'orientativo',
+  tecnico: 'tecnico',
+} as const;
+
+export type StageComparisonNStatus = typeof StageComparisonNStatus[keyof typeof StageComparisonNStatus];
+
+
+export const StageComparisonNStatus = {
+  low: 'low',
+  ok: 'ok',
+  high: 'high',
+} as const;
+
+export type StageComparisonK2oStatus = typeof StageComparisonK2oStatus[keyof typeof StageComparisonK2oStatus];
+
+
+export const StageComparisonK2oStatus = {
+  low: 'low',
+  ok: 'ok',
+  high: 'high',
+} as const;
+
+/**
+ * Orientative comparison of the weekly program against phenological stage targets (g/plant/week)
+ */
+export interface StageComparison {
+  stageLabel: string;
+  rangeSource: StageComparisonRangeSource;
+  nPerPlantG: number;
+  k2oPerPlantG: number;
+  nMinG: number;
+  nMaxG: number;
+  k2oMinG: number;
+  k2oMaxG: number;
+  nStatus: StageComparisonNStatus;
+  k2oStatus: StageComparisonK2oStatus;
+}
+
 export interface Recommendation {
   id: number;
   farmId: number;
@@ -1070,6 +1112,7 @@ export interface Recommendation {
   /** @nullable */
   estimatedWeeklyNKg?: number | null;
   warnings?: string[];
+  stageComparison?: StageComparison | null;
   /** @nullable */
   createdByName?: string | null;
   /** @nullable */
@@ -1397,48 +1440,6 @@ export type CalculationResultNutrients = {[key: string]: number};
  * Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity
  */
 export type CalculationResultWaterContribution = {[key: string]: number};
-
-export type StageComparisonRangeSource = typeof StageComparisonRangeSource[keyof typeof StageComparisonRangeSource];
-
-
-export const StageComparisonRangeSource = {
-  orientativo: 'orientativo',
-  tecnico: 'tecnico',
-} as const;
-
-export type StageComparisonNStatus = typeof StageComparisonNStatus[keyof typeof StageComparisonNStatus];
-
-
-export const StageComparisonNStatus = {
-  low: 'low',
-  ok: 'ok',
-  high: 'high',
-} as const;
-
-export type StageComparisonK2oStatus = typeof StageComparisonK2oStatus[keyof typeof StageComparisonK2oStatus];
-
-
-export const StageComparisonK2oStatus = {
-  low: 'low',
-  ok: 'ok',
-  high: 'high',
-} as const;
-
-/**
- * Orientative comparison of the weekly program against phenological stage targets (g/plant/week)
- */
-export interface StageComparison {
-  stageLabel: string;
-  rangeSource: StageComparisonRangeSource;
-  nPerPlantG: number;
-  k2oPerPlantG: number;
-  nMinG: number;
-  nMaxG: number;
-  k2oMinG: number;
-  k2oMaxG: number;
-  nStatus: StageComparisonNStatus;
-  k2oStatus: StageComparisonK2oStatus;
-}
 
 export interface CalculationResult {
   weeklyWaterLitres: number;
@@ -1863,3 +1864,4 @@ export type AdminRestoreBackup200 = {
   ok: boolean;
   detail: string;
 };
+

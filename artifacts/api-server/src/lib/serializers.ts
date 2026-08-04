@@ -95,6 +95,7 @@ export function serializeRecommendation(
     estimatedEcDsM: r.estimatedEcDsM,
     estimatedWeeklyNKg: r.estimatedWeeklyNKg,
     warnings: r.warnings ?? [],
+    stageComparison: r.stageComparison ?? null,
     createdByName: createdByName ?? null,
     validatedByName: validatedByName ?? null,
     updatedByName: updatedByName ?? null,

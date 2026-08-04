@@ -10,6 +10,7 @@ import {
   usersTable,
   sessionsTable,
   farmsTable,
+  sectorsTable,
   fertilizersTable,
   recommendationsTable,
   reportsTable,
@@ -180,6 +181,121 @@ test("PATCH recalcula CE y N semanal al cambiar los items", async () => {
   assert.ok(Math.abs(json.estimatedWeeklyNKg - 2.6) < 0.01);
   assert.notEqual(json.estimatedWeeklyNKg, rec.estimatedWeeklyNKg);
   assert.equal(typeof json.estimatedEcDsM, "number");
+});
+
+test("PATCH persiste la comparación de fase con los rangos modulados por el técnico", async () => {
+  // La finca entra en fase "engorde" con rangos modulados por el técnico.
+  await db
+    .update(farmsTable)
+    .set({
+      phenologicalStage: "Engorde del racimo",
+      stageNutrientRanges: { engorde: { n: [1, 2], k2o: [3, 4] } },
+    })
+    .where(eq(farmsTable.id, farmId));
+  try {
+    const rec = await createDraft();
+    const { status, json } = await apiPatch(`/farms/${farmId}/recommendations/${rec.id}`, {
+      items: [{ fertilizerId, fertilizerName, weeklyDose: 20, unit: "kg", reason: null }],
+    });
+    assert.equal(status, 200);
+    assert.ok(json?.stageComparison);
+    assert.equal(json.stageComparison!.rangeSource, "tecnico");
+    assert.equal(json.stageComparison!.nMinG, 1);
+    assert.equal(json.stageComparison!.nMaxG, 2);
+    assert.equal(json.stageComparison!.k2oMinG, 3);
+    assert.equal(json.stageComparison!.k2oMaxG, 4);
+    // El snapshot queda persistido en la fila, no solo en la respuesta.
+    const [row] = await db
+      .select({ stageComparison: recommendationsTable.stageComparison })
+      .from(recommendationsTable)
+      .where(eq(recommendationsTable.id, rec.id));
+    assert.ok(row.stageComparison);
+    assert.equal(row.stageComparison!.rangeSource, "tecnico");
+  } finally {
+    await db
+      .update(farmsTable)
+      .set({ phenologicalStage: null, stageNutrientRanges: null })
+      .where(eq(farmsTable.id, farmId));
+  }
+});
+
+test("PATCH persiste rangos orientativos si el técnico no los ha modulado", async () => {
+  await db
+    .update(farmsTable)
+    .set({ phenologicalStage: "Parón invernal" })
+    .where(eq(farmsTable.id, farmId));
+  try {
+    const rec = await createDraft();
+    const { status, json } = await apiPatch(`/farms/${farmId}/recommendations/${rec.id}`, {
+      items: [{ fertilizerId, fertilizerName, weeklyDose: 20, unit: "kg", reason: null }],
+    });
+    assert.equal(status, 200);
+    assert.ok(json?.stageComparison);
+    assert.equal(json.stageComparison!.rangeSource, "orientativo");
+    assert.equal(json.stageComparison!.nMinG, 3);
+    assert.equal(json.stageComparison!.nMaxG, 8);
+  } finally {
+    await db
+      .update(farmsTable)
+      .set({ phenologicalStage: null })
+      .where(eq(farmsTable.id, farmId));
+  }
+});
+
+test("crear y editar un programa de sector usa la fase del sector, no la de la finca", async () => {
+  // Finca en parón invernal; el sector está en engorde con rangos modulados.
+  await db
+    .update(farmsTable)
+    .set({
+      phenologicalStage: "Parón invernal",
+      stageNutrientRanges: { engorde: { n: [1, 2], k2o: [3, 4] } },
+    })
+    .where(eq(farmsTable.id, farmId));
+  const [sector] = await db
+    .insert(sectorsTable)
+    .values({ farmId, name: "Sector engorde", phenologicalStage: "Engorde del racimo" })
+    .returning();
+  try {
+    // Crear: el snapshot debe reflejar la fase del sector (engorde, modulada).
+    const { status: createStatus, raw } = await api(`POST`, `/farms/${farmId}/recommendations`, {
+      sectorId: sector.id,
+      title: "Programa de sector",
+      rationale: "Justificación técnica del programa de sector.",
+      items: [{ fertilizerId, fertilizerName, weeklyDose: 20, unit: "kg", reason: null }],
+    });
+    assert.equal(createStatus, 201);
+    const created = raw as { id: number; stageComparison?: { stageLabel: string; rangeSource: string } | null };
+    assert.ok(created.stageComparison);
+    assert.equal(created.stageComparison!.rangeSource, "tecnico");
+    assert.match(created.stageComparison!.stageLabel, /engorde/i);
+
+    // Editar los items: el recálculo debe seguir usando la fase del sector.
+    const { status: patchStatus, json } = await apiPatch(
+      `/farms/${farmId}/recommendations/${created.id}`,
+      { items: [{ fertilizerId, fertilizerName, weeklyDose: 30, unit: "kg", reason: null }] },
+    );
+    assert.equal(patchStatus, 200);
+    assert.ok(json?.stageComparison);
+    assert.match(json.stageComparison!.stageLabel, /engorde/i);
+    assert.equal(json.stageComparison!.rangeSource, "tecnico");
+    assert.equal(json.stageComparison!.nMinG, 1);
+    assert.equal(json.stageComparison!.k2oMaxG, 4);
+
+    // Un sector de otra finca se rechaza.
+    const { status: badStatus } = await api(`POST`, `/farms/${farmId}/recommendations`, {
+      sectorId: 999999,
+      title: "Programa con sector ajeno",
+      rationale: "Justificación técnica del programa de sector.",
+      items: [{ fertilizerId, fertilizerName, weeklyDose: 20, unit: "kg", reason: null }],
+    });
+    assert.equal(badStatus, 404);
+  } finally {
+    await db.delete(sectorsTable).where(eq(sectorsTable.id, sector.id));
+    await db
+      .update(farmsTable)
+      .set({ phenologicalStage: null, stageNutrientRanges: null })
+      .where(eq(farmsTable.id, farmId));
+  }
 });
 
 test("PATCH permite editar en pending_review", async () => {

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { RecommendationItem } from './recommendationItem';
+import type { StageComparison } from './stageComparison';
 
 export interface Recommendation {
   id: number;
@@ -29,6 +30,7 @@ export interface Recommendation {
   /** @nullable */
   estimatedWeeklyNKg?: number | null;
   warnings?: string[];
+  stageComparison?: StageComparison | null;
   /** @nullable */
   createdByName?: string | null;
   /** @nullable */

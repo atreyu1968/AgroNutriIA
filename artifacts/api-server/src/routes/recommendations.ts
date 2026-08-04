@@ -41,7 +41,7 @@ import {
   resolveCredential,
   userName,
 } from "../lib/farmContext";
-import { runEngine } from "../lib/engine";
+import { runEngine, STAGE_PROFILES, validStageRange } from "../lib/engine";
 import { audit } from "../lib/audit";
 import { buildFarmContext } from "../lib/contextBlock";
 import {
@@ -86,14 +86,30 @@ router.get("/farms/:farmId/recommendations", async (req, res): Promise<void> => 
   res.json(ListRecommendationsResponse.parse(result));
 });
 
-async function computeEstimates(farmId: number, farm: import("@workspace/db").Farm, items: import("@workspace/db").RecommendationItem[]) {
+/** Sector del programa (validando que pertenece a la finca), o null si no tiene. */
+async function programSector(farmId: number, sectorId: number | null | undefined) {
+  if (sectorId == null) return null;
+  const [sector] = await db
+    .select()
+    .from(sectorsTable)
+    .where(and(eq(sectorsTable.id, sectorId), eq(sectorsTable.farmId, farmId)));
+  return sector ?? null;
+}
+
+async function computeEstimates(
+  farmId: number,
+  farm: import("@workspace/db").Farm,
+  items: import("@workspace/db").RecommendationItem[],
+  sector: typeof sectorsTable.$inferSelect | null = null,
+) {
   const fertilizers = await db.select().from(fertilizersTable);
   const blended = await blendedWaterAnalysis(farmId);
-  const out = runEngine({ farm, waterAnalysis: blended.analysis, fertilizers, items });
+  const out = runEngine({ farm, sector, waterAnalysis: blended.analysis, fertilizers, items });
   return {
     estimatedEcDsM: out.estimatedEcDsM,
     estimatedWeeklyNKg: out.nutrients.n ?? null,
     warnings: [...blended.notes, ...out.warnings, ...out.compatibilityIssues],
+    stageComparison: out.stageComparison,
   };
 }
 
@@ -104,7 +120,11 @@ router.post("/farms/:farmId/recommendations", async (req, res): Promise<void> =>
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  const parsed = RunCalculationBody.safeParse(req.body);
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos" });
+    return;
+  }
+  const parsed = CreateRecommendationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -116,12 +136,26 @@ router.post("/farms/:farmId/recommendations", async (req, res): Promise<void> =>
     });
     return;
   }
-  const est = await computeEstimates(farmId, access.farm, parsed.data.items);
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
+  const sector = await programSector(farmId, parsed.data.sectorId);
+  if (parsed.data.sectorId != null && !sector) {
+    res.status(404).json({ error: "El sector indicado no existe en esta finca" });
+    return;
+  }
+  const est = await computeEstimates(farmId, access.farm, parsed.data.items, sector);
+  const [rec] = await db
+    .insert(recommendationsTable)
+    .values({
+      farmId,
+      sectorId: sector?.id ?? null,
+      title: parsed.data.title ?? "Programa semanal de fertirrigación",
+      items: parsed.data.items,
+      rationale: parsed.data.rationale,
+      status: "draft",
+      source: "manual",
+      createdBy: req.user!.id,
+      ...est,
+    })
+    .returning();
   await audit({
     userId: req.user!.id,
     farmId,
@@ -185,12 +219,12 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
   const useAcid = parsedBody.data.useAcid === true;
   const targetPh = useAcid && parsedBody.data.targetPh != null ? parsedBody.data.targetPh : null;
   const acidType = useAcid ? (parsedBody.data.acidType ?? null) : null;
-  let sector = null;
-  if (parsed.data.sectorId != null) {
+  let sector: typeof sectorsTable.$inferSelect | null = null;
+  if (requestedSectorId != null) {
     const [s] = await db
       .select()
       .from(sectorsTable)
-      .where(and(eq(sectorsTable.id, parsed.data.sectorId), eq(sectorsTable.farmId, farmId)));
+      .where(and(eq(sectorsTable.id, requestedSectorId), eq(sectorsTable.farmId, farmId)));
     if (!s) {
       res.status(404).json({ error: "El sector indicado no existe en esta finca" });
       return;
@@ -301,21 +335,6 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     fosforico: "ácido fosfórico",
     sulfurico: "ácido sulfúrico",
   };
-  // Rangos objetivo de la fase (orientativos o modulados por el técnico) para el prompt.
-  const draftStageText = sector?.phenologicalStage ?? access.farm.phenologicalStage ?? "";
-  const draftProfile = draftStageText
-    ? STAGE_PROFILES.find((p) => p.match.test(draftStageText))
-    : undefined;
-  let stageRangesBlock = "";
-  if (draftProfile) {
-    const custom = access.farm.stageNutrientRanges?.[draftProfile.key];
-    const useCustom = !!custom && validStageRange(custom.n) && validStageRange(custom.k2o);
-    const nR = useCustom ? custom!.n : draftProfile.n;
-    const kR = useCustom ? custom!.k2o : draftProfile.k2o;
-    stageRangesBlock = `\n\nRangos objetivo para la fase «${draftProfile.label}» (${
-      useCustom ? "fijados por el técnico de la finca" : "orientativos"
-    }, en g/planta/semana): N ${nR[0]}–${nR[1]}, K2O ${kR[0]}–${kR[1]}. El programa debe situarse dentro de estos rangos; si te apartas de ellos, explica el motivo expresamente en la justificación.`;
-  }
   const acidBlock = useAcid
     ? `
 
@@ -338,15 +357,121 @@ IMPORTANTE — SIN ACIDIFICACIÓN: el agricultor NO va a usar ácido para correg
 - Si el agua tiene pH o bicarbonatos altos, adviértelo en la justificación y explica cómo el programa lo compensa y qué limitaciones tendrá frente a un agua acidificada.`;
 
   const model = modelFor(credential);
-
+  // Rangos objetivo de la fase (orientativos o modulados por el técnico) para el prompt.
+  const draftStageText = sector?.phenologicalStage ?? access.farm.phenologicalStage ?? "";
+  const draftProfile = draftStageText
+    ? STAGE_PROFILES.find((p) => p.match.test(draftStageText))
+    : undefined;
+  let stageRangesBlock = "";
+  if (draftProfile) {
+    const custom = access.farm.stageNutrientRanges?.[draftProfile.key];
+    const useCustom = !!custom && validStageRange(custom.n) && validStageRange(custom.k2o);
+    const nR = useCustom ? custom!.n : draftProfile.n;
+    const kR = useCustom ? custom!.k2o : draftProfile.k2o;
+    stageRangesBlock = `\n\nRangos objetivo para la fase «${draftProfile.label}» (${
+      useCustom ? "fijados por el técnico de la finca" : "orientativos"
+    }, en g/planta/semana): N ${nR[0]}–${nR[1]}, K2O ${kR[0]}–${kR[1]}. El programa debe situarse dentro de estos rangos; si te apartas de ellos, explica el motivo expresamente en la justificación.`;
+  }
   type ExtractedProgram = {
     title: string;
     rationale: string;
     items: { fertilizerName: string; weeklyDose: number; unit: string; reason?: string | null }[];
   };
-  let extracted: ExtractedProgram;
 
-  let { items, discarded, acidsAsNutrient } = buildItems(extracted);
+  const baseMessages = [
+    {
+      role: "system" as const,
+      content:
+        agronomistSystemPrompt(access.farm, contextBlock) +
+        (usesResponsesApi(credential)
+          ? ""
+          : `\n\nResponde SOLO con un objeto JSON válido con esta estructura exacta: ${JSON.stringify(aiProgramSchema.schema)}`),
+    },
+    {
+      role: "user" as const,
+      content: sector
+        ? `Diseña el programa semanal de fertirrigación más adecuado para el sector «${sector.name}» de esta finca a partir de las últimas analíticas disponibles (las analíticas mostradas son las del propio sector cuando existen; si no, las globales de la finca).
+Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"} ha, riego ${sector.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant ?? "?"} L/planta/semana${sector.phenologicalStage ? `, fase fenológica ${sector.phenologicalStage}` : ""}.
+Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
+${catalog}
+
+Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`
+        : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
+Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
+${catalog}
+
+Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`,
+    },
+  ];
+
+  // Llama al modelo (con mensajes extra opcionales para el reintento por CE),
+  // registra el uso y devuelve el programa parseado. Lanza si el proveedor falla.
+  const requestProgram = async (
+    extraMessages: { role: "assistant" | "user"; content: string }[],
+  ): Promise<ExtractedProgram> => {
+    const start = Date.now();
+    try {
+      const client = clientFor(credential);
+      const completion = await client.chat.completions.create({
+        model,
+        ...maxOutputTokensParam(credential, 4000),
+        // Algunos proveedores compatibles no soportan json_schema estricto:
+        // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
+        // y la estructura se describe en el prompt.
+        ...(usesResponsesApi(credential)
+          ? { response_format: { type: "json_schema" as const, json_schema: aiProgramSchema } }
+          : supportsJsonResponseFormat(credential)
+            ? { response_format: { type: "json_object" as const } }
+            : {}),
+        messages: [...baseMessages, ...extraMessages],
+      });
+      const raw = completion.choices[0]?.message?.content ?? "";
+      const parsed = parseJsonLoose(raw) as ExtractedProgram;
+      const inputTokens = completion.usage?.prompt_tokens ?? 0;
+      const outputTokens = completion.usage?.completion_tokens ?? 0;
+      await recordUsage({
+        userId: req.user!.id,
+        farmId,
+        model,
+        operation: "ai_draft_program",
+        inputTokens,
+        outputTokens,
+        estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
+        durationMs: Date.now() - start,
+        result: "ok",
+      });
+      return parsed;
+    } catch (err) {
+      req.log.error({ err: (err as Error).message }, "OpenAI ai-draft program failed");
+      await recordUsage({
+        userId: req.user!.id,
+        farmId,
+        model,
+        operation: "ai_draft_program",
+        durationMs: Date.now() - start,
+        result: "error",
+      });
+      throw err;
+    }
+  };
+
+  let extracted: ExtractedProgram;
+  try {
+    extracted = await requestProgram([]);
+  } catch {
+    res.status(502).json({
+      error: "No se ha podido generar el programa con IA. Inténtalo de nuevo en unos momentos.",
+    });
+    return;
+  }
+
+  if (!Array.isArray(extracted.items) || extracted.items.length === 0) {
+    res.status(422).json({
+      error: "La IA no ha propuesto ningún fertilizante. Revisa que las analíticas tengan datos y vuelve a intentarlo.",
+    });
+    return;
+  }
+
   const byName = new Map(fertilizers.map((f) => [f.name.toLowerCase(), f]));
   // Salvaguarda: si el agricultor NO marcó el uso de ácido, un ácido solo puede
   // llegar al programa como fuente de nutrientes (su motivo debe indicarlo y no
@@ -360,7 +485,6 @@ IMPORTANTE — SIN ACIDIFICACIÓN: el agricultor NO va a usar ácido para correg
     const r = reason.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return /\bph\b/.test(r) || r.includes("acidif") || r.includes("correccion") || r.includes("alcalinid") || r.includes("bicarbonat");
   };
-
   const buildItems = (program: ExtractedProgram) => {
     const items: RecommendationItem[] = [];
     const discarded: string[] = [];
@@ -389,114 +513,129 @@ IMPORTANTE — SIN ACIDIFICACIÓN: el agricultor NO va a usar ácido para correg
     }
     return { items, discarded, acidsAsNutrient };
   };
-  const ecWarnings: string[] = [];
-  const out = runEngine({
-    farm: access.farm,
-    sector,
-    waterAnalysis: blended.analysis,
-    fertilizers,
-    items: parsed.data.items,
-    weeklyLitresPerPlant: parsed.data.weeklyLitresPerPlant,
-    plantCount: parsed.data.plantCount,
-    stageOverride: parsed.data.phenologicalStage ?? null,
-    maxEcOverride: parsed.data.maxEcDsM ?? null,
-  });
+  let { items, discarded, acidsAsNutrient } = buildItems(extracted);
+  if (items.length === 0) {
+    res.status(422).json({
+      error:
+        "La IA ha propuesto productos o dosis no válidos y se ha descartado la propuesta. Vuelve a intentarlo.",
+    });
+    return;
+  }
+  let out = runEngine({ farm: access.farm, sector, waterAnalysis: water, fertilizers, items });
 
+  // Validación determinista de la CE: si el borrador supera la CE máxima de la
+  // finca y hay margen (el agua sola no agota el límite), se pide UNA
+  // regeneración a la IA indicando el exceso concreto antes de guardar nada.
   const maxEc = access.farm.maxEcDsM ?? 2.5;
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
-    await audit({
-      userId: req.user!.id,
-      farmId,
-      action: `recommendation_${parsed.data.action}`,
-      entityType: "recommendation",
-      entityId: recId,
-      detail: parsed.data.comment ?? null,
-    });
-    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
-  },
-);
+  const exceedsMaxEc = (o: typeof out) => o.estimatedEcDsM != null && o.estimatedEcDsM > maxEc;
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+  let ecRetried = false;
+  if (exceedsMaxEc(out) && (out.waterEcDsM == null || out.waterEcDsM < maxEc)) {
+    ecRetried = true;
+    const margin = round2(maxEc - (out.waterEcDsM ?? 0));
+    const excess = round2(out.estimatedEcDsM! - maxEc);
+    const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${out.estimatedEcDsM} dS/m (${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos), que supera en ${excess} dS/m la CE máxima permitida de la finca (${maxEc} dS/m).
+Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de menor aporte salino) para que la CE aportada por los abonos no supere ${margin} dS/m. Mantén el equilibrio nutricional en lo posible y usa el mismo catálogo. Responde con la misma estructura JSON.`;
+    try {
+      const second = await requestProgram([
+        { role: "assistant", content: JSON.stringify(extracted) },
+        { role: "user", content: correction },
+      ]);
+      if (Array.isArray(second.items) && second.items.length > 0) {
+        const rebuilt = buildItems(second);
+        if (rebuilt.items.length > 0) {
+          extracted = second;
+          items = rebuilt.items;
+          discarded = rebuilt.discarded;
+          acidsAsNutrient = rebuilt.acidsAsNutrient;
+          out = runEngine({ farm: access.farm, sector, waterAnalysis: water, fertilizers, items });
+        }
+      }
+    } catch {
+      // El reintento ha fallado en el proveedor: se conserva el primer borrador
+      // (quedará marcado como que supera la CE máxima más abajo).
+      req.log.warn("Reintento por exceso de CE fallido; se conserva el primer borrador");
+    }
+  }
 
-router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
+  const ecWarnings: string[] = [];
+  if (exceedsMaxEc(out)) {
+    ecWarnings.push(
+      `SUPERA LA CE MÁXIMA: la CE estimada del borrador (${out.estimatedEcDsM} dS/m = ${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos) supera la CE máxima de la finca (${maxEc} dS/m)${
+        ecRetried
+          ? " incluso tras pedir automáticamente a la IA una regeneración con dosis reducidas"
+          : ""
+      }. Revisa y ajusta las dosis antes de validar.`,
+    );
+  } else if (ecRetried) {
+    ecWarnings.push(
+      `El primer borrador de la IA superaba la CE máxima de la finca (${maxEc} dS/m); se regeneró automáticamente con dosis reducidas y este borrador ya cumple el límite (CE estimada ${out.estimatedEcDsM} dS/m).`,
+    );
+  }
+
+  const [rec] = await db
+    .insert(recommendationsTable)
+    .values({
+      farmId,
+      sectorId: sector?.id ?? null,
+      title: extracted.title || "Programa propuesto por el técnico virtual",
+      items,
+      rationale: extracted.rationale || null,
+      status: "draft",
+      source: "ai",
+      createdBy: req.user!.id,
+      estimatedEcDsM: out.estimatedEcDsM,
+      estimatedWeeklyNKg: out.nutrients.n ?? null,
+      warnings: [
+        ...ecWarnings,
+        ...blendedWater.notes,
+        ...out.warnings,
+        ...out.compatibilityIssues,
+        ...(discarded.length
+          ? [`Se descartaron productos propuestos por la IA fuera del catálogo o con dosis no válidas: ${discarded.join(", ")}`]
+          : []),
+        ...(acidsAsNutrient.length
+          ? [
+              `Atención: ${acidsAsNutrient.join(", ")} se incluye únicamente como fuente de nutrientes (no se marcó la acidificación del agua). Verificar al validar que su uso no busca corregir el pH.`,
+            ]
+          : []),
+      ],
+      stageComparison: out.stageComparison,
+    })
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "recommendation_created",
+    entityType: "recommendation",
+    entityId: rec.id,
+    detail: `${rec.title} (borrador IA desde analíticas)`,
+  });
+  res.status(201).json(GenerateAiDraftRecommendationResponse.parse(await fullSerialize(rec)));
+});
+
+router.get("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-    const recId = parseIntParam(req.params.recommendationId);
+  const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
-    await audit({
-      userId: req.user!.id,
-      farmId,
-      action: `recommendation_${parsed.data.action}`,
-      entityType: "recommendation",
-      entityId: recId,
-      detail: parsed.data.comment ?? null,
-    });
-    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
-  },
-);
-
-router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
-  const farmId = parseIntParam(req.params.farmId);
-    const recId = parseIntParam(req.params.recommendationId);
-  const access = await farmAccess(req.user!, farmId);
-  if (!access) {
-    res.status(404).json({ error: "Finca no encontrada" });
+  const [rec] = await db
+    .select()
+    .from(recommendationsTable)
+    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+  if (!rec) {
+    res.status(404).json({ error: "Recomendación no encontrada" });
     return;
   }
-  const parsed = RunCalculationBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-    const [existing] = await db
-      .select()
-      .from(recommendationsTable)
-      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
-    if (!existing) {
-      res.status(404).json({ error: "Recomendación no encontrada" });
-      return;
-    }
-    if (!t.from.includes(existing.status)) {
-      res.status(409).json({
-        error: `No se puede pasar de «${existing.status}» con la acción «${parsed.data.action}»`,
-      });
-      return;
-    }
-    const update: Record<string, unknown> = { status: t.to };
-    if (parsed.data.action === "approve" || parsed.data.action === "reject") {
-      update.validatedBy = req.user!.id;
-      update.reviewComment = parsed.data.comment ?? null;
-    }
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
-    await audit({
-      userId: req.user!.id,
-      farmId,
-      action: `recommendation_${parsed.data.action}`,
-      entityType: "recommendation",
-      entityId: recId,
-      detail: parsed.data.comment ?? null,
-    });
-    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
-  },
-);
+  res.json(GetRecommendationResponse.parse(await fullSerialize(rec)));
+});
 
-router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
+router.patch("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-    const recId = parseIntParam(req.params.recommendationId);
+  const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
@@ -506,10 +645,60 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Sin permisos" });
     return;
   }
-    const [existing] = await db
-      .select()
-      .from(recommendationsTable)
-      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+  const parsed = UpdateRecommendationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(recommendationsTable)
+    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+  if (!existing) {
+    res.status(404).json({ error: "Recomendación no encontrada" });
+    return;
+  }
+  if (existing.status !== "draft" && existing.status !== "pending_review") {
+    res.status(409).json({ error: "Solo se pueden editar recomendaciones en borrador o pendientes de revisión" });
+    return;
+  }
+  const update: Record<string, unknown> = { ...parsed.data, updatedBy: req.user!.id };
+  if (parsed.data.items) {
+    const sector = await programSector(farmId, existing.sectorId);
+    Object.assign(update, await computeEstimates(farmId, access.farm, parsed.data.items, sector));
+  }
+  const [rec] = await db
+    .update(recommendationsTable)
+    .set(update)
+    .where(eq(recommendationsTable.id, recId))
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "recommendation_updated",
+    entityType: "recommendation",
+    entityId: rec.id,
+    detail: rec.title,
+  });
+  res.json(UpdateRecommendationResponse.parse(await fullSerialize(rec)));
+});
+
+router.delete("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const recId = parseIntParam(req.params.recommendationId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos" });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(recommendationsTable)
+    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
   if (!existing) {
     res.status(404).json({ error: "Recomendación no encontrada" });
     return;
@@ -553,14 +742,14 @@ const TRANSITIONS: Record<string, { from: string[]; to: string; requiresApprover
 router.post(
   "/farms/:farmId/recommendations/:recommendationId/status",
   async (req, res): Promise<void> => {
-  const farmId = parseIntParam(req.params.farmId);
+    const farmId = parseIntParam(req.params.farmId);
     const recId = parseIntParam(req.params.recommendationId);
-  const access = await farmAccess(req.user!, farmId);
-  if (!access) {
-    res.status(404).json({ error: "Finca no encontrada" });
-    return;
-  }
-  const parsed = RunCalculationBody.safeParse(req.body);
+    const access = await farmAccess(req.user!, farmId);
+    if (!access) {
+      res.status(404).json({ error: "Finca no encontrada" });
+      return;
+    }
+    const parsed = ChangeRecommendationStatusBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
@@ -669,106 +858,7 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     stageOverride: parsed.data.phenologicalStage ?? null,
     maxEcOverride: parsed.data.maxEcDsM ?? null,
   });
-
-  const maxEc = access.farm.maxEcDsM ?? 2.5;
   res.json(RunCalculationResponse.parse({ ...out, warnings: [...blended.notes, ...out.warnings] }));
 });
 
 export default router;
-
-  const exceedsMaxEc = (o: typeof out) => o.estimatedEcDsM != null && o.estimatedEcDsM > maxEc;
-
-      const second = await requestProgram([
-        { role: "assistant", content: JSON.stringify(extracted) },
-        { role: "user", content: correction },
-      ]);
-
-    const margin = round2(maxEc - (out.waterEcDsM ?? 0));
-
-  const baseMessages = [
-    {
-      role: "system" as const,
-      content:
-        agronomistSystemPrompt(access.farm, contextBlock) +
-        (usesResponsesApi(credential)
-          ? ""
-          : `\n\nResponde SOLO con un objeto JSON válido con esta estructura exacta: ${JSON.stringify(aiProgramSchema.schema)}`),
-    },
-    {
-      role: "user" as const,
-      content: sector
-        ? `Diseña el programa semanal de fertirrigación más adecuado para el sector «${sector.name}» de esta finca a partir de las últimas analíticas disponibles (las analíticas mostradas son las del propio sector cuando existen; si no, las globales de la finca).
-Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"} ha, riego ${sector.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant ?? "?"} L/planta/semana${sector.phenologicalStage ? `, fase fenológica ${sector.phenologicalStage}` : ""}.
-Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
-${catalog}
-
-Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`
-        : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
-Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
-${catalog}
-
-Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`,
-    },
-  ];
-
-  const requestProgram = async (
-    extraMessages: { role: "assistant" | "user"; content: string }[],
-  ): Promise<ExtractedProgram> => {
-    const start = Date.now();
-    try {
-      const client = clientFor(credential);
-      const completion = await client.chat.completions.create({
-        model,
-        ...maxOutputTokensParam(credential, 4000),
-        // Algunos proveedores compatibles no soportan json_schema estricto:
-        // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
-        // y la estructura se describe en el prompt.
-        ...(usesResponsesApi(credential)
-          ? { response_format: { type: "json_schema" as const, json_schema: aiProgramSchema } }
-          : supportsJsonResponseFormat(credential)
-            ? { response_format: { type: "json_object" as const } }
-            : {}),
-        messages: [...baseMessages, ...extraMessages],
-      });
-      const raw = completion.choices[0]?.message?.content ?? "";
-      const parsed = parseJsonLoose(raw) as ExtractedProgram;
-      const inputTokens = completion.usage?.prompt_tokens ?? 0;
-      const outputTokens = completion.usage?.completion_tokens ?? 0;
-      await recordUsage({
-        userId: req.user!.id,
-        farmId,
-        model,
-        operation: "ai_draft_program",
-        inputTokens,
-        outputTokens,
-        estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
-        durationMs: Date.now() - start,
-        result: "ok",
-      });
-      return parsed;
-    } catch (err) {
-      req.log.error({ err: (err as Error).message }, "OpenAI ai-draft program failed");
-      await recordUsage({
-        userId: req.user!.id,
-        farmId,
-        model,
-        operation: "ai_draft_program",
-        durationMs: Date.now() - start,
-        result: "error",
-      });
-      throw err;
-    }
-  };
-
-    const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${out.estimatedEcDsM} dS/m (${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos), que supera en ${excess} dS/m la CE máxima permitida de la finca (${maxEc} dS/m).
-Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de menor aporte salino) para que la CE aportada por los abonos no supere ${margin} dS/m. Mantén el equilibrio nutricional en lo posible y usa el mismo catálogo. Responde con la misma estructura JSON.`;
-
-  const ecWarnings: string[] = [];
-
-  const round2 = (v: number) => Math.round(v * 100) / 100;
-
-        const rebuilt = buildItems(second);
-
-    const excess = round2(out.estimatedEcDsM! - maxEc);
-
-  let ecRetried = false;

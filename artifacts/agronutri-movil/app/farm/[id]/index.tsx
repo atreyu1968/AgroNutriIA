@@ -122,6 +122,34 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
               {rec.estimatedWeeklyNKg != null ? <Badge label={`N sem. ${rec.estimatedWeeklyNKg} kg`} /> : null}
             </View>
           ) : null}
+          {rec.stageComparison ? (
+            <View style={{ gap: 6 }} testID={`rec-stage-comparison-${rec.id}`}>
+              <Text style={[styles.stageTitle, { color: c.foreground }]}>
+                Fase fenológica: {rec.stageComparison.stageLabel}{' '}
+                <Text style={[styles.stageSource, { color: c.mutedForeground }]}>
+                  {rec.stageComparison.rangeSource === 'tecnico'
+                    ? '(rangos modulados por el técnico)'
+                    : '(rangos orientativos)'}
+                </Text>
+              </Text>
+              {(
+                [
+                  ['N', rec.stageComparison.nPerPlantG, rec.stageComparison.nMinG, rec.stageComparison.nMaxG, rec.stageComparison.nStatus],
+                  ['K₂O', rec.stageComparison.k2oPerPlantG, rec.stageComparison.k2oMinG, rec.stageComparison.k2oMaxG, rec.stageComparison.k2oStatus],
+                ] as const
+              ).map(([label, v, lo, hi, status]) => (
+                <View key={label} style={styles.doseRow}>
+                  <Text style={[styles.doseName, { color: c.foreground, flex: 1 }]}>
+                    {label}: {v} g/planta/sem ({lo}–{hi})
+                  </Text>
+                  <Badge
+                    label={status === 'ok' ? 'En rango' : status === 'high' ? 'Por encima' : 'Por debajo'}
+                    tone={status === 'ok' ? 'primary' : 'destructive'}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
           {rec.warnings && rec.warnings.length > 0 ? (
             <View style={{ gap: 4 }}>
               {rec.warnings.map((w, i) => (
@@ -670,6 +698,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  stageTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stageSource: {
+    fontSize: 11,
+    fontWeight: '400',
   },
   doseName: {
     fontSize: 14,

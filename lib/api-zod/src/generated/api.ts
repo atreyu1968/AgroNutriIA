@@ -19,6 +19,8 @@ export const HealthCheckResponse = zod.object({
 export const registerBodyPasswordMin = 8;
 
 
+
+
 export const RegisterBody = zod.object({
   "email": zod.string().email(),
   "password": zod.string().min(registerBodyPasswordMin),
@@ -71,7 +73,9 @@ export const ForgotPasswordBody = zod.object({
 export const ForgotPasswordResponse = zod.void()
 
 
+
 export const resetPasswordBodyPasswordMin = 8;
+
 
 
 export const ResetPasswordBody = zod.object({
@@ -102,6 +106,7 @@ export const GetMeResponse = zod.object({
 
 
 export const updateMeBodyPasswordMin = 8;
+
 
 
 export const UpdateMeBody = zod.object({
@@ -142,6 +147,7 @@ export const listFarmsResponseStageNutrientRangesK2oMin = 2;
 export const listFarmsResponseStageNutrientRangesK2oMax = 2;
 
 
+
 export const ListFarmsResponseItem = zod.object({
   "id": zod.number().int(),
   "ownerId": zod.number().int(),
@@ -177,6 +183,9 @@ export const ListFarmsResponseItem = zod.object({
   "sectorCount": zod.number().int().nullish()
 })
 export const ListFarmsResponse = zod.array(ListFarmsResponseItem)
+
+
+
 
 
 export const CreateFarmBody = zod.object({
@@ -215,6 +224,7 @@ export const createFarmResponseStageNutrientRangesK2oItemMin = 0;
 
 export const createFarmResponseStageNutrientRangesK2oMin = 2;
 export const createFarmResponseStageNutrientRangesK2oMax = 2;
+
 
 
 export const CreateFarmResponse = zod.object({
@@ -266,6 +276,7 @@ export const getFarmResponseStageNutrientRangesK2oItemMin = 0;
 
 export const getFarmResponseStageNutrientRangesK2oMin = 2;
 export const getFarmResponseStageNutrientRangesK2oMax = 2;
+
 
 
 export const GetFarmResponse = zod.object({
@@ -320,6 +331,7 @@ export const updateFarmBodyStageNutrientRangesK2oMin = 2;
 export const updateFarmBodyStageNutrientRangesK2oMax = 2;
 
 
+
 export const UpdateFarmBody = zod.object({
   "name": zod.string().min(1).optional(),
   "companyName": zod.string().optional(),
@@ -360,6 +372,7 @@ export const updateFarmResponseStageNutrientRangesK2oItemMin = 0;
 
 export const updateFarmResponseStageNutrientRangesK2oMin = 2;
 export const updateFarmResponseStageNutrientRangesK2oMax = 2;
+
 
 
 export const UpdateFarmResponse = zod.object({
@@ -418,6 +431,7 @@ export const getFarmSummaryResponseFarmStageNutrientRangesK2oItemMin = 0;
 
 export const getFarmSummaryResponseFarmStageNutrientRangesK2oMin = 2;
 export const getFarmSummaryResponseFarmStageNutrientRangesK2oMax = 2;
+
 
 
 export const GetFarmSummaryResponse = zod.object({
@@ -541,6 +555,18 @@ export const GetFarmSummaryResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -574,6 +600,8 @@ export const CreateSectorParams = zod.object({
 })
 
 
+
+
 export const CreateSectorBody = zod.object({
   "name": zod.string().min(1),
   "plantCount": zod.number().int().optional(),
@@ -599,6 +627,8 @@ export const UpdateSectorParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "sectorId": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateSectorBody = zod.object({
@@ -713,6 +743,7 @@ export const SetWaterSourcesParams = zod.object({
 
 export const setWaterSourcesBodySharePctMin = 0;
 export const setWaterSourcesBodySharePctMax = 100;
+
 
 
 export const SetWaterSourcesBodyItem = zod.object({
@@ -996,6 +1027,9 @@ export const ListFertilizersResponseItem = zod.object({
 export const ListFertilizersResponse = zod.array(ListFertilizersResponseItem)
 
 
+
+
+
 export const CreateFertilizerBody = zod.object({
   "name": zod.string().min(1),
   "formulaType": zod.string().optional(),
@@ -1043,6 +1077,8 @@ export const CreateFertilizerResponse = zod.object({
 export const UpdateFertilizerParams = zod.object({
   "fertilizerId": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateFertilizerBody = zod.object({
@@ -1119,6 +1155,18 @@ export const ListRecommendationsResponseItem = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1165,6 +1213,18 @@ export const CreateRecommendationResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1230,6 +1290,7 @@ export const generateAiDraftRecommendationBodyTargetPhMin = 4;
 export const generateAiDraftRecommendationBodyTargetPhMax = 7.5;
 
 
+
 export const GenerateAiDraftRecommendationBody = zod.object({
   "sectorId": zod.number().int().nullish().describe('Sector objetivo del programa; null u omitido = programa global de la finca'),
   "useAcid": zod.boolean().optional().describe('Si es true, la finca usa ácido para bajar el pH del agua de riego y la IA debe tenerlo en cuenta'),
@@ -1256,6 +1317,18 @@ export const GenerateAiDraftRecommendationResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1288,6 +1361,18 @@ export const GetRecommendationResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1333,6 +1418,18 @@ export const UpdateRecommendationResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1381,6 +1478,18 @@ export const ChangeRecommendationStatusResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1401,6 +1510,7 @@ export const runCalculationBodyMaxEcDsMMax = 10;
 
 export const runCalculationBodyWaterMixItemSharePctMin = 0;
 export const runCalculationBodyWaterMixItemSharePctMax = 100;
+
 
 
 export const RunCalculationBody = zod.object({
@@ -1464,7 +1574,9 @@ export const ListCredentialsResponseItem = zod.object({
 export const ListCredentialsResponse = zod.array(ListCredentialsResponseItem)
 
 
+
 export const createCredentialBodyApiKeyMin = 10;
+
 
 
 export const CreateCredentialBody = zod.object({
@@ -1495,6 +1607,7 @@ export const UpdateCredentialParams = zod.object({
 })
 
 export const updateCredentialBodyApiKeyMin = 10;
+
 
 
 export const UpdateCredentialBody = zod.object({
@@ -1649,6 +1762,8 @@ export const SendMessageParams = zod.object({
 })
 
 
+
+
 export const SendMessageBody = zod.object({
   "content": zod.string().min(1),
   "draftContext": zod.string().nullish().describe('Optional description of the fertilization plan the user is editing, added to the assistant context')
@@ -1722,6 +1837,18 @@ export const CreateDraftFromMessageResponse = zod.object({
   "estimatedEcDsM": zod.number().nullish(),
   "estimatedWeeklyNKg": zod.number().nullish(),
   "warnings": zod.array(zod.string()).optional(),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "rangeSource": zod.enum(['orientativo', 'tecnico']),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional(),
   "createdByName": zod.string().nullish(),
   "validatedByName": zod.string().nullish(),
   "updatedByName": zod.string().nullish(),
@@ -1861,6 +1988,7 @@ export const createPhytoTreatmentBodySafetyDaysMin = 0;
 export const createPhytoTreatmentBodyNotesMax = 2000;
 
 
+
 export const CreatePhytoTreatmentBody = zod.object({
   "sectorId": zod.number().int().nullish(),
   "applicationDate": zod.string().regex(createPhytoTreatmentBodyApplicationDateRegExp).describe('YYYY-MM-DD'),
@@ -1918,6 +2046,7 @@ export const PhytoConsultParams = zod.object({
 export const phytoConsultBodyQuestionMax = 4000;
 
 
+
 export const PhytoConsultBody = zod.object({
   "question": zod.string().min(1).max(phytoConsultBodyQuestionMax),
   "targetPest": zod.string().nullish(),
@@ -1950,6 +2079,7 @@ export const phytoPlanPdfBodySourcesItemMax = 600;
 
 export const phytoPlanPdfBodySourcesItemRegExp = new RegExp('^https?:/');
 export const phytoPlanPdfBodySourcesMax = 30;
+
 
 
 export const PhytoPlanPdfBody = zod.object({
@@ -2008,6 +2138,7 @@ export const createPhytoProductBodyNotesMax = 2000;
 export const createPhytoProductBodySourceUrlMax = 500;
 
 
+
 export const CreatePhytoProductBody = zod.object({
   "productName": zod.string().min(1).max(createPhytoProductBodyProductNameMax),
   "registryNumber": zod.string().max(createPhytoProductBodyRegistryNumberMax).nullish(),
@@ -2045,6 +2176,7 @@ export const CreatePhytoProductResponse = zod.object({
  * @summary Use the AI to look up official sources and fill missing catalog data
  */
 export const refreshPhytoProductsBodyLimitMax = 15;
+
 
 
 export const RefreshPhytoProductsBody = zod.object({
@@ -2131,6 +2263,7 @@ export const updatePhytoProductBodyExpiryDateRegExp = new RegExp('^\\d{4}-\\d{2}
 export const updatePhytoProductBodyNotesMax = 2000;
 
 export const updatePhytoProductBodySourceUrlMax = 500;
+
 
 
 export const UpdatePhytoProductBody = zod.object({
@@ -2286,6 +2419,7 @@ export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
 export const adminCreateUserBodyPasswordMin = 8;
 
 
+
 export const AdminCreateUserBody = zod.object({
   "email": zod.string().email(),
   "name": zod.string().min(1),
@@ -2321,6 +2455,7 @@ export const AdminUpdateUserParams = zod.object({
 export const adminUpdateUserBodyAiMonthlyLimitEurMin = 0;
 
 export const adminUpdateUserBodyPasswordMin = 8;
+
 
 
 export const AdminUpdateUserBody = zod.object({
@@ -2427,6 +2562,7 @@ export const adminUpdateEmailSettingsBodyResendApiKeyMax = 200;
 export const adminUpdateEmailSettingsBodyEmailFromMax = 200;
 
 
+
 export const AdminUpdateEmailSettingsBody = zod.object({
   "resendApiKey": zod.string().max(adminUpdateEmailSettingsBodyResendApiKeyMax).nullish().describe('Clave de API de Resend; null o vacío la borra'),
   "emailFrom": zod.string().max(adminUpdateEmailSettingsBodyEmailFromMax).nullish().describe('Remitente, p. ej. \"AgroNutri <no-reply@midominio.com>\"; null o vacío lo borra')
@@ -2474,6 +2610,7 @@ export const signupBodyPhoneMax = 40;
 
 export const signupBodySubdomainMin = 3;
 export const signupBodySubdomainMax = 40;
+
 
 
 export const SignupBody = zod.object({
@@ -2619,6 +2756,7 @@ export const adminUpdatePaypalSettingsBodyClientSecretMax = 200;
 export const adminUpdatePaypalSettingsBodyWebhookIdMax = 100;
 
 
+
 export const AdminUpdatePaypalSettingsBody = zod.object({
   "clientId": zod.string().max(adminUpdatePaypalSettingsBodyClientIdMax).nullish(),
   "clientSecret": zod.string().max(adminUpdatePaypalSettingsBodyClientSecretMax).nullish(),
@@ -2669,6 +2807,7 @@ export const adminUpdateBillingSettingsBodyTaxRateBpsMax = 3000;
 export const adminUpdateBillingSettingsBodyTaxNameMax = 20;
 
 
+
 export const AdminUpdateBillingSettingsBody = zod.object({
   "issuerName": zod.string().max(adminUpdateBillingSettingsBodyIssuerNameMax).nullish(),
   "issuerTaxId": zod.string().max(adminUpdateBillingSettingsBodyIssuerTaxIdMax).nullish(),
@@ -2716,6 +2855,7 @@ export const AdminGetVerifactuSettingsResponse = zod.object({
 export const adminUpdateVerifactuSettingsBodyCertPemMax = 20000;
 
 export const adminUpdateVerifactuSettingsBodyKeyPemMax = 20000;
+
 
 
 export const AdminUpdateVerifactuSettingsBody = zod.object({
@@ -2790,6 +2930,7 @@ export const AdminUpdateInstallationBillingInfoParams = zod.object({
 export const adminUpdateInstallationBillingInfoBodyTaxIdMax = 20;
 
 export const adminUpdateInstallationBillingInfoBodyBillingAddressMax = 300;
+
 
 
 export const AdminUpdateInstallationBillingInfoBody = zod.object({
@@ -2999,4 +3140,5 @@ export const AdminMarkInvoicePaidResponse = zod.object({
   "sentAt": zod.string().nullish()
 }).describe('Estado del envío del registro de facturación a la AEAT (VeriFactu)'),zod.null()]).optional()
 })
+
 
