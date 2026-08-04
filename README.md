@@ -23,12 +23,13 @@ Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canari
 - Calculadora de fertirrigación: plan de abonado semanal con dosis por fertilizante, estimación de CE y de nutrientes aportados, y avisos de compatibilidad entre productos.
 - Programas de abonado con estados (borrador, aprobado, activo…) y flujo de aprobación.
 - Borrador de programa generado por IA a partir de las últimas analíticas, para toda la finca o para un sector concreto.
-- Opción de acidificación del agua: si se usa ácido para bajar el pH de riego, la IA calcula los litros de ácido necesarios por semana a partir del pH, los bicarbonatos y el volumen de riego (con validación previa de que existen esos datos).
+- Opción de acidificación del agua: si se usa ácido para bajar el pH de riego, la IA calcula los litros de ácido necesarios por semana a partir del pH, los bicarbonatos y el volumen de riego (con validación previa de que existen esos datos). Se puede elegir el ácido (nítrico, fosfórico o sulfúrico) o dejar que la IA elija el más adecuado justificando la elección; si no se marca el uso de ácido, el programa nunca incluye ácidos y compensa aguas alcalinas con productos adecuados.
 
 ### Técnico virtual (IA)
 - Chat con un técnico agrónomo virtual con el contexto de la finca (analíticas, sectores, programa vigente).
 - Adjuntos en el chat (fotos y documentos) para consultas sobre síntomas o etiquetas.
-- Clave de OpenAI propia por usuario u organización, selección de modelo, registro de consumo y límite mensual de gasto.
+- Clave de IA propia por usuario u organización, con elección de proveedor (OpenAI, Mistral o DeepSeek) y de modelo, cambio de proveedor de una clave ya guardada, registro de consumo y límite mensual de gasto.
+- Aviso en Ajustes de las funciones no disponibles según el proveedor elegido (búsqueda web para fitosanitarios, análisis de imágenes).
 
 ### Fitosanitarios
 - Catálogo de productos fitosanitarios (número de registro, materia activa, plaga objetivo, plazos de seguridad), con actualización de fichas asistida por IA y ordenación por columnas.
@@ -41,12 +42,22 @@ Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canari
 
 ### Informes
 - Informes técnicos en PDF y Word con los datos de la finca, analíticas y programa de abonado, con resumen redactado por IA y logo personalizable.
+- Informe de enmiendas del terreno con dos escenarios (arranque y siembra, época de lluvias), redactado por IA a partir de las analíticas.
+- Revisión automática de coherencia agronómica antes de entregar cada informe (detecta contradicciones típicas, como recomendar caliza en suelos alcalinos).
 
 ### Administración y seguridad
 - Gestión de usuarios por el administrador (alta, cambio de contraseña, desactivación); registro público desactivable.
 - Recuperación de contraseña por email (Resend) con enlaces de un solo uso.
 - Registro de auditoría de las acciones importantes.
 - Panel de consumo de IA por usuario y operación.
+- Copias de seguridad de la base de datos desde el panel de administración.
+- Modo demostración (`DEMO_MODE=true`): cuenta de invitado limitada (sin acceso a administración) y topes de uso para instalaciones de prueba.
+
+### Venta y facturación (instalación central)
+- Alta de cooperativas/OPP con pago por PayPal (suscripción) y aprovisionamiento automático de su instalación en un subdominio propio.
+- Facturación automática mensual de los cargos variables (cuota + importe por finca activa), con numeración correlativa y factura en PDF.
+- Facturación electrónica VeriFactu: registro encadenado de facturas con huella, envío a la AEAT y verificación periódica de la cadena.
+- Panel central de instalaciones: estado, uso reportado por cada instalación y gestión de cobros.
 
 ### Aplicaciones
 - **Web** (React + Vite): instalable como PWA en el móvil o el escritorio.
@@ -84,13 +95,20 @@ El script instala y configura automáticamente:
 
 1. Conéctate al servidor por SSH.
 
-2. Descarga el instalador (aún no hace falta clonar todo el repositorio):
+2. Actualiza el servidor e instala `git` y `curl` (necesarios para descargar el instalador y el código):
+
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   sudo apt install -y git curl
+   ```
+
+3. Descarga el instalador (aún no hace falta clonar todo el repositorio):
 
    ```bash
    curl -fsSLO https://raw.githubusercontent.com/atreyu1968/AgroNutriIA/main/deploy/install.sh
    ```
 
-3. Ejecútalo como root, indicando la URL del repositorio y, opcionalmente, tu dominio:
+4. Ejecútalo como root, indicando la URL del repositorio y, opcionalmente, tu dominio:
 
    ```bash
    sudo bash install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
@@ -110,9 +128,9 @@ El script instala y configura automáticamente:
         bash install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
    ```
 
-4. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y entra con la cuenta de administrador que definiste durante la instalación. El registro público queda desactivado en el servidor: es el administrador quien crea las cuentas desde **Administración → Usuarios** (también puede cambiarles la contraseña o desactivarlas). Si quieres permitir que cualquiera se registre, pon `PUBLIC_REGISTRATION=true` en `/etc/agronutri/api.env` y reinicia la API.
+5. Al terminar, abre `https://midominio.com` (o `https://IP-del-servidor`) y entra con la cuenta de administrador que definiste durante la instalación. El registro público queda desactivado en el servidor: es el administrador quien crea las cuentas desde **Administración → Usuarios** (también puede cambiarles la contraseña o desactivarlas). Si quieres permitir que cualquiera se registre, pon `PUBLIC_REGISTRATION=true` en `/etc/agronutri/api.env` y reinicia la API.
 
-5. Dentro de la app, en **Ajustes**, añade tu clave de OpenAI para activar el técnico virtual, el chat con adjuntos y los borradores de programa por IA.
+6. Dentro de la app, en **Ajustes**, añade tu clave de IA (OpenAI, Mistral o DeepSeek) para activar el técnico virtual, el chat con adjuntos y los borradores de programa por IA. Algunas funciones requieren un proveedor concreto (la verificación de fitosanitarios necesita OpenAI; el análisis de fotos y PDF escaneados no está disponible con DeepSeek); la propia pantalla de Ajustes lo indica.
 
 > Si el repositorio es privado, usa una URL con token de acceso
 > (`https://TOKEN@github.com/atreyu1968/AgroNutriIA.git`) o configura antes una clave SSH de despliegue.
