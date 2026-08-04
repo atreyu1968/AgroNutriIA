@@ -65,15 +65,15 @@ router.get("/farms/:farmId/reports", async (req, res): Promise<void> => {
 router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
   const access = await farmAccess(req.user!, farmId);
-    if (!access) {
-      res.status(404).json({ error: "Finca no encontrada" });
-      return;
-    }
-    if (!canEdit(access.role)) {
-      res.status(403).json({ error: "Sin permisos para generar informes" });
-      return;
-    }
-    const parsed = PreviewReportNotesBody.safeParse(req.body);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para generar informes" });
+    return;
+  }
+  const parsed = CreateReportBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -99,7 +99,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
       });
       return;
     }
-        const credential = await resolveCredential(farm, user);
+        const credential = await resolveCredential(access.farm, req.user!);
     if (!credential) {
       res.status(400).json({
         error:
@@ -178,9 +178,17 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
       ? `Informe de enmiendas del terreno (${SCENARIO_LABELS[scenario!]}) — ${access.farm.name}`
       : `Informe técnico de fertirrigación — ${access.farm.name}`);
   const [report] = await db
-    .select()
-    .from(reportsTable)
-    .where(and(eq(reportsTable.id, reportId), eq(reportsTable.farmId, farmId)));
+    .insert(reportsTable)
+    .values({
+      farmId,
+      recommendationId: recommendation?.id ?? null,
+      title,
+      reportType,
+      format: parsed.data.format,
+      status: "generating",
+      createdBy: req.user!.id,
+    })
+    .returning();
 
   // Respond immediately; generation continues in background.
   res
@@ -258,7 +266,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         // no bloquean el informe: se marcan con un aviso visible en el propio
         // documento y en la lista de informes.
         const fixedIssues = checkAmendmentCoherence(text, soil);
-        const credential = await resolveCredential(farm, user);
+        const credential = await resolveCredential(access.farm, req.user!);
         const aiIssues = credential
           ? await reviewAmendmentPlanWithAI({
               credential,

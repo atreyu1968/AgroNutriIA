@@ -120,22 +120,45 @@ router.post("/farms/:farmId/recommendations", async (req, res): Promise<void> =>
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  const parsed = RunCalculationBody.safeParse(req.body);
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos para crear programas" });
+    return;
+  }
+  const parsed = CreateRecommendationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  let sector = null;
+  if (!parsed.data.rationale || parsed.data.rationale.trim().length < 10) {
+    res.status(422).json({
+      error:
+        "Todo programa de abonado debe incluir una justificación técnica de su motivación (elaborada por el técnico o por la IA). Añádela antes de guardar.",
+    });
+    return;
+  }
+  const sector = await programSector(farmId, parsed.data.sectorId);
   if (parsed.data.sectorId != null && !sector) {
     res.status(404).json({ error: "El sector indicado no existe en esta finca" });
     return;
   }
   const est = await computeEstimates(farmId, access.farm, parsed.data.items, sector);
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
+  const [rec] = await db
+    .insert(recommendationsTable)
+    .values({
+      farmId,
+      sectorId: sector?.id ?? null,
+      title: parsed.data.title ?? null,
+      rationale: parsed.data.rationale,
+      items: parsed.data.items,
+      source: "manual",
+      status: "draft",
+      createdBy: req.user!.id,
+      estimatedEcDsM: est.estimatedEcDsM ?? null,
+      estimatedWeeklyNKg: est.estimatedWeeklyNKg ?? null,
+      stageComparison: est.stageComparison ?? null,
+      warnings: est.warnings,
+    })
+    .returning();
   await audit({
     userId: req.user!.id,
     farmId,
@@ -200,11 +223,11 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
   const targetPh = useAcid && parsedBody.data.targetPh != null ? parsedBody.data.targetPh : null;
   const acidType = useAcid ? (parsedBody.data.acidType ?? null) : null;
   let sector = null;
-  if (parsed.data.sectorId != null) {
+  if (requestedSectorId != null) {
     const [s] = await db
       .select()
       .from(sectorsTable)
-      .where(and(eq(sectorsTable.id, parsed.data.sectorId), eq(sectorsTable.farmId, farmId)));
+      .where(and(eq(sectorsTable.id, requestedSectorId), eq(sectorsTable.farmId, farmId)));
     if (!s) {
       res.status(404).json({ error: "El sector indicado no existe en esta finca" });
       return;
@@ -495,8 +518,6 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
   };
   let { items, discarded, acidsAsNutrient } = buildItems(extracted);
 
-  const runDraftEngine = (draftItems: RecommendationItem[]) =>
-    runEngine({ farm: access.farm, sector, waterAnalysis: water, fertilizers, items: draftItems });
   if (items.length === 0) {
     res.status(422).json({
       error:
@@ -504,16 +525,14 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     });
     return;
   }
-  const out = runEngine({
+
+  // Ejecutar el motor con los items propuestos por la IA.
+  let out = runEngine({
     farm: access.farm,
     sector,
-    waterAnalysis: blended.analysis,
+    waterAnalysis: blendedWater.analysis,
     fertilizers,
-    items: parsed.data.items,
-    weeklyLitresPerPlant: parsed.data.weeklyLitresPerPlant,
-    plantCount: parsed.data.plantCount,
-    stageOverride: parsed.data.phenologicalStage ?? null,
-    maxEcOverride: parsed.data.maxEcDsM ?? null,
+    items,
   });
 
   // Validación de CE del borrador: si la solución estimada supera la CE máxima
@@ -524,29 +543,30 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
   const round2 = (v: number) => Math.round(v * 100) / 100;
   let ecRetried = false;
 
-    const waterAlone = out.waterEcDsM != null && out.waterEcDsM >= maxEc;
   if (exceedsMaxEc(out) && (out.waterEcDsM == null || out.waterEcDsM < maxEc)) {
     ecRetried = true;
-      const margin = round2(maxEc - (out.waterEcDsM ?? 0));
-      const excess = round2(out.estimatedEcDsM! - maxEc);
-      const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${out.estimatedEcDsM} dS/m (${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos), que supera en ${excess} dS/m la CE máxima permitida de la finca (${maxEc} dS/m).
+    const margin = round2(maxEc - (out.waterEcDsM ?? 0));
+    const excess = round2(out.estimatedEcDsM! - maxEc);
+    const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${out.estimatedEcDsM} dS/m (${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos), que supera en ${excess} dS/m la CE máxima permitida de la finca (${maxEc} dS/m).
 Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de menor aporte salino) para que la CE aportada por los abonos no supere ${margin} dS/m. Mantén el equilibrio nutricional en lo posible y usa el mismo catálogo. Responde con la misma estructura JSON.`;
-      try {
-        const second = await requestProgram([
-          { role: "assistant", content: JSON.stringify(extracted) },
-          { role: "user", content: correction },
-        ]);
-        ecRetried = true;
-        const rebuilt = buildItems(second);
-
-          const secondOut = runDraftEngine(rebuilt.items);
-        if (rebuilt.items.length > 0) {
-          extracted = second;
-          items = rebuilt.items;
-          discarded = rebuilt.discarded;
-          acidsAsNutrient = rebuilt.acidsAsNutrient;
-          out = runEngine({ farm: access.farm, sector, waterAnalysis: water, fertilizers, items });
-        }
+    try {
+      const second = await requestProgram([
+        { role: "assistant", content: JSON.stringify(extracted) },
+        { role: "user", content: correction },
+      ]);
+      const rebuilt = buildItems(second);
+      if (rebuilt.items.length > 0) {
+        extracted = second;
+        items = rebuilt.items;
+        discarded = rebuilt.discarded;
+        acidsAsNutrient = rebuilt.acidsAsNutrient;
+        out = runEngine({
+          farm: access.farm,
+          sector,
+          waterAnalysis: blendedWater.analysis,
+          fertilizers,
+          items,
+        });
       }
     } catch {
       // El reintento ha fallado en el proveedor: se conserva el primer borrador
@@ -570,100 +590,67 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
     );
   }
 
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
-    await audit({
-      userId: req.user!.id,
+  const [rec] = await db
+    .insert(recommendationsTable)
+    .values({
       farmId,
-      action: `recommendation_${parsed.data.action}`,
-      entityType: "recommendation",
-      entityId: recId,
-      detail: parsed.data.comment ?? null,
-    });
-    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
-  },
-);
+      sectorId: sector?.id ?? null,
+      title: extracted.title,
+      rationale: extracted.rationale,
+      items,
+      source: "ai",
+      status: "draft",
+      createdBy: req.user!.id,
+      estimatedEcDsM: out.estimatedEcDsM ?? null,
+      estimatedWeeklyNKg: out.nutrients.n ?? null,
+      stageComparison: out.stageComparison ?? null,
+      warnings: [
+        ...blendedWater.notes,
+        ...(discarded.length > 0
+          ? [`Productos descartados por no estar en el catálogo o dosis inválidas: ${discarded.join(", ")}.`]
+          : []),
+        ...(acidsAsNutrient.length > 0
+          ? [`Los siguientes ácidos se han incluido como fuente de nutrientes (sin corrección de pH): ${acidsAsNutrient.join(", ")}.`]
+          : []),
+        ...out.warnings,
+        ...out.compatibilityIssues,
+        ...ecWarnings,
+      ],
+    })
+    .returning();
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "recommendation_ai_draft_created",
+    entityType: "recommendation",
+    entityId: rec.id,
+    detail: rec.title,
+  });
+  res.status(201).json(GenerateAiDraftRecommendationResponse.parse(await fullSerialize(rec)));
+});
 
-router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
+router.get("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-    const recId = parseIntParam(req.params.recommendationId);
+  const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
-    await audit({
-      userId: req.user!.id,
-      farmId,
-      action: `recommendation_${parsed.data.action}`,
-      entityType: "recommendation",
-      entityId: recId,
-      detail: parsed.data.comment ?? null,
-    });
-    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
-  },
-);
-
-router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
-  const farmId = parseIntParam(req.params.farmId);
-    const recId = parseIntParam(req.params.recommendationId);
-  const access = await farmAccess(req.user!, farmId);
-  if (!access) {
-    res.status(404).json({ error: "Finca no encontrada" });
+  const [rec] = await db
+    .select()
+    .from(recommendationsTable)
+    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+  if (!rec) {
+    res.status(404).json({ error: "Recomendación no encontrada" });
     return;
   }
-  const parsed = RunCalculationBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-    const [existing] = await db
-      .select()
-      .from(recommendationsTable)
-      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
-    if (!existing) {
-      res.status(404).json({ error: "Recomendación no encontrada" });
-      return;
-    }
-    if (!t.from.includes(existing.status)) {
-      res.status(409).json({
-        error: `No se puede pasar de «${existing.status}» con la acción «${parsed.data.action}»`,
-      });
-      return;
-    }
-    const update: Record<string, unknown> = { status: t.to };
-  if (parsed.data.items) {
-  let sector = null;
-    Object.assign(update, await computeEstimates(farmId, access.farm, parsed.data.items, sector));
-  }
-    const [rec] = await db
-      .update(recommendationsTable)
-      .set(update)
-      .where(eq(recommendationsTable.id, recId))
-      .returning();
-    await audit({
-      userId: req.user!.id,
-      farmId,
-      action: `recommendation_${parsed.data.action}`,
-      entityType: "recommendation",
-      entityId: recId,
-      detail: parsed.data.comment ?? null,
-    });
-    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
-  },
-);
+  res.json(GetRecommendationResponse.parse(await fullSerialize(rec)));
+});
 
-router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
+router.patch("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-    const recId = parseIntParam(req.params.recommendationId);
+  const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
@@ -673,41 +660,104 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Sin permisos" });
     return;
   }
-    const [existing] = await db
-      .select()
-      .from(recommendationsTable)
-      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+  const parsed = UpdateRecommendationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(recommendationsTable)
+    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
   if (!existing) {
     res.status(404).json({ error: "Recomendación no encontrada" });
     return;
   }
-  const deletable = ["draft", "pending_review", "rejected"];
-  if (!deletable.includes(existing.status)) {
+  if (existing.status !== "draft" && existing.status !== "pending_review") {
     res.status(409).json({
-      error:
-        "Este programa ya fue validado por el técnico (o está en aplicación/finalizado) y no se puede eliminar.",
+      error: "Solo se pueden editar recomendaciones en borrador o pendientes de revisión",
     });
     return;
   }
-  await db.transaction(async (tx) => {
-    // Los informes generados a partir de este programa se conservan como histórico,
-    // pero dejan de apuntar a un programa inexistente.
-    await tx
-      .update(reportsTable)
-      .set({ recommendationId: null })
-      .where(eq(reportsTable.recommendationId, recId));
-    await tx.delete(recommendationsTable).where(eq(recommendationsTable.id, recId));
-  });
+  const update: Record<string, unknown> = { ...parsed.data, updatedBy: req.user!.id };
+  if (parsed.data.items) {
+    // Si la recomendación tiene sector, usarlo para el recálculo de fase
+    let sector: typeof sectorsTable.$inferSelect | null = null;
+    if (existing.sectorId) {
+      const [s] = await db
+        .select()
+        .from(sectorsTable)
+        .where(eq(sectorsTable.id, existing.sectorId));
+      sector = s ?? null;
+    }
+    Object.assign(update, await computeEstimates(farmId, access.farm, parsed.data.items, sector));
+  }
+  const [rec] = await db
+    .update(recommendationsTable)
+    .set(update)
+    .where(eq(recommendationsTable.id, recId))
+    .returning();
   await audit({
     userId: req.user!.id,
     farmId,
-    action: "recommendation_deleted",
+    action: "recommendation_updated",
     entityType: "recommendation",
-    entityId: recId,
-    detail: existing.title,
+    entityId: rec.id,
+    detail: rec.title,
   });
-  res.status(204).end();
+  res.json(UpdateRecommendationResponse.parse(await fullSerialize(rec)));
 });
+
+router.delete(
+  "/farms/:farmId/recommendations/:recommendationId",
+  async (req, res): Promise<void> => {
+    const farmId = parseIntParam(req.params.farmId);
+    const recId = parseIntParam(req.params.recommendationId);
+    const access = await farmAccess(req.user!, farmId);
+    if (!access) {
+      res.status(404).json({ error: "Finca no encontrada" });
+      return;
+    }
+    if (!canEdit(access.role)) {
+      res.status(403).json({ error: "Sin permisos" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(recommendationsTable)
+      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+    if (!existing) {
+      res.status(404).json({ error: "Recomendación no encontrada" });
+      return;
+    }
+    const deletable = ["draft", "pending_review", "rejected"];
+    if (!deletable.includes(existing.status)) {
+      res.status(409).json({
+        error:
+          "Este programa ya fue validado por el técnico (o está en aplicación/finalizado) y no se puede eliminar.",
+      });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      // Los informes generados a partir de este programa se conservan como histórico,
+      // pero dejan de apuntar a un programa inexistente.
+      await tx
+        .update(reportsTable)
+        .set({ recommendationId: null })
+        .where(eq(reportsTable.recommendationId, recId));
+      await tx.delete(recommendationsTable).where(eq(recommendationsTable.id, recId));
+    });
+    await audit({
+      userId: req.user!.id,
+      farmId,
+      action: "recommendation_deleted",
+      entityType: "recommendation",
+      entityId: recId,
+      detail: existing.title,
+    });
+    res.status(204).end();
+  },
+);
 
 const TRANSITIONS: Record<string, { from: string[]; to: string; requiresApprover: boolean }> = {
   submit: { from: ["draft", "rejected"], to: "pending_review", requiresApprover: false },
@@ -720,19 +770,23 @@ const TRANSITIONS: Record<string, { from: string[]; to: string; requiresApprover
 router.post(
   "/farms/:farmId/recommendations/:recommendationId/status",
   async (req, res): Promise<void> => {
-  const farmId = parseIntParam(req.params.farmId);
+    const farmId = parseIntParam(req.params.farmId);
     const recId = parseIntParam(req.params.recommendationId);
-  const access = await farmAccess(req.user!, farmId);
-  if (!access) {
-    res.status(404).json({ error: "Finca no encontrada" });
-    return;
-  }
-  const parsed = RunCalculationBody.safeParse(req.body);
+    const access = await farmAccess(req.user!, farmId);
+    if (!access) {
+      res.status(404).json({ error: "Finca no encontrada" });
+      return;
+    }
+    const parsed = ChangeRecommendationStatusBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
     const t = TRANSITIONS[parsed.data.action];
+    if (!t) {
+      res.status(400).json({ error: `Acción desconocida: ${parsed.data.action}` });
+      return;
+    }
     if (t.requiresApprover && !canEdit(access.role)) {
       res.status(403).json({ error: "Solo el propietario o el técnico pueden validar o rechazar" });
       return;
