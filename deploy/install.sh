@@ -88,6 +88,12 @@ if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]]; then
   read -rsp "Token: " CLOUDFLARE_TUNNEL_TOKEN || true
   echo
 fi
+# Confirmación inmediata para que no queden dudas de si se recibió o no.
+if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+  echo "✔ Token de Cloudflare recibido (${#CLOUDFLARE_TUNNEL_TOKEN} caracteres): se configurará el túnel."
+else
+  echo "— Sin token de Cloudflare: el túnel NO se configurará (la web se servirá con nginx y HTTPS propio)."
+fi
 TUNNEL_HOSTNAME="${TUNNEL_HOSTNAME:-}"
 if [[ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
   # El dominio público es obligatorio con túnel: sin él, los enlaces de email y
@@ -251,6 +257,24 @@ SQL
 echo "Cuenta de administrador lista: ${ADMIN_EMAIL_LC}"
 
 # ----------------------------------------------------------------------------
+# La compilación de la web necesita bastante memoria; en servidores pequeños
+# (1–2 GB de RAM) Node se queda sin heap ("JavaScript heap out of memory").
+# Se amplía el heap de Node y, si hay poca RAM y no hay swap, se crea un
+# fichero de intercambio de 2 GB como red de seguridad.
+TOTAL_MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+SWAP_MB=$(awk '/SwapTotal/ {print int($2/1024)}' /proc/meminfo)
+if [[ "$TOTAL_MEM_MB" -lt 3000 && "$SWAP_MB" -lt 512 ]]; then
+  log "Poca memoria detectada (${TOTAL_MEM_MB} MB): creando swap de 2 GB"
+  if [[ ! -f /swapfile ]]; then
+    fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+    chmod 600 /swapfile
+    mkswap /swapfile
+  fi
+  swapon /swapfile || true
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+export NODE_OPTIONS="--max-old-space-size=2048"
+
 log "Compilando la API"
 pnpm --filter @workspace/api-server run build
 
