@@ -385,6 +385,27 @@ server {
         proxy_read_timeout 300s;
     }
 
+    # --- agronutri-cache: cabeceras de caché de la PWA ---
+    # index.html y el service worker nunca deben quedarse obsoletos en caché:
+    # así los navegadores reciben la versión nueva tras cada despliegue.
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    location = /sw.js {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    location = /registerSW.js {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    # Los assets llevan hash en el nombre: caché larga e inmutable.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+    # --- fin agronutri-cache ---
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -460,6 +481,27 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 300s;
     }
+
+    # --- agronutri-cache: cabeceras de caché de la PWA ---
+    # index.html y el service worker nunca deben quedarse obsoletos en caché:
+    # así los navegadores reciben la versión nueva tras cada despliegue.
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    location = /sw.js {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    location = /registerSW.js {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    # Los assets llevan hash en el nombre: caché larga e inmutable.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+    # --- fin agronutri-cache ---
 
     location / {
         try_files \$uri \$uri/ /index.html;

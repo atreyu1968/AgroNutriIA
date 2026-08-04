@@ -93,6 +93,41 @@ BASE_PATH=/ PORT=3000 \
   pnpm --filter @workspace/agronutri run build
 
 # ----------------------------------------------------------------------------
+# Cabeceras de caché de la PWA en instalaciones ya desplegadas: si el sitio de
+# nginx no las tiene todavía, se insertan antes del "location /". Idempotente
+# (marcador "agronutri-cache"); así los navegadores reciben la versión nueva
+# sin borrar la caché tras cada actualización.
+log "Comprobando cabeceras de caché en nginx"
+for site in /etc/nginx/sites-available/agronutri*; do
+  [[ -f "$site" ]] || continue
+  grep -q 'agronutri-cache' "$site" && continue
+  awk '
+    !done && $0 ~ /^[[:space:]]*location \/ \{/ {
+      print "    # --- agronutri-cache: cabeceras de caché de la PWA ---"
+      print "    location = /index.html {"
+      print "        add_header Cache-Control \"no-cache, must-revalidate\";"
+      print "    }"
+      print "    location = /sw.js {"
+      print "        add_header Cache-Control \"no-cache, must-revalidate\";"
+      print "    }"
+      print "    location = /registerSW.js {"
+      print "        add_header Cache-Control \"no-cache, must-revalidate\";"
+      print "    }"
+      print "    location = /manifest.webmanifest {"
+      print "        add_header Cache-Control \"no-cache, must-revalidate\";"
+      print "    }"
+      print "    location /assets/ {"
+      print "        add_header Cache-Control \"public, max-age=31536000, immutable\";"
+      print "    }"
+      print "    # --- fin agronutri-cache ---"
+      done = 1
+    }
+    { print }
+  ' "$site" > "${site}.tmp" && mv "${site}.tmp" "$site"
+  echo "  Cabeceras de caché añadidas a ${site}"
+done
+
+# ----------------------------------------------------------------------------
 log "Reiniciando servicios"
 chown -R agronutri:agronutri "$APP_DIR"
 systemctl restart "${SERVICE_NAME}"
