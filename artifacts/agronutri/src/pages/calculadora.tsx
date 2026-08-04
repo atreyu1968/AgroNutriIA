@@ -26,7 +26,7 @@ import { Calculator, Plus, Trash2, Droplets, FlaskConical, AlertTriangle, ArrowR
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatNumber } from "@/lib/utils";
+import { ecToDs, ecToUs, formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ImportAnalysisButton } from "@/pages/fincas/detail-tabs";
 
@@ -60,7 +60,8 @@ export default function CalculadoraTab({
 
   const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
   const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
-  const [maxEc, setMaxEc] = useState<number>(defaultMaxEc ?? 2.5);
+  // La CE se muestra y edita SIEMPRE en µS/cm; la API trabaja en dS/m.
+  const [maxEc, setMaxEc] = useState<number>(ecToUs(defaultMaxEc ?? 2.5));
   const farmSaveMutation = useUpdateFarm({
     mutation: {
       onSuccess: () => {
@@ -76,7 +77,7 @@ export default function CalculadoraTab({
   useEffect(() => {
     if (defaultPlantCount != null) setPlantCount(defaultPlantCount);
     if (defaultWeeklyLitres != null) setWeeklyLitresPerPlant(defaultWeeklyLitres);
-    if (defaultMaxEc != null) setMaxEc(defaultMaxEc);
+    if (defaultMaxEc != null) setMaxEc(ecToUs(defaultMaxEc));
   }, [defaultPlantCount, defaultWeeklyLitres, defaultMaxEc]);
   
   const [items, setItems] = useState<Array<{id: number, fertId: string, dose: number}>>([
@@ -249,14 +250,6 @@ export default function CalculadoraTab({
   const handleCalculate = () => {
     const validItems = buildValidItems();
     if (validItems.length === 0 || !farmId) return;
-    if (maxEc > 10) {
-      toast({
-        title: "Revisa la CE máxima",
-        description: `La CE se indica en dS/m (entre 0,1 y 10). El valor ${formatNumber(maxEc)} parece estar en µS/cm: equivale a ${formatNumber(maxEc / 1000)} dS/m. Corrígelo y vuelve a calcular.`,
-        variant: "destructive",
-      });
-      return;
-    }
 
     calcMutation.mutate(
       {
@@ -264,7 +257,7 @@ export default function CalculadoraTab({
         data: {
           plantCount,
           weeklyLitresPerPlant,
-          ...(maxEc > 0 ? { maxEcDsM: maxEc } : {}),
+          ...(maxEc > 0 ? { maxEcDsM: ecToDs(maxEc) } : {}),
           items: validItems,
           ...(stageChoice !== "auto" ? { phenologicalStage: stageChoice } : {}),
           ...(waterSources && waterSources.length > 0
@@ -333,12 +326,12 @@ export default function CalculadoraTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label>CE objetivo / máxima (dS/m)</Label>
+                <Label>CE objetivo / máxima (µS/cm)</Label>
                 <Input
                   type="number"
-                  step="0.1"
-                  min={0.1}
-                  max={10}
+                  step="50"
+                  min={100}
+                  max={10000}
                   value={maxEc}
                   onChange={e => setMaxEc(parseFloat(e.target.value) || 0)}
                   data-testid="input-max-ec"
@@ -351,20 +344,12 @@ export default function CalculadoraTab({
                   size="sm"
                   className="w-full"
                   disabled={farmSaveMutation.isPending || plantCount <= 0 || weeklyLitresPerPlant <= 0 || !(maxEc > 0)}
-                  onClick={() => {
-                    if (maxEc > 10) {
-                      toast({
-                        title: "Revisa la CE máxima",
-                        description: `La CE se indica en dS/m (entre 0,1 y 10). El valor ${formatNumber(maxEc)} parece estar en µS/cm: equivale a ${formatNumber(maxEc / 1000)} dS/m.`,
-                        variant: "destructive",
-                      });
-                      return;
-                    }
+                  onClick={() =>
                     farmSaveMutation.mutate({
                       farmId,
-                      data: { plantCount, weeklyLitresPerPlant, maxEcDsM: maxEc },
-                    });
-                  }}
+                      data: { plantCount, weeklyLitresPerPlant, maxEcDsM: ecToDs(maxEc) },
+                    })
+                  }
                   data-testid="button-save-farm-params"
                 >
                   <Save className="w-4 h-4 mr-1" />
@@ -712,7 +697,7 @@ export default function CalculadoraTab({
                 <Card className="bg-secondary/5 border-secondary/20">
                   <CardContent className="p-4 text-center">
                     <p className="text-sm text-muted-foreground mb-1">CE Estimada</p>
-                    <p className="text-2xl font-bold text-secondary">{formatNumber(calcMutation.data.estimatedEcDsM)} <span className="text-sm font-normal text-muted-foreground">dS/m</span></p>
+                    <p className="text-2xl font-bold text-secondary">{calcMutation.data.estimatedEcDsM != null ? formatNumber(ecToUs(calcMutation.data.estimatedEcDsM)) : "-"} <span className="text-sm font-normal text-muted-foreground">µS/cm</span></p>
                     {calcMutation.data.waterEcDsM != null && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Agua origen {formatNumber(calcMutation.data.waterEcDsM)} + abonos {formatNumber(calcMutation.data.fertilizersEcDsM)}

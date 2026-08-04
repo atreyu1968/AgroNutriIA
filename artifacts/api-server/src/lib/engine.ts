@@ -317,11 +317,11 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     const ecMargin = round(maxEc - (waterEcDsM ?? 0), 2);
     if (waterEcDsM != null && waterEcDsM >= maxEc) {
       warnings.push(
-        `La CE del agua en origen (${waterEcDsM} dS/m) ya alcanza o supera la CE máxima de la finca (${maxEc} dS/m): no hay margen para abonado sin superar el límite. Valorar mezcla con agua de mejor calidad o revisar el límite con el técnico.`,
+        `La CE del agua en origen (${Math.round(waterEcDsM * 1000)} µS/cm) ya alcanza o supera la CE máxima de la finca (${Math.round(maxEc * 1000)} µS/cm): no hay margen para abonado sin superar el límite. Valorar mezcla con agua de mejor calidad o revisar el límite con el técnico.`,
       );
     } else if (estimatedEcDsM > maxEc) {
       warnings.push(
-        `CE estimada de la solución (${estimatedEcDsM} dS/m = ${waterEcDsM ?? 0} del agua + ${fertilizersEcDsM} de los abonos) supera el máximo configurado (${maxEc} dS/m). Margen disponible para abonos: ${ecMargin} dS/m. Repartir dosis en más riegos o reducir concentración.`,
+        `CE estimada de la solución (${Math.round(estimatedEcDsM * 1000)} µS/cm = ${Math.round((waterEcDsM ?? 0) * 1000)} del agua + ${Math.round(fertilizersEcDsM * 1000)} de los abonos) supera el máximo configurado (${Math.round(maxEc * 1000)} µS/cm). Margen disponible para abonos: ${Math.round(ecMargin * 1000)} µS/cm. Repartir dosis en más riegos o reducir concentración.`,
       );
     }
   }

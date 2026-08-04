@@ -54,7 +54,7 @@ test("warns when water EC alone reaches the farm max EC", () => {
     items,
     waterAnalysis: waterAnalysis([{ name: "Conductividad", value: 2.6 }]),
   });
-  assert.ok(out.warnings.some((w) => w.includes("agua en origen") && w.includes("2.6")));
+  assert.ok(out.warnings.some((w) => w.includes("agua en origen") && w.includes("2600 µS/cm")));
 });
 
 test("warns with water/fertilizer EC breakdown when total exceeds max", () => {

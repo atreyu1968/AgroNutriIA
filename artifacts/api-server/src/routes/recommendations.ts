@@ -634,7 +634,7 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
   const ecWarnings: string[] = [];
   if (exceedsMaxEc(out)) {
     ecWarnings.push(
-      `SUPERA LA CE MÁXIMA: la CE estimada del borrador (${out.estimatedEcDsM} dS/m = ${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos) supera la CE máxima de la finca (${maxEc} dS/m)${
+      `SUPERA LA CE MÁXIMA: la CE estimada del borrador (${Math.round((out.estimatedEcDsM ?? 0) * 1000)} µS/cm = ${Math.round((out.waterEcDsM ?? 0) * 1000)} µS/cm del agua + ${Math.round((out.fertilizersEcDsM ?? 0) * 1000)} µS/cm de los abonos) supera la CE máxima de la finca (${Math.round(maxEc * 1000)} µS/cm)${
         ecRetried
           ? " incluso tras pedir automáticamente a la IA una regeneración con dosis reducidas"
           : ""
@@ -642,7 +642,7 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
     );
   } else if (ecRetried) {
     ecWarnings.push(
-      `El primer borrador de la IA superaba la CE máxima de la finca (${maxEc} dS/m); se regeneró automáticamente con dosis reducidas y este borrador ya cumple el límite (CE estimada ${out.estimatedEcDsM} dS/m).`,
+      `El primer borrador de la IA superaba la CE máxima de la finca (${Math.round(maxEc * 1000)} µS/cm); se regeneró automáticamente con dosis reducidas y este borrador ya cumple el límite (CE estimada ${Math.round((out.estimatedEcDsM ?? 0) * 1000)} µS/cm).`,
     );
   }
 
@@ -902,7 +902,7 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     const ecIssue = parsed.error.issues.find((i) => i.path.includes("maxEcDsM"));
     res.status(400).json({
       error: ecIssue
-        ? "La CE máxima debe estar entre 0,1 y 10 dS/m. Si tu valor viene en µS/cm, divídelo entre 1000 (p. ej. 2500 µS/cm = 2,5 dS/m)."
+        ? "La CE máxima indicada no es válida: debe estar entre 100 y 10000 µS/cm (equivalente a 0,1–10 dS/m)."
         : `Datos del cálculo no válidos: ${parsed.error.issues.map((i) => `${i.path.join(".")} (${i.message})`).join("; ")}`,
     });
     return;

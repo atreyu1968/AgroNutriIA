@@ -66,7 +66,7 @@ export default function Fertilizantes() {
                 <TableHead className="text-center bg-slate-300/30">CaO</TableHead>
                 <TableHead className="text-center bg-green-500/10">MgO</TableHead>
                 <TableHead className="text-center hidden md:table-cell">SO₃</TableHead>
-                <TableHead className="text-center hidden md:table-cell">CE (dS/m)</TableHead>
+                <TableHead className="text-center hidden md:table-cell">CE (µS/cm por g/L)</TableHead>
                 <TableHead className="text-right"></TableHead>
               </TableRow>
             </TableHeader>
@@ -115,7 +115,7 @@ export default function Fertilizantes() {
                     <TableCell className="text-center font-mono">{fert.caoPct || '-'}</TableCell>
                     <TableCell className="text-center font-mono">{fert.mgoPct || '-'}</TableCell>
                     <TableCell className="text-center font-mono hidden md:table-cell">{fert.so3Pct || '-'}</TableCell>
-                    <TableCell className="text-center hidden md:table-cell text-muted-foreground">{fert.ecContribution || '-'}</TableCell>
+                    <TableCell className="text-center hidden md:table-cell text-muted-foreground">{fert.ecContribution ? Math.round(fert.ecContribution * 1000) : '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         {isAdmin && <EditFertilizerButton fertilizer={fert} />}

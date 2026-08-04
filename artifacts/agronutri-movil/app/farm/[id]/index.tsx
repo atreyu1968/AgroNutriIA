@@ -131,7 +131,7 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
           {rec.estimatedEcDsM != null || rec.estimatedWeeklyNKg != null ? (
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
               {rec.estimatedEcDsM != null ? (
-                <Badge label={`CE est. ${rec.estimatedEcDsM} dS/m`} tone={exceedsCe ? 'destructive' : undefined} />
+                <Badge label={`CE est. ${Math.round(rec.estimatedEcDsM * 1000)} µS/cm`} tone={exceedsCe ? 'destructive' : undefined} />
               ) : null}
               {rec.estimatedWeeklyNKg != null ? <Badge label={`N sem. ${rec.estimatedWeeklyNKg} kg`} /> : null}
             </View>

@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Droplets, MapPin, Sprout, TestTube, FileText, Settings, Users, ArrowRight, Calculator, SprayCan } from "lucide-react";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { ecToUs, formatNumber, formatDate } from "@/lib/utils";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -140,7 +140,7 @@ export default function FincaDetail() {
                 </div>
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">CE Max</span>
-                  <p className="font-medium">{farm.maxEcDsM ? `${farm.maxEcDsM} dS/m` : '-'}</p>
+                  <p className="font-medium">{farm.maxEcDsM ? `${formatNumber(ecToUs(farm.maxEcDsM))} µS/cm` : '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">Técnico</span>

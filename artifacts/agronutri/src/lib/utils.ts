@@ -32,3 +32,11 @@ export function formatNumber(num: number | null | undefined, decimals = 2) {
     maximumFractionDigits: decimals
   }).format(num);
 }
+
+/**
+ * CE: la interfaz trabaja siempre en µS/cm; la API y los cálculos en dS/m.
+ * Los valores guardados pueden venir en cualquiera de las dos unidades
+ * (heurística: > 10 ⇒ µS/cm).
+ */
+export const ecToUs = (v: number): number => Math.round(v > 10 ? v : v * 1000);
+export const ecToDs = (v: number): number => (v > 10 ? v / 1000 : v);

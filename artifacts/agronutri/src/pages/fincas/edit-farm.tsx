@@ -165,7 +165,7 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
       phenologicalStage: farm.phenologicalStage ?? "",
       soilType: farm.soilType ?? "",
       weeklyLitresPerPlant: farm.weeklyLitresPerPlant ?? undefined,
-      maxEcDsM: farm.maxEcDsM ?? undefined,
+      maxEcDsM: farm.maxEcDsM != null ? ecToUs(farm.maxEcDsM) : undefined,
       responsibleTechnician: farm.responsibleTechnician ?? "",
       contactName: farm.contactName ?? "",
       contactPhone: farm.contactPhone ?? "",
@@ -219,6 +219,8 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
       Object.entries(values).map(([k, v]) => {
         if (typeof v === "string") return [k, v.trim()];
         if ((numericKeys as readonly string[]).includes(k) && v == null) return [k, null];
+        // La CE se edita en µS/cm pero la API la espera en dS/m.
+        if (k === "maxEcDsM" && typeof v === "number") return [k, ecToDs(v)];
         return [k, v];
       }),
     );
@@ -316,7 +318,7 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
             <div className="grid grid-cols-3 gap-4">
               {textField("variety", "Variedad", "Pequeña enana...")}
               {textField("phenologicalStage", "Fase fenológica", "pre-parición...")}
-              {numberField("maxEcDsM", "CE máx. (dS/m)")}
+              {numberField("maxEcDsM", "CE máx. (µS/cm)", "50")}
             </div>
             {textField("soilType", "Tipo de suelo")}
             <div className="border-t pt-4 space-y-3">

@@ -159,7 +159,10 @@ export default function FarmFormScreen() {
         soilType: farm.soilType ?? '',
         weeklyLitresPerPlant:
           farm.weeklyLitresPerPlant != null ? String(farm.weeklyLitresPerPlant) : '',
-        maxEcDsM: farm.maxEcDsM != null ? String(farm.maxEcDsM) : '',
+        maxEcDsM:
+          farm.maxEcDsM != null
+            ? String(Math.round(farm.maxEcDsM > 10 ? farm.maxEcDsM : farm.maxEcDsM * 1000))
+            : '',
         responsibleTechnician: farm.responsibleTechnician ?? '',
         contactName: farm.contactName ?? '',
         contactPhone: farm.contactPhone ?? '',
@@ -191,7 +194,11 @@ export default function FarmFormScreen() {
     phenologicalStage: form.phenologicalStage.trim() || undefined,
     soilType: form.soilType.trim() || undefined,
     weeklyLitresPerPlant: parseNum(form.weeklyLitresPerPlant),
-    maxEcDsM: parseNum(form.maxEcDsM),
+    // La CE se teclea en µS/cm; la API trabaja en dS/m (valores ≤10 se asumen ya en dS/m).
+    maxEcDsM: (() => {
+      const v = parseNum(form.maxEcDsM);
+      return v != null && v > 10 ? v / 1000 : v;
+    })(),
     responsibleTechnician: form.responsibleTechnician.trim() || undefined,
     contactName: form.contactName.trim() || undefined,
     contactPhone: form.contactPhone.trim() || undefined,
@@ -347,11 +354,11 @@ export default function FarmFormScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Field
-                label="CE máx (dS/m)"
+                label="CE máx (µS/cm)"
                 value={form.maxEcDsM}
                 onChange={set('maxEcDsM')}
                 keyboardType="decimal-pad"
-                placeholder="1.8"
+                placeholder="1800"
               />
             </View>
           </View>

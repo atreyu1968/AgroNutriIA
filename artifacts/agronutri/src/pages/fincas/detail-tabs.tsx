@@ -38,7 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { formatDateTime, formatDate, formatNumber } from "@/lib/utils";
+import { ecToUs, formatDateTime, formatDate, formatNumber } from "@/lib/utils";
 
 // --- Sectors Tab ---
 import { Trash2, Plus, Pencil, FileText, Droplets, TestTube, Sprout, Users, Settings, Download, Upload, Loader2, Bot, TrendingUp, AlertTriangle } from "lucide-react";
@@ -1072,7 +1072,7 @@ export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: numb
                   <div className="text-sm text-muted-foreground flex gap-4">
                     <span>{formatDate(r.createdAt)}</span>
                     <span>{r.items?.length || 0} fertilizantes</span>
-                    {r.estimatedEcDsM && <span className={exceedsCe ? 'text-destructive font-medium' : ''}>CE: {r.estimatedEcDsM} dS/m</span>}
+                    {r.estimatedEcDsM && <span className={exceedsCe ? 'text-destructive font-medium' : ''}>CE: {formatNumber(ecToUs(r.estimatedEcDsM))} µS/cm</span>}
                     {r.updatedByName && <span>Ajustado por {r.updatedByName}</span>}
                   </div>
                 </div>
@@ -1162,7 +1162,7 @@ export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: numb
                 </div>
                 <div className="text-sm text-muted-foreground flex flex-wrap gap-4">
                   {selectedRec.estimatedEcDsM != null && (
-                    <span className={detailExceedsCe ? 'text-destructive font-semibold' : ''}>CE estimada: {selectedRec.estimatedEcDsM} dS/m</span>
+                    <span className={detailExceedsCe ? 'text-destructive font-semibold' : ''}>CE estimada: {formatNumber(ecToUs(selectedRec.estimatedEcDsM))} µS/cm</span>
                   )}
                   {selectedRec.updatedByName && <span>Ajustado por {selectedRec.updatedByName}</span>}
                 </div>
