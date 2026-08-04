@@ -1,0 +1,73 @@
+API respondiendo correctamente en el puerto 3001 (solo accesible desde el servidor).
+
+============================================================
+ Instalación completada.
+
+ Web:            http://tudominio.com/            (o la IP del servidor)
+ API (interna):  http://127.0.0.1:3001/api
+ Código:         /opt/agronutri
+ Entorno API:    /etc/agronutri/api.env
+ Servicio:       systemctl status agronutri-api
+ Logs API:       journalctl -u agronutri-api -f
+
+ Entra con la cuenta de administrador que acabas de definir:
+   fjgr1968@gmail.com
+
+ La clave de OpenAI se configura después dentro de la app (Ajustes).
+ Si configuraste Resend, la recuperación de contraseña por email ya funciona.
+
+ Túnel de Cloudflare: ACTIVO.
+   - En el panel Zero Trust de Cloudflare (Networks > Tunnels), en el túnel que
+     creaste, añade un "Public hostname":
+        Hostname: agronutri.agrosabina.cloud
+        Service:  http://localhost:80
+   - La app quedará accesible en: https://agronutri.agrosabina.cloud
+   - Estado del túnel:  systemctl status cloudflared
+   - Logs del túnel:    journalctl -u cloudflared -f
+============================================================
+root@agrinutri:~# # 1. ¿El túnel está conectado?
+systemctl status cloudflared --no-pager | head -15
+journalctl -u cloudflared -n 20 --no-pager
+
+# 2. ¿nginx responde en local con el hostname del túnel?
+curl -s -o /dev/null -w "%{http_code}\n" -H "Host: agronutri.agrosabina.cloud" http://localhost:80/
+
+# 3. ¿La API responde?
+curl -s http://127.0.0.1:3001/api/health || curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3001/api
+* cloudflared.service - Cloudflare Tunnel (AgroNutri AI)
+     Loaded: loaded (/etc/systemd/system/cloudflared.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-08-04 09:28:26 UTC; 2min 12s ago
+ Invocation: 0d50d2304569491dbdb3244ad3ade233
+   Main PID: 10541 (cloudflared)
+      Tasks: 8 (limit: 16695)
+     Memory: 16M (peak: 18.5M)
+        CPU: 839ms
+     CGroup: /system.slice/cloudflared.service
+             `-10541 /usr/local/bin/cloudflared --no-autoupdate tunnel run
+
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF +-------------------------------------------------------------------------------------+
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region1.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region2.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF +-------------------------------------------------------------------------------------+
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |                                                                                     |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF +-------------------------------------------------------------------------------------+
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region1.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region2.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region1.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region2.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region1.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=region2.v2.argotunnel.com
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck component="Cloudflare API" details="API is reachable" run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 status=pass target=api.cloudflare.com:443
+Aug 04 09:28:32 agrinutri cloudflared[10541]: 2026-08-04T09:28:32Z INF precheck complete hard_fail=false run_id=6ea3908a-2d22-43d4-a828-e8953b9a1e11 suggested_protocol=quic
+200
+{"error":"No autenticado"}root@agrinutri:~# 
