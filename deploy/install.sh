@@ -84,7 +84,8 @@ fi
 #   CLOUDFLARE_TUNNEL_TOKEN, TUNNEL_HOSTNAME
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]]; then
   # Se lee sin eco: el token es una credencial y no debe quedar en pantalla.
-  read -rsp "Token del túnel de Cloudflare (opcional, Enter para omitir): " CLOUDFLARE_TUNNEL_TOKEN || true
+  echo "Token del túnel de Cloudflare (opcional). AVISO: se escribe a ciegas, no se muestra nada al teclear ni al pegar; pega el token y pulsa Enter (o pulsa Enter sin más para omitir)."
+  read -rsp "Token: " CLOUDFLARE_TUNNEL_TOKEN || true
   echo
 fi
 TUNNEL_HOSTNAME="${TUNNEL_HOSTNAME:-}"
@@ -120,7 +121,9 @@ node -v
 
 log "Instalando pnpm (corepack)"
 corepack enable
-corepack prepare pnpm@latest --activate
+# Se fija la versión de pnpm probada con el proyecto: versiones más nuevas
+# pueden ignorar los scripts de compilación permitidos (esbuild, @swc/core).
+corepack prepare pnpm@10.26.1 --activate
 pnpm -v
 
 # ----------------------------------------------------------------------------
@@ -165,6 +168,9 @@ cd "$APP_DIR"
 # ----------------------------------------------------------------------------
 log "Instalando dependencias del proyecto"
 pnpm install --frozen-lockfile || pnpm install
+# Salvaguarda: si pnpm hubiese ignorado los scripts de compilación de las
+# dependencias nativas (ERR_PNPM_IGNORED_BUILDS), se compilan explícitamente.
+pnpm rebuild esbuild @swc/core >/dev/null 2>&1 || true
 
 # ----------------------------------------------------------------------------
 log "Generando secretos y fichero de entorno"
