@@ -305,7 +305,12 @@ BASE_PATH=/ PORT=3000 \
   pnpm --filter @workspace/agronutri run build
 
 log "Compilando la aplicación móvil (versión web, servida en /movil)"
-BASE_PATH=/movil pnpm --filter @workspace/agronutri-movil exec expo export --platform web
+# No fatal: la web principal y la API son lo crítico; si el export del móvil
+# falla, la instalación continúa y se puede reintentar con deploy/update.sh.
+if ! BASE_PATH=/movil pnpm --filter @workspace/agronutri-movil exec expo export --platform web; then
+  echo "AVISO: la compilación de la app móvil (/movil) ha fallado. La instalación" >&2
+  echo "       continuará; ejecute deploy/update.sh después para reintentarlo." >&2
+fi
 
 # ----------------------------------------------------------------------------
 log "Creando usuario de sistema y servicio systemd para la API"

@@ -136,7 +136,13 @@ BASE_PATH=/ PORT=3000 \
   pnpm --filter @workspace/agronutri run build
 
 log "Compilando la aplicación móvil (versión web, servida en /movil)"
-BASE_PATH=/movil pnpm --filter @workspace/agronutri-movil exec expo export --platform web
+# No fatal: la web principal y la API son lo crítico; si el export del móvil
+# falla (p. ej. memoria justa en el servidor), la actualización continúa y
+# queda un aviso claro para reintentarlo.
+if ! BASE_PATH=/movil pnpm --filter @workspace/agronutri-movil exec expo export --platform web; then
+  echo "AVISO: la compilación de la app móvil (/movil) ha fallado. El resto de la" >&2
+  echo "       actualización continuará; vuelva a ejecutar update.sh para reintentarlo." >&2
+fi
 
 # ----------------------------------------------------------------------------
 # Cabeceras de caché de la PWA en instalaciones ya desplegadas: si el sitio de
