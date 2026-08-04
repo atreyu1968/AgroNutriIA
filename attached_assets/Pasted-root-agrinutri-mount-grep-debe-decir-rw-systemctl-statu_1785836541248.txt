@@ -1,0 +1,38 @@
+root@agrinutri:~# mount | grep ' / '                     # debe decir "rw"
+systemctl status nginx agronutri-api cloudflared
+curl -s -H "Host: agronutri.agrosabina.cloud" http://localhost:80/ | head -3
+/dev/mapper/pve-vm--124--disk--0 on / type ext4 (rw,relatime,stripe=16)
+* nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-08-04 09:39:41 UTC; 57s ago
+ Invocation: 3f69547df0e346ba844df1c1941a21cd
+       Docs: man:nginx(8)
+    Process: 321 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 358 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 361 (nginx)
+      Tasks: 3 (limit: 16695)
+     Memory: 4.7M (peak: 5M)
+        CPU: 33ms
+     CGroup: /system.slice/nginx.service
+             |-361 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             |-362 "nginx: worker process"
+             `-363 "nginx: worker process"
+
+Aug 04 09:39:41 agrinutri systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server...
+Aug 04 09:39:41 agrinutri systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+
+* agronutri-api.service - AgroNutri AI API
+     Loaded: loaded (/etc/systemd/system/agronutri-api.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-08-04 09:39:49 UTC; 49s ago
+ Invocation: 205d924d0d16459faf47b42b1388b7e7
+   Main PID: 490 (MainThread)
+      Tasks: 13 (limit: 16695)
+     Memory: 253.8M (peak: 255.8M)
+        CPU: 1.454s
+     CGroup: /system.slice/agronutri-api.service
+             `-490 /usr/bin/node --enable-source-maps ./dist/index.mjs
+
+Aug 04 09:39:49 agrinutri systemd[1]: Started agronutri-api.service - AgroNutri AI API.
+Aug 04 09:39:52 agrinutri node[490]: {"level":30,"time":1785836392413,"pid":490,"hostname":"agrinutri","port":3001,"msg":"Server listening"}
+Aug 04 09:39:52 agrinutri node[490]: {"level":30,"time":1785836392416,"pid":490,"hostname":"agrinutri","msg":"Reporte de uso a la central desactivado (CENTRAL_URL / INSTA>
+lines 1-33
