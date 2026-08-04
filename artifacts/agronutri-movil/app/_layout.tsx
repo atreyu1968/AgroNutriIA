@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -17,6 +18,11 @@ import {
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { setupPwa } from '@/lib/pwa';
+
+// Registra manifiesto y service worker para que la versión web sea una PWA
+// instalable (icono propio, pantalla completa, caché offline).
+if (Platform.OS === 'web') setupPwa();
 
 // Expo bundles run outside the web proxy: use absolute URLs + bearer token.
 // En un servidor propio (versión web servida en /movil) no hay EXPO_PUBLIC_DOMAIN:

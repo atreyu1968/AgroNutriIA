@@ -46,8 +46,8 @@ export default function LoginScreen() {
 
   const canSubmit = email.trim().length > 3 && password.length > 0;
 
-  const topInset = Platform.OS === 'web' ? 67 + 24 : insets.top + 24;
-  const bottomInset = Platform.OS === 'web' ? 34 : insets.bottom;
+  const topInset = insets.top + 24;
+  const bottomInset = insets.bottom;
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>

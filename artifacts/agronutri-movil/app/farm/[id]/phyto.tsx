@@ -964,8 +964,8 @@ export default function PhytoScreen() {
   const farm = farmQuery.data;
   const canEdit = farm?.myRole === 'owner' || farm?.myRole === 'technician';
 
-  const topInset = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomInset = Platform.OS === 'web' ? 34 : insets.bottom;
+  const topInset = insets.top;
+  const bottomInset = insets.bottom;
 
   const segments: { key: Segment; label: string }[] = [
     { key: 'asesor', label: 'Asesor' },
@@ -985,7 +985,7 @@ export default function PhytoScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
           ]}
         >
           <Feather name="arrow-left" size={18} color={c.foreground} />
@@ -1000,7 +1000,7 @@ export default function PhytoScreen() {
         </View>
       </View>
 
-      <View style={[styles.segments, { backgroundColor: c.secondary }]}>
+      <View style={[styles.segments, { backgroundColor: c.muted }]}>
         {segments.map((s) => (
           <Pressable
             key={s.key}

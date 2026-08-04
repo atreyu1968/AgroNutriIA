@@ -42,9 +42,9 @@ export function Badge({
   const c = useColors();
   const bg =
     tone === 'primary'
-      ? '#e3efe7'
+      ? c.primaryTint
       : tone === 'accent'
-        ? '#f2e6dc'
+        ? c.accentTint
         : tone === 'destructive'
           ? '#f7e1de'
           : tone === 'warning'
@@ -54,7 +54,7 @@ export function Badge({
     tone === 'primary'
       ? c.primary
       : tone === 'accent'
-        ? c.accent
+        ? c.accentForeground
         : tone === 'destructive'
           ? c.destructive
           : tone === 'warning'

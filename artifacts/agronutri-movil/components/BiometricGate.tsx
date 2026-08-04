@@ -7,11 +7,17 @@ import { PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useBiometricPref } from '@/context/BiometricPrefContext';
 import { useColors } from '@/hooks/useColors';
+import {
+  hasWebBiometricEnrollment,
+  isWebBiometricAvailable,
+  verifyWebBiometric,
+} from '@/lib/webBiometric';
 
 /**
- * Locks the app behind biometrics (Face ID / huella) when there is an active
- * session on a device with biometrics configured. Falls back to the device
- * passcode if biometrics fail. Web is never locked (not supported there).
+ * Locks the app behind biometrics (Face ID / huella / Windows Hello) when there
+ * is an active session on a device with biometrics configured. Falls back to
+ * the device passcode if biometrics fail. En web usa WebAuthn con el
+ * autenticador de plataforma del dispositivo.
  */
 export function BiometricGate({ children }: { children: React.ReactNode }) {
   const c = useColors();
@@ -20,12 +26,10 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
   const { biometricLockEnabled } = useBiometricPref();
 
   // null = still checking device capabilities
-  const [supported, setSupported] = useState<boolean | null>(Platform.OS === 'web' ? false : null);
+  const [supported, setSupported] = useState<boolean | null>(null);
   const [locked, setLocked] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [appActive, setAppActive] = useState(
-    Platform.OS === 'web' ? true : AppState.currentState === 'active',
-  );
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
   const authInProgress = useRef(false);
   const prevLockEnabled = useRef<boolean | null>(null);
 
@@ -38,31 +42,49 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
     prevLockEnabled.current = biometricLockEnabled;
   }, [biometricLockEnabled]);
 
+  // Re-check capabilities/enrollment whenever the preference changes, so that
+  // on web the lock engages right after enrollWebBiometric() without a reload.
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    let cancelled = false;
     (async () => {
       try {
+        if (Platform.OS === 'web') {
+          const [available, enrolled] = await Promise.all([
+            isWebBiometricAvailable(),
+            Promise.resolve(hasWebBiometricEnrollment()),
+          ]);
+          if (!cancelled) setSupported(available && enrolled);
+          return;
+        }
         const [hasHardware, enrolled] = await Promise.all([
           LocalAuthentication.hasHardwareAsync(),
           LocalAuthentication.isEnrolledAsync(),
         ]);
-        setSupported(hasHardware && enrolled);
+        if (!cancelled) setSupported(hasHardware && enrolled);
       } catch {
-        setSupported(false);
+        if (!cancelled) setSupported(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [biometricLockEnabled]);
 
   const authenticate = useCallback(async () => {
     if (authInProgress.current) return;
     authInProgress.current = true;
     setAuthError(null);
     try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Desbloquea AgroNutri',
-        cancelLabel: 'Cancelar',
-      });
-      if (result.success) {
+      const success =
+        Platform.OS === 'web'
+          ? await verifyWebBiometric()
+          : (
+              await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Desbloquea AgroNutri',
+                cancelLabel: 'Cancelar',
+              })
+            ).success;
+      if (success) {
         setLocked(false);
       } else {
         setAuthError('No se pudo verificar tu identidad. Inténtalo de nuevo.');
@@ -83,9 +105,9 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
   }, [needsLock, isLoading, appActive, authenticate]);
 
   // Re-lock immediately whenever the app is sent to the background, so
-  // reopening always requires biometrics (no grace window).
+  // reopening always requires biometrics (no grace window). En web AppState
+  // refleja la visibilidad de la pestaña.
   useEffect(() => {
-    if (Platform.OS === 'web') return;
     const sub = AppState.addEventListener('change', (state) => {
       setAppActive(state === 'active');
       if (state === 'background') setLocked(true);
@@ -118,7 +140,7 @@ export function BiometricGate({ children }: { children: React.ReactNode }) {
       />
       <Text style={[styles.title, { color: c.foreground }]}>Aplicación bloqueada</Text>
       <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
-        Usa tu huella o Face ID para continuar.
+        Usa tu huella, Face ID o el desbloqueo del dispositivo para continuar.
       </Text>
       {authError ? (
         <Text style={[styles.error, { color: c.destructive }]}>{authError}</Text>

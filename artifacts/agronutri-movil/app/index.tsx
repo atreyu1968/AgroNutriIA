@@ -27,6 +27,12 @@ import { Badge, Card, EmptyState, ErrorView, LoadingView } from '@/components/ui
 import { useAuth } from '@/context/AuthContext';
 import { useBiometricPref } from '@/context/BiometricPrefContext';
 import { useColors } from '@/hooks/useColors';
+import { InstallAppCard } from '@/components/InstallAppCard';
+import {
+  clearWebBiometric,
+  enrollWebBiometric,
+  isWebBiometricAvailable,
+} from '@/lib/webBiometric';
 
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Propietario',
@@ -45,6 +51,7 @@ export default function FarmsScreen() {
 
   const handleBiometricToggle = async (enabled: boolean) => {
     if (!enabled) {
+      if (Platform.OS === 'web') clearWebBiometric();
       setBiometricLockEnabled(false);
       return;
     }
@@ -53,11 +60,17 @@ export default function FarmsScreen() {
     try {
       // Confirm the user's identity right away so we know biometrics work on
       // this device. If it fails or is cancelled, the switch stays off.
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Confirma tu identidad para activar el bloqueo',
-        cancelLabel: 'Cancelar',
-      });
-      setBiometricLockEnabled(result.success);
+      // En web se registra una credencial WebAuthn (huella/Face ID/Windows Hello).
+      const success =
+        Platform.OS === 'web'
+          ? await enrollWebBiometric()
+          : (
+              await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Confirma tu identidad para activar el bloqueo',
+                cancelLabel: 'Cancelar',
+              })
+            ).success;
+      setBiometricLockEnabled(success);
     } catch {
       setBiometricLockEnabled(false);
     } finally {
@@ -66,15 +79,17 @@ export default function FarmsScreen() {
   };
 
   // null = still checking whether the device has biometrics configured
-  const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(
-    Platform.OS === 'web' ? false : null,
-  );
+  const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
     let cancelled = false;
     (async () => {
       try {
+        if (Platform.OS === 'web') {
+          const available = await isWebBiometricAvailable();
+          if (!cancelled) setBiometricAvailable(available);
+          return;
+        }
         const [hasHardware, enrolled] = await Promise.all([
           LocalAuthentication.hasHardwareAsync(),
           LocalAuthentication.isEnrolledAsync(),
@@ -89,6 +104,7 @@ export default function FarmsScreen() {
     };
   }, []);
 
+
   const farmsQuery = useListFarms({
     query: { queryKey: getListFarmsQueryKey(), enabled: !!token },
   });
@@ -101,8 +117,8 @@ export default function FarmsScreen() {
   if (isLoading) return <LoadingView />;
   if (!token) return <Redirect href="/login" />;
 
-  const topInset = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomInset = Platform.OS === 'web' ? 34 : insets.bottom;
+  const topInset = insets.top;
+  const bottomInset = insets.bottom;
 
   const handleLogout = () => {
     logout.mutate(undefined, { onSettled: () => signOut() });
@@ -142,7 +158,7 @@ export default function FarmsScreen() {
           onPress={handleLogout}
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
           ]}
         >
           <Feather name="log-out" size={18} color={c.foreground} />
@@ -190,9 +206,10 @@ export default function FarmsScreen() {
             />
           }
           ListFooterComponent={
-            Platform.OS !== 'web' ? (
+            <View style={{ gap: 12 }}>
+              <InstallAppCard />
               <Card style={styles.settingsCard}>
-                <View style={[styles.farmIcon, { backgroundColor: '#e3efe7' }]}>
+                <View style={[styles.farmIcon, { backgroundColor: c.primaryTint }]}>
                   <Feather name="lock" size={18} color={c.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -204,8 +221,8 @@ export default function FarmsScreen() {
                     style={[styles.settingSubtitle, { color: c.mutedForeground }]}
                   >
                     {biometricAvailable === false
-                      ? 'Configura la biometría en los ajustes del dispositivo para usar el bloqueo'
-                      : 'Pide huella o Face ID al abrir la app'}
+                      ? 'Este dispositivo no tiene biometría configurada'
+                      : 'Pide huella, Face ID o el desbloqueo del dispositivo al abrir la app'}
                   </Text>
                 </View>
                 <Switch
@@ -216,7 +233,7 @@ export default function FarmsScreen() {
                   trackColor={{ true: c.primary }}
                 />
               </Card>
-            ) : null
+            </View>
           }
           ListEmptyComponent={
             <EmptyState
@@ -234,7 +251,7 @@ export default function FarmsScreen() {
             >
               <Card style={styles.farmCard}>
                 <View style={styles.farmHeader}>
-                  <View style={[styles.farmIcon, { backgroundColor: '#e3efe7' }]}>
+                  <View style={[styles.farmIcon, { backgroundColor: c.primaryTint }]}>
                     <Feather name="map-pin" size={18} color={c.primary} />
                   </View>
                   <View style={{ flex: 1 }}>

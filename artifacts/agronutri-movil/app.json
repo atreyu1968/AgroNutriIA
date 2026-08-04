@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#f7f3ee"
     },
     "ios": {
       "supportsTablet": false
@@ -23,7 +23,13 @@
       }
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/icon.png",
+      "name": "AgroNutri Móvil",
+      "shortName": "AgroNutri",
+      "themeColor": "#122c3f",
+      "backgroundColor": "#f7f3ee",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "plugins": [
       [

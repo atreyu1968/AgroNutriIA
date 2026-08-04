@@ -521,6 +521,16 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
   console.log('Manifests updated');
 }
 
+// Copia public/ (manifest PWA, service worker, iconos) a static-build/ para
+// que la versión web siga siendo instalable también en el despliegue de Replit.
+function copyPublicAssets() {
+  const publicDir = path.join(projectRoot, 'public');
+  const target = path.join(projectRoot, 'static-build');
+  if (!fs.existsSync(publicDir)) return;
+  fs.cpSync(publicDir, target, { recursive: true });
+  console.log('Copied public/ assets (PWA manifest, service worker, icons)');
+}
+
 async function main() {
   console.log('Building static Expo Go deployment...');
 
@@ -571,6 +581,8 @@ async function main() {
 
   console.log('Updating manifests and creating landing page...');
   updateManifests(manifests, timestamp, baseUrl, assetsByHash);
+
+  copyPublicAssets();
 
   console.log('Build complete! Deploy to:', baseUrl);
 

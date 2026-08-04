@@ -349,7 +349,7 @@ function WaterMixCard({
               onPress={handleAddSource}
               style={({ pressed }) => [
                 styles.addBtn,
-                { backgroundColor: c.secondary, opacity: !newSourceName.trim() || saveMutation.isPending ? 0.5 : pressed ? 0.7 : 1 },
+                { backgroundColor: c.muted, opacity: !newSourceName.trim() || saveMutation.isPending ? 0.5 : pressed ? 0.7 : 1 },
               ]}
             >
               <Feather name="plus" size={16} color={c.foreground} />
@@ -483,8 +483,8 @@ export default function FarmDetailScreen() {
   const queryClient = useQueryClient();
   const deleteFarm = useDeleteFarm();
 
-  const topInset = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomInset = Platform.OS === 'web' ? 34 : insets.bottom;
+  const topInset = insets.top;
+  const bottomInset = insets.bottom;
 
   const summary = summaryQuery.data;
   const farm = summary?.farm;
@@ -536,7 +536,7 @@ export default function FarmDetailScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
           ]}
         >
           <Feather name="arrow-left" size={18} color={c.foreground} />
@@ -556,7 +556,7 @@ export default function FarmDetailScreen() {
             onPress={() => router.push(`/farm/form?id=${farmId}`)}
             style={({ pressed }) => [
               styles.iconButton,
-              { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+              { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
             ]}
           >
             <Feather name="edit-2" size={17} color={c.foreground} />
@@ -571,7 +571,7 @@ export default function FarmDetailScreen() {
             style={({ pressed }) => [
               styles.iconButton,
               {
-                backgroundColor: c.secondary,
+                backgroundColor: c.muted,
                 opacity: deleteFarm.isPending ? 0.5 : pressed ? 0.7 : 1,
               },
             ]}
@@ -585,7 +585,7 @@ export default function FarmDetailScreen() {
           onPress={() => router.push(`/farm/${farmId}/phyto`)}
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
           ]}
         >
           <Feather name="shield" size={17} color={c.foreground} />
@@ -603,7 +603,7 @@ export default function FarmDetailScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.segments, { backgroundColor: c.secondary }]}>
+      <View style={[styles.segments, { backgroundColor: c.muted }]}>
         {segments.map((s) => (
           <Pressable
             key={s.key}

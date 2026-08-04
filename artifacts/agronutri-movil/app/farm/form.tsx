@@ -237,8 +237,8 @@ export default function FarmFormScreen() {
     }
   };
 
-  const topInset = Platform.OS === 'web' ? 67 : insets.top;
-  const bottomInset = Platform.OS === 'web' ? 34 : insets.bottom;
+  const topInset = insets.top;
+  const bottomInset = insets.bottom;
 
   if (isEdit && farmQuery.isLoading) return <LoadingView label="Cargando finca…" />;
   if (isEdit && farmQuery.isError)
@@ -256,7 +256,7 @@ export default function FarmFormScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: c.secondary, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
           ]}
         >
           <Feather name="arrow-left" size={18} color={c.foreground} />
