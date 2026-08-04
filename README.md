@@ -155,11 +155,12 @@ journalctl -u agronutri-api -f
 # Reiniciar la API
 sudo systemctl restart agronutri-api
 
-# Actualizar a la última versión publicada en GitHub
-sudo bash /opt/agronutri/deploy/install.sh https://github.com/atreyu1968/AgroNutriIA.git midominio.com
+# Actualizar a la última versión publicada en GitHub (no pide nada:
+# reutiliza toda la configuración existente)
+sudo bash /opt/agronutri/deploy/update.sh
 ```
 
-El instalador es **re-ejecutable**: si ya hay una instalación, actualiza el código, vuelve a compilar y reinicia los servicios conservando las credenciales y las sesiones. Antes de aplicar cambios de esquema hace una copia de seguridad automática de la base de datos en `/var/backups/agronutri` (si aun así quieres restaurar: `pg_restore -d agronutri fichero.dump`). Ten en cuenta que la actualización sincroniza el esquema automáticamente; si una versión nueva elimina columnas o tablas, esos datos concretos se pierden — de ahí la copia previa.
+Para actualizar usa siempre `deploy/update.sh`: descarga la última versión, aplica los cambios de base de datos, recompila y reinicia los servicios **sin pedir nada** (conserva la cuenta de administrador, las sesiones, el túnel de Cloudflare y el resto de la configuración). El instalador `install.sh` también es re-ejecutable, pero está pensado para la primera instalación o para cambiar la configuración (dominio, túnel, credenciales). Antes de aplicar cambios de esquema hace una copia de seguridad automática de la base de datos en `/var/backups/agronutri` (si aun así quieres restaurar: `pg_restore -d agronutri fichero.dump`). Ten en cuenta que la actualización sincroniza el esquema automáticamente; si una versión nueva elimina columnas o tablas, esos datos concretos se pierden — de ahí la copia previa.
 
 
 ### Recuperación de contraseña por email
