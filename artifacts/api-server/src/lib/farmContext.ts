@@ -72,9 +72,11 @@ export type BlendedWater = {
  *   falls back to the latest water analysis of the farm.
  * - With sources: weighted average (by share) of each source's latest water
  *   analysis. Parameters are matched by name (case-insensitive); a parameter
- *   whose unit differs between sources is skipped with a note. Missing
- *   parameters in a source are treated as not contributing (weighted over the
- *   sources that do have the parameter).
+ *   whose unit differs between sources is skipped with a note. A parameter
+ *   missing in any source makes its blended value unknown, so it is omitted
+ *   from the blend with a note (never renormalized over a subset of sources).
+ *   A source with share > 0 but no analysis makes the blend incomplete: the
+ *   remaining sources are blended and an explicit warning is added.
  * - `overrides` (e.g. from the calculator) replaces the stored shares.
  */
 export async function blendedWaterAnalysis(
@@ -118,7 +120,10 @@ export async function blendedWaterAnalysis(
       .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
       .limit(1);
     if (a) withAnalysis.push({ source: s, share: shareOf(s), analysis: a });
-    else notes.push(`La fuente «${s.name}» no tiene analítica de agua: se reparte su ${round1(shareOf(s))} % entre las demás.`);
+    else
+      notes.push(
+        `La fuente «${s.name}» (${round1(shareOf(s))} % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.`,
+      );
   }
 
   if (withAnalysis.length === 0) {
@@ -163,10 +168,21 @@ export async function blendedWaterAnalysis(
     }
   }
   const parameters = [...acc.values()]
-    .filter((a) => !a.skip)
+    .filter((a) => {
+      if (a.skip) return false;
+      // A parameter absent in some source has an unknown blended value:
+      // omit it instead of renormalizing over the sources that reported it.
+      if (Math.abs(a.weight - 1) > 1e-6) {
+        notes.push(
+          `El parámetro «${a.name}» no está en todas las fuentes: se omite de la mezcla por valor desconocido.`,
+        );
+        return false;
+      }
+      return true;
+    })
     .map((a) => ({
       name: a.name,
-      value: Math.round((a.weighted / a.weight) * 1000) / 1000,
+      value: Math.round(a.weighted * 1000) / 1000,
       unit: a.unit,
     }));
 

@@ -370,7 +370,15 @@ router.post(
         .limit(20),
     ]);
     const water = blendedWater.analysis;
-    let contextBlock = buildFarmContext({ farm: access.farm, sectors, soil, leaf, water, active });
+    let contextBlock = buildFarmContext({
+      farm: access.farm,
+      sectors,
+      soil,
+      leaf,
+      water,
+      waterNotes: blendedWater.notes,
+      active,
+    });
     if (parsed.data.draftContext) {
       contextBlock += `\n\nPLAN DE ABONADO EN EDICIÓN (borrador del usuario en la calculadora):\n${parsed.data.draftContext.slice(0, 4000)}`;
     }
@@ -925,7 +933,8 @@ ${catalog}`,
       reason: i.reason ?? null,
     }));
 
-    const water = (await blendedWaterAnalysis(farmId)).analysis;
+    const blended = await blendedWaterAnalysis(farmId);
+    const water = blended.analysis;
     const out = runEngine({ farm: access.farm, waterAnalysis: water, fertilizers, items });
 
     const [rec] = await db
@@ -941,7 +950,7 @@ ${catalog}`,
         createdBy: req.user!.id,
         estimatedEcDsM: out.estimatedEcDsM,
         estimatedWeeklyNKg: out.nutrients.n ?? null,
-        warnings: [...out.warnings, ...out.compatibilityIssues],
+        warnings: [...blended.notes, ...out.warnings, ...out.compatibilityIssues],
       })
       .returning();
     await audit({

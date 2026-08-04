@@ -11,6 +11,7 @@ import {
   waterSourcesTable,
 } from "@workspace/db";
 import { blendedWaterAnalysis } from "./farmContext";
+import { buildFarmContext } from "./contextBlock";
 
 let userId: number;
 let farmId: number;
@@ -67,9 +68,9 @@ test("mezcla ponderada 60/40 con unidades coherentes; unidades dispares se omite
   assert.ok(analysis);
   const ce = analysis!.parameters.find((p) => p.name.toLowerCase() === "conductividad");
   assert.equal(ce?.value, 1.4); // 2*0.6 + 0.5*0.4
-  // Sodio solo está en el pozo: ponderado solo sobre esa fuente => 50
-  const na = analysis!.parameters.find((p) => p.name === "Sodio");
-  assert.equal(na?.value, 50);
+  // Sodio solo está en el pozo: valor de la mezcla desconocido => se omite con nota
+  assert.equal(analysis!.parameters.find((p) => p.name === "Sodio"), undefined);
+  assert.ok(notes.some((n) => n.includes("Sodio")));
   // Nitratos con unidades distintas => omitido con nota
   assert.equal(analysis!.parameters.find((p) => p.name === "Nitratos"), undefined);
   assert.ok(notes.some((n) => n.includes("Nitratos")));
@@ -85,6 +86,42 @@ test("overrides del reparto cambian la mezcla", async () => {
   });
   const ce = analysis!.parameters.find((p) => p.name.toLowerCase() === "conductividad");
   assert.equal(ce?.value, 0.5);
+});
+
+test("una fuente activa sin analítica marca la mezcla como incompleta", async () => {
+  const [balsa] = await db
+    .insert(waterSourcesTable)
+    .values({ farmId, name: "Balsa", sharePct: 20 })
+    .returning();
+  try {
+    const { analysis, notes } = await blendedWaterAnalysis(farmId, {
+      overrides: [
+        { waterSourceId: pozoId, sharePct: 50 },
+        { waterSourceId: desalId, sharePct: 30 },
+        { waterSourceId: balsa.id, sharePct: 20 },
+      ],
+    });
+    assert.ok(analysis);
+    assert.ok(notes.some((n) => n.includes("Balsa") && n.includes("incompleta")));
+    // Las fuentes con analítica se ponderan sobre su reparto conocido (50/30 => 62.5/37.5)
+    const ce = analysis!.parameters.find((p) => p.name.toLowerCase() === "conductividad");
+    assert.equal(ce?.value, 1.438); // 2*0.625 + 0.5*0.375
+    // El aviso llega al contexto de la IA (conversaciones y borradores)
+    const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, farmId));
+    const ctx = buildFarmContext({
+      farm,
+      sectors: [],
+      soil: null,
+      leaf: null,
+      water: analysis,
+      waterNotes: notes,
+      active: null,
+    });
+    assert.ok(ctx.includes("AVISOS DE LA MEZCLA DE AGUA"));
+    assert.ok(ctx.includes("mezcla es incompleta"));
+  } finally {
+    await db.delete(waterSourcesTable).where(eq(waterSourcesTable.id, balsa.id));
+  }
 });
 
 test("sin fuentes activas cae a la analítica más reciente", async () => {

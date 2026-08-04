@@ -62,6 +62,8 @@ export type ReportData = {
   soil: Analysis | null;
   leaf: Analysis | null;
   water: Analysis | null;
+  /** Avisos de la mezcla de fuentes de agua (mezcla incompleta, parámetros omitidos...). */
+  waterNotes?: string[];
   recommendation: Recommendation | null;
   authorName: string;
   date: string;
@@ -131,13 +133,17 @@ function buildSections(d: ReportData): Section[] {
     ["Analítica de suelo", d.soil],
     ["Analítica foliar", d.leaf],
   ] as const) {
+    const isWater = label === "Analítica de agua de riego";
     sections.push({
       heading: `${n}. ${label}`,
-      paragraphs: a
-        ? [
-            `Referencia ${a.reference ?? "—"}, ${a.laboratory ?? "laboratorio no indicado"}, fecha de muestreo ${a.sampleDate}.${a.notes ? " " + a.notes : ""}`,
-          ]
-        : ["Sin analítica registrada."],
+      paragraphs: [
+        ...(a
+          ? [
+              `Referencia ${a.reference ?? "—"}, ${a.laboratory ?? "laboratorio no indicado"}, fecha de muestreo ${a.sampleDate}.${a.notes ? " " + a.notes : ""}`,
+            ]
+          : ["Sin analítica registrada."]),
+        ...(isWater && d.waterNotes?.length ? d.waterNotes.map((w) => `AVISO: ${w}`) : []),
+      ],
       table: a ? analysisTable(a) : undefined,
     });
     n++;

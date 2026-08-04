@@ -67,15 +67,15 @@ router.get("/farms/:farmId/reports", async (req, res): Promise<void> => {
 router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
   const access = await farmAccess(req.user!, farmId);
-  if (!access) {
-    res.status(404).json({ error: "Finca no encontrada" });
-    return;
-  }
-  if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos para generar informes" });
-    return;
-  }
-  const parsed = CreateReportBody.safeParse(req.body);
+    if (!access) {
+      res.status(404).json({ error: "Finca no encontrada" });
+      return;
+    }
+    if (!canEdit(access.role)) {
+      res.status(403).json({ error: "Sin permisos para generar informes" });
+      return;
+    }
+    const parsed = PreviewReportNotesBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -101,7 +101,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
       });
       return;
     }
-    const credential = await resolveCredential(access.farm, req.user!);
+        const credential = await resolveCredential(farm, user);
     if (!credential) {
       res.status(400).json({
         error:
@@ -180,17 +180,9 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
       ? `Informe de enmiendas del terreno (${SCENARIO_LABELS[scenario!]}) — ${access.farm.name}`
       : `Informe técnico de fertirrigación — ${access.farm.name}`);
   const [report] = await db
-    .insert(reportsTable)
-    .values({
-      farmId,
-      recommendationId: recommendation?.id ?? null,
-      title,
-      reportType,
-      format: parsed.data.format,
-      status: "generating",
-      createdBy: req.user!.id,
-    })
-    .returning();
+    .select()
+    .from(reportsTable)
+    .where(and(eq(reportsTable.id, reportId), eq(reportsTable.farmId, farmId)));
 
   // Respond immediately; generation continues in background.
   res
@@ -318,6 +310,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         soil,
         leaf,
         water: blendedWater.analysis,
+        waterNotes: blendedWater.notes,
         recommendation,
         amendment,
         authorName,
@@ -338,7 +331,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         parsed.data.format === "pdf"
           ? await generatePdf(data, filePath)
           : await generateDocx(data, filePath);
-      const warnings = [...coherenceWarnings, ...genWarnings];
+      const warnings = [...blendedWater.notes, ...coherenceWarnings, ...genWarnings];
       await db
         .update(reportsTable)
         .set({ status: "ready", filePath, warnings: warnings.length ? warnings : null })
@@ -367,8 +360,8 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
 router.post(
   "/farms/:farmId/reports/notes-preview",
   async (req, res): Promise<void> => {
-    const farmId = parseIntParam(req.params.farmId);
-    const access = await farmAccess(req.user!, farmId);
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
     if (!access) {
       res.status(404).json({ error: "Finca no encontrada" });
       return;
@@ -425,6 +418,10 @@ router.get("/farms/:farmId/reports/:reportId/download", async (req, res): Promis
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos" });
     return;
   }
   const [report] = await db

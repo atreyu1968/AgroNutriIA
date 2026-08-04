@@ -65,6 +65,8 @@ export function buildFarmContext(input: {
   soil: Analysis | null;
   leaf: Analysis | null;
   water: Analysis | null;
+  /** Avisos de la mezcla de fuentes de agua (mezcla incompleta, parámetros omitidos...). */
+  waterNotes?: string[];
   active: Recommendation | null;
 }): string {
   const f = input.farm;
@@ -95,6 +97,12 @@ export function buildFarmContext(input: {
   }
   lines.push("");
   lines.push(analysisBlock("ANALÍTICA DE AGUA", input.water));
+  if (input.waterNotes?.length) {
+    lines.push(
+      "AVISOS DE LA MEZCLA DE AGUA (tenlos en cuenta: la analítica de agua anterior puede ser incompleta u orientativa):",
+    );
+    for (const n of input.waterNotes) lines.push(`- ${n}`);
+  }
   for (const l of waterBudgetBlock(f, input.water)) lines.push(l);
   lines.push("");
   lines.push(analysisBlock("ANALÍTICA DE SUELO", input.soil));

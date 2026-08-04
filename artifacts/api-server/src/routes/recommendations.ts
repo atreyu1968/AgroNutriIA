@@ -104,11 +104,7 @@ router.post("/farms/:farmId/recommendations", async (req, res): Promise<void> =>
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos" });
-    return;
-  }
-  const parsed = CreateRecommendationBody.safeParse(req.body);
+  const parsed = RunCalculationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -121,20 +117,11 @@ router.post("/farms/:farmId/recommendations", async (req, res): Promise<void> =>
     return;
   }
   const est = await computeEstimates(farmId, access.farm, parsed.data.items);
-  const [rec] = await db
-    .insert(recommendationsTable)
-    .values({
-      farmId,
-      sectorId: parsed.data.sectorId,
-      title: parsed.data.title ?? "Programa semanal de fertirrigación",
-      items: parsed.data.items,
-      rationale: parsed.data.rationale,
-      status: "draft",
-      source: "manual",
-      createdBy: req.user!.id,
-      ...est,
-    })
-    .returning();
+    const [rec] = await db
+      .update(recommendationsTable)
+      .set(update)
+      .where(eq(recommendationsTable.id, recId))
+      .returning();
   await audit({
     userId: req.user!.id,
     farmId,
@@ -198,12 +185,12 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
   const useAcid = parsedBody.data.useAcid === true;
   const targetPh = useAcid && parsedBody.data.targetPh != null ? parsedBody.data.targetPh : null;
   const acidType = useAcid ? (parsedBody.data.acidType ?? null) : null;
-  let sector: typeof sectorsTable.$inferSelect | null = null;
-  if (requestedSectorId != null) {
+  let sector = null;
+  if (parsed.data.sectorId != null) {
     const [s] = await db
       .select()
       .from(sectorsTable)
-      .where(and(eq(sectorsTable.id, requestedSectorId), eq(sectorsTable.farmId, farmId)));
+      .where(and(eq(sectorsTable.id, parsed.data.sectorId), eq(sectorsTable.farmId, farmId)));
     if (!s) {
       res.status(404).json({ error: "El sector indicado no existe en esta finca" });
       return;
@@ -295,7 +282,15 @@ router.post("/farms/:farmId/recommendations/ai-draft", async (req, res): Promise
     }
     acidDataBlock = `\nDATOS DISPONIBLES PARA EL CÁLCULO DE ÁCIDO (usa estos, no pidas más):\n${lines.join("\n")}`;
   }
-  const contextBlock = buildFarmContext({ farm: access.farm, sectors, soil, leaf, water, active });
+  const contextBlock = buildFarmContext({
+    farm: access.farm,
+    sectors,
+    soil,
+    leaf,
+    water,
+    waterNotes: blendedWater.notes,
+    active,
+  });
   const catalog = fertilizers
     .filter((f) => f.isActive !== false && (f.usage ?? "fertirrigacion") === "fertirrigacion")
     .map((f) => `- ${f.name} (${f.formulaType ?? "?"})`)
@@ -471,118 +466,112 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     });
     return;
   }
-  const out = runEngine({ farm: access.farm, sector, waterAnalysis: water, fertilizers, items });
-
-  const [rec] = await db
-    .insert(recommendationsTable)
-    .values({
-      farmId,
-      sectorId: sector?.id ?? null,
-      title: extracted.title || "Programa propuesto por el técnico virtual",
-      items,
-      rationale: extracted.rationale || null,
-      status: "draft",
-      source: "ai",
-      createdBy: req.user!.id,
-      estimatedEcDsM: out.estimatedEcDsM,
-      estimatedWeeklyNKg: out.nutrients.n ?? null,
-      warnings: [
-        ...blendedWater.notes,
-        ...out.warnings,
-        ...out.compatibilityIssues,
-        ...(discarded.length
-          ? [`Se descartaron productos propuestos por la IA fuera del catálogo o con dosis no válidas: ${discarded.join(", ")}`]
-          : []),
-        ...(acidsAsNutrient.length
-          ? [
-              `Atención: ${acidsAsNutrient.join(", ")} se incluye únicamente como fuente de nutrientes (no se marcó la acidificación del agua). Verificar al validar que su uso no busca corregir el pH.`,
-            ]
-          : []),
-      ],
-    })
-    .returning();
-  await audit({
-    userId: req.user!.id,
-    farmId,
-    action: "recommendation_created",
-    entityType: "recommendation",
-    entityId: rec.id,
-    detail: `${rec.title} (borrador IA desde analíticas)`,
+  const out = runEngine({
+    farm: access.farm,
+    sector,
+    waterAnalysis: blended.analysis,
+    fertilizers,
+    items: parsed.data.items,
+    weeklyLitresPerPlant: parsed.data.weeklyLitresPerPlant,
+    plantCount: parsed.data.plantCount,
+    stageOverride: parsed.data.phenologicalStage ?? null,
+    maxEcOverride: parsed.data.maxEcDsM ?? null,
   });
-  res.status(201).json(GenerateAiDraftRecommendationResponse.parse(await fullSerialize(rec)));
-});
 
-router.get("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
+    const [rec] = await db
+      .update(recommendationsTable)
+      .set(update)
+      .where(eq(recommendationsTable.id, recId))
+      .returning();
+    await audit({
+      userId: req.user!.id,
+      farmId,
+      action: `recommendation_${parsed.data.action}`,
+      entityType: "recommendation",
+      entityId: recId,
+      detail: parsed.data.comment ?? null,
+    });
+    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
+  },
+);
+
+router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-  const recId = parseIntParam(req.params.recommendationId);
+    const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  const [rec] = await db
-    .select()
-    .from(recommendationsTable)
-    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
-  if (!rec) {
-    res.status(404).json({ error: "Recomendación no encontrada" });
-    return;
-  }
-  res.json(GetRecommendationResponse.parse(await fullSerialize(rec)));
-});
+    const [rec] = await db
+      .update(recommendationsTable)
+      .set(update)
+      .where(eq(recommendationsTable.id, recId))
+      .returning();
+    await audit({
+      userId: req.user!.id,
+      farmId,
+      action: `recommendation_${parsed.data.action}`,
+      entityType: "recommendation",
+      entityId: recId,
+      detail: parsed.data.comment ?? null,
+    });
+    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
+  },
+);
 
-router.patch("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
+router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-  const recId = parseIntParam(req.params.recommendationId);
+    const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  if (!canEdit(access.role)) {
-    res.status(403).json({ error: "Sin permisos" });
-    return;
-  }
-  const parsed = UpdateRecommendationBody.safeParse(req.body);
+  const parsed = RunCalculationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [existing] = await db
-    .select()
-    .from(recommendationsTable)
-    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
-  if (!existing) {
-    res.status(404).json({ error: "Recomendación no encontrada" });
-    return;
-  }
-  if (existing.status !== "draft" && existing.status !== "pending_review") {
-    res.status(409).json({ error: "Solo se pueden editar recomendaciones en borrador o pendientes de revisión" });
-    return;
-  }
-  const update: Record<string, unknown> = { ...parsed.data, updatedBy: req.user!.id };
-  if (parsed.data.items) {
-    Object.assign(update, await computeEstimates(farmId, access.farm, parsed.data.items));
-  }
-  const [rec] = await db
-    .update(recommendationsTable)
-    .set(update)
-    .where(eq(recommendationsTable.id, recId))
-    .returning();
-  await audit({
-    userId: req.user!.id,
-    farmId,
-    action: "recommendation_updated",
-    entityType: "recommendation",
-    entityId: rec.id,
-    detail: rec.title,
-  });
-  res.json(UpdateRecommendationResponse.parse(await fullSerialize(rec)));
-});
+    const [existing] = await db
+      .select()
+      .from(recommendationsTable)
+      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+    if (!existing) {
+      res.status(404).json({ error: "Recomendación no encontrada" });
+      return;
+    }
+    if (!t.from.includes(existing.status)) {
+      res.status(409).json({
+        error: `No se puede pasar de «${existing.status}» con la acción «${parsed.data.action}»`,
+      });
+      return;
+    }
+    const update: Record<string, unknown> = { status: t.to };
+    if (parsed.data.action === "approve" || parsed.data.action === "reject") {
+      update.validatedBy = req.user!.id;
+      update.reviewComment = parsed.data.comment ?? null;
+    }
+    const [rec] = await db
+      .update(recommendationsTable)
+      .set(update)
+      .where(eq(recommendationsTable.id, recId))
+      .returning();
+    await audit({
+      userId: req.user!.id,
+      farmId,
+      action: `recommendation_${parsed.data.action}`,
+      entityType: "recommendation",
+      entityId: recId,
+      detail: parsed.data.comment ?? null,
+    });
+    res.json(ChangeRecommendationStatusResponse.parse(await fullSerialize(rec)));
+  },
+);
 
-router.delete("/farms/:farmId/recommendations/:recommendationId", async (req, res): Promise<void> => {
+router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
-  const recId = parseIntParam(req.params.recommendationId);
+    const recId = parseIntParam(req.params.recommendationId);
   const access = await farmAccess(req.user!, farmId);
   if (!access) {
     res.status(404).json({ error: "Finca no encontrada" });
@@ -592,10 +581,10 @@ router.delete("/farms/:farmId/recommendations/:recommendationId", async (req, re
     res.status(403).json({ error: "Sin permisos" });
     return;
   }
-  const [existing] = await db
-    .select()
-    .from(recommendationsTable)
-    .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
+    const [existing] = await db
+      .select()
+      .from(recommendationsTable)
+      .where(and(eq(recommendationsTable.id, recId), eq(recommendationsTable.farmId, farmId)));
   if (!existing) {
     res.status(404).json({ error: "Recomendación no encontrada" });
     return;
@@ -639,14 +628,14 @@ const TRANSITIONS: Record<string, { from: string[]; to: string; requiresApprover
 router.post(
   "/farms/:farmId/recommendations/:recommendationId/status",
   async (req, res): Promise<void> => {
-    const farmId = parseIntParam(req.params.farmId);
+  const farmId = parseIntParam(req.params.farmId);
     const recId = parseIntParam(req.params.recommendationId);
-    const access = await farmAccess(req.user!, farmId);
-    if (!access) {
-      res.status(404).json({ error: "Finca no encontrada" });
-      return;
-    }
-    const parsed = ChangeRecommendationStatusBody.safeParse(req.body);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  const parsed = RunCalculationBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;

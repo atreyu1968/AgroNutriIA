@@ -23,8 +23,11 @@ import {
   useGetFarmSummary,
   useListAnalyses,
   useListRecommendations,
+  getListWaterSourcesQueryKey,
+  useListWaterSources,
   type Analysis,
   type Recommendation,
+  type WaterSource,
 } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -138,7 +141,52 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
   );
 }
 
-function AnalysisCard({ analysis }: { analysis: Analysis }) {
+function WaterMixCard({ sources }: { sources: WaterSource[] }) {
+  const c = useColors();
+  const total = sources.reduce((a, s) => a + (s.sharePct || 0), 0);
+  const warnings: string[] = [];
+  if (Math.abs(total - 100) > 0.5) {
+    warnings.push(`El reparto suma ${total} % y debería sumar 100 %.`);
+  }
+  for (const s of sources) {
+    if (s.sharePct > 0 && !s.latestAnalysisDate) {
+      warnings.push(`La fuente "${s.name}" no tiene analítica de agua asociada.`);
+    }
+  }
+  return (
+    <Card style={{ gap: 8 }}>
+      <Text style={[styles.cardTitle, { color: c.foreground }]}>Mezcla de agua de riego</Text>
+      {sources.map((s) => (
+        <View key={s.id} style={styles.doseRow} testID={`water-source-${s.id}`}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.doseName, { color: c.foreground }]}>{s.name}</Text>
+            <Text style={[styles.doseReason, { color: c.mutedForeground }]}>
+              {s.latestAnalysisDate
+                ? `Analítica: ${formatDate(s.latestAnalysisDate)}`
+                : 'Sin analítica de agua'}
+            </Text>
+          </View>
+          <Text style={[styles.doseValue, { color: c.primary }]}>{s.sharePct} %</Text>
+        </View>
+      ))}
+      <Text style={[styles.doseReason, { color: c.mutedForeground }]}>
+        El cálculo, la IA y los informes usan la mezcla ponderada de estas fuentes.
+      </Text>
+      {warnings.length > 0 ? (
+        <View style={{ gap: 4 }}>
+          {warnings.map((w, i) => (
+            <View key={i} style={styles.warningRow}>
+              <Feather name="alert-triangle" size={14} color="#8a6a08" />
+              <Text style={[styles.warningText, { color: c.foreground }]}>{w}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+function AnalysisCard({ analysis, waterSourceName }: { analysis: Analysis; waterSourceName?: string | null }) {
   const c = useColors();
   const [expanded, setExpanded] = useState(false);
   const abnormal = analysis.parameters.filter(
@@ -155,6 +203,7 @@ function AnalysisCard({ analysis }: { analysis: Analysis }) {
         <View style={{ flex: 1, gap: 6 }}>
           <Text style={[styles.recTitle, { color: c.foreground }]}>
             {ANALYSIS_LABEL[analysis.type] ?? analysis.type}
+            {waterSourceName ? ` · ${waterSourceName}` : ''}
             {analysis.laboratory ? ` · ${analysis.laboratory}` : ''}
           </Text>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
@@ -216,6 +265,12 @@ export default function FarmDetailScreen() {
       enabled: !Number.isNaN(farmId) && segment === 'analiticas',
     },
   });
+  const waterSourcesQuery = useListWaterSources(farmId, {
+    query: { queryKey: getListWaterSourcesQueryKey(farmId), enabled: !Number.isNaN(farmId) },
+  });
+  const waterSources = waterSourcesQuery.data ?? [];
+  const waterSourceName = (id: number | null | undefined) =>
+    id == null ? null : waterSources.find((s) => s.id === id)?.name ?? `Fuente ${id}`;
 
   const queryClient = useQueryClient();
   const deleteFarm = useDeleteFarm();
@@ -374,6 +429,7 @@ export default function FarmDetailScreen() {
             refreshing={summaryQuery.isRefetching}
             onRefresh={() => {
               summaryQuery.refetch();
+              waterSourcesQuery.refetch();
               if (segment === 'programa') recsQuery.refetch();
               if (segment === 'analiticas') analysesQuery.refetch();
             }}
@@ -448,6 +504,8 @@ export default function FarmDetailScreen() {
                 )}
               </Card>
 
+              {waterSources.length > 0 ? <WaterMixCard sources={waterSources} /> : null}
+
               <Card style={{ gap: 4 }}>
                 <Text style={[styles.cardTitle, { color: c.foreground }]}>Últimas analíticas</Text>
                 <InfoRow
@@ -469,9 +527,11 @@ export default function FarmDetailScreen() {
                 <InfoRow
                   label="Agua"
                   value={
-                    summary.latestWaterAnalysis
-                      ? formatDate(summary.latestWaterAnalysis.sampleDate)
-                      : 'Sin datos'
+                    waterSources.length > 0
+                      ? `Mezcla de ${waterSources.length} ${waterSources.length === 1 ? 'fuente' : 'fuentes'}`
+                      : summary.latestWaterAnalysis
+                        ? formatDate(summary.latestWaterAnalysis.sampleDate)
+                        : 'Sin datos'
                   }
                 />
               </Card>
@@ -513,7 +573,11 @@ export default function FarmDetailScreen() {
         ) : (
           <View style={{ gap: 12 }}>
             {(analysesQuery.data ?? []).map((a) => (
-              <AnalysisCard key={a.id} analysis={a} />
+              <AnalysisCard
+                key={a.id}
+                analysis={a}
+                waterSourceName={a.type === 'water' ? waterSourceName(a.waterSourceId) : null}
+              />
             ))}
           </View>
         )}
