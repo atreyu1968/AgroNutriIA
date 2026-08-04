@@ -1,5 +1,5 @@
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
-import { mgPerLParam, waterEcDsMFrom } from "./engine";
+import { mgPerLParam, normalizeMaxEc, waterEcDsMFrom } from "./engine";
 
 const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
 
@@ -10,7 +10,7 @@ const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
 function waterBudgetBlock(farm: Farm, water: Analysis | null): string[] {
   if (!water) return [];
   const lines: string[] = [];
-  const maxEc = farm.maxEcDsM ?? 2.5;
+  const maxEc = normalizeMaxEc(farm.maxEcDsM) ?? 2.5;
   const rawEc = waterEcDsMFrom(water);
   const waterEc = rawEc != null ? round(rawEc, 2) : null;
   if (waterEc != null) {
@@ -44,6 +44,20 @@ function waterBudgetBlock(farm: Farm, water: Analysis | null): string[] {
   return lines;
 }
 
+/** Detecta parámetros de conductividad para anotar su equivalencia en dS/m. */
+function isEcParam(name: string): boolean {
+  const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return n.includes("conductividad") || /(^|[^a-z])ce([^a-z]|$)/.test(n) || n.includes("c.e");
+}
+
+/** Normaliza una lectura de CE a dS/m según su unidad (o heurística si falta). */
+function ecToDsM(value: number, unit: string | null | undefined): number {
+  const u = (unit ?? "").toLowerCase().replace(/\s/g, "");
+  if (u.includes("µs") || u.includes("us/cm") || u.includes("micros")) return value / 1000;
+  if (u.includes("ms/cm") || u.includes("ds/m")) return value;
+  return value > 20 ? value / 1000 : value;
+}
+
 function analysisBlock(label: string, a: Analysis | null): string {
   if (!a) return `${label}: sin datos.`;
   const params = a.parameters
@@ -53,7 +67,14 @@ function analysisBlock(label: string, a: Analysis | null): string {
           ? ` (ref ${p.refLow ?? "-"}–${p.refHigh ?? "-"})`
           : "";
       const status = p.status ? ` [${p.status}]` : "";
-      return `  - ${p.name}: ${p.value}${p.unit ? " " + p.unit : ""}${ref}${status}`;
+      // Las CE llegan de laboratorio en µS/cm, mS/cm o dS/m según el caso:
+      // se anota siempre la equivalencia en dS/m para que la IA no confunda
+      // unidades (p. ej. 1400 µS/cm NO son 1400 dS/m, son 1,4 dS/m).
+      const ecNote =
+        p.value != null && isEcParam(p.name) && ecToDsM(p.value, p.unit) !== p.value
+          ? ` (equivale a ${round(ecToDsM(p.value, p.unit), 2)} dS/m)`
+          : "";
+      return `  - ${p.name}: ${p.value}${p.unit ? " " + p.unit : ""}${ecNote}${ref}${status}`;
     })
     .join("\n");
   return `${label} (${a.sampleDate}${a.laboratory ? ", " + a.laboratory : ""}${a.reference ? ", ref " + a.reference : ""}):\n${params}${a.notes ? "\n  Notas: " + a.notes : ""}`;
@@ -84,7 +105,8 @@ export function buildFarmContext(input: {
         : ""
     }.`,
   );
-  if (f.maxEcDsM != null) lines.push(`CE máxima admisible de la solución: ${f.maxEcDsM} dS/m.`);
+  const fMaxEc = normalizeMaxEc(f.maxEcDsM);
+  if (fMaxEc != null) lines.push(`CE máxima admisible de la solución: ${fMaxEc} dS/m.`);
   if (f.soilType) lines.push(`Suelo: ${f.soilType}.`);
   if (f.managementNotes) lines.push(`Notas de manejo: ${f.managementNotes}`);
   if (input.sectors.length) {

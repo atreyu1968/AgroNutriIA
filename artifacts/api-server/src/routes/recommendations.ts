@@ -41,7 +41,7 @@ import {
   resolveCredential,
   userName,
 } from "../lib/farmContext";
-import { runEngine, STAGE_PROFILES, validStageRange } from "../lib/engine";
+import { normalizeMaxEc, runEngine, STAGE_PROFILES, validStageRange } from "../lib/engine";
 import { audit } from "../lib/audit";
 import { buildFarmContext } from "../lib/contextBlock";
 import {
@@ -594,7 +594,7 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
   // Validación de CE del borrador: si la solución estimada supera la CE máxima
   // de la finca, se reintenta UNA vez pidiendo a la IA que reduzca dosis con el
   // exceso concreto; si aun así se supera, el borrador se entrega marcado.
-  const maxEc = access.farm.maxEcDsM ?? 2.5;
+  const maxEc = normalizeMaxEc(access.farm.maxEcDsM) ?? 2.5;
   const exceedsMaxEc = (o: typeof out) => o.estimatedEcDsM != null && o.estimatedEcDsM > maxEc;
   const round2 = (v: number) => Math.round(v * 100) / 100;
   let ecRetried = false;

@@ -149,6 +149,18 @@ const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
  * Deterministic fertigation engine for platanera.
  * All doses are weekly; solids in kg, liquids in L.
  */
+/**
+ * Normaliza la CE máxima configurada: la app trabaja en dS/m (0,1–10), pero
+ * hay fincas con el valor guardado en µS/cm (p. ej. 1400). Valores entre 10 y
+ * 10000 se interpretan como µS/cm y se convierten; fuera de rango → null.
+ */
+export function normalizeMaxEc(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value) || value <= 0) return null;
+  if (value <= 10) return value;
+  if (value <= 10000) return Math.round(value) / 1000 >= 0.1 ? value / 1000 : null;
+  return null;
+}
+
 export function runEngine(input: CalculationInput): CalculationOutput {
   const warnings: string[] = [];
   const compatibilityIssues: string[] = [];
@@ -301,7 +313,7 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     waterEcDsM = waterEc != null ? round(waterEc, 2) : null;
     fertilizersEcDsM = round(ecFert, 2);
     estimatedEcDsM = round(ecFert + (waterEcDsM ?? 0), 2);
-    const maxEc = input.maxEcOverride ?? input.farm.maxEcDsM ?? 2.5;
+    const maxEc = normalizeMaxEc(input.maxEcOverride ?? input.farm.maxEcDsM) ?? 2.5;
     const ecMargin = round(maxEc - (waterEcDsM ?? 0), 2);
     if (waterEcDsM != null && waterEcDsM >= maxEc) {
       warnings.push(
