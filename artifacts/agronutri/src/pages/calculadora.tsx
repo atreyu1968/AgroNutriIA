@@ -250,24 +250,36 @@ export default function CalculadoraTab({
     const validItems = buildValidItems();
     if (validItems.length === 0 || !farmId) return;
 
-    calcMutation.mutate({
-      farmId,
-      data: {
-        plantCount,
-        weeklyLitresPerPlant,
-        ...(maxEc > 0 ? { maxEcDsM: maxEc } : {}),
-        items: validItems,
-        ...(stageChoice !== "auto" ? { phenologicalStage: stageChoice } : {}),
-        ...(waterSources && waterSources.length > 0
-          ? {
-              waterMix: waterSources.map((s) => ({
-                waterSourceId: s.id,
-                sharePct: mixEdit[s.id] ?? s.sharePct,
-              })),
-            }
-          : {}),
-      }
-    });
+    calcMutation.mutate(
+      {
+        farmId,
+        data: {
+          plantCount,
+          weeklyLitresPerPlant,
+          ...(maxEc > 0 ? { maxEcDsM: maxEc } : {}),
+          items: validItems,
+          ...(stageChoice !== "auto" ? { phenologicalStage: stageChoice } : {}),
+          ...(waterSources && waterSources.length > 0
+            ? {
+                waterMix: waterSources.map((s) => ({
+                  waterSourceId: s.id,
+                  sharePct: mixEdit[s.id] ?? s.sharePct,
+                })),
+              }
+            : {}),
+        },
+      },
+      {
+        onError: (err: unknown) => {
+          const msg = (err as { data?: { error?: string } })?.data?.error;
+          toast({
+            title: "No se pudo calcular",
+            description: msg ?? "Inténtalo de nuevo.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
   };
 
   return (
