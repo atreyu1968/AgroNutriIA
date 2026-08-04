@@ -32,6 +32,11 @@ import {
   SCENARIO_LABELS,
   type AmendmentScenario,
 } from "../lib/amendmentPlan";
+import {
+  checkAmendmentCoherence,
+  reviewAmendmentPlanWithAI,
+  mergeCoherenceIssues,
+} from "../lib/reportCoherence";
 import { generatePdf, generateDocx, REPORTS_DIR } from "../lib/reportGen";
 import { audit } from "../lib/audit";
 import { demoMode, DEMO_REPORT_LIMIT_MESSAGE } from "../lib/demo";
@@ -225,7 +230,12 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
           )
           .orderBy(desc(phytoTreatmentsTable.applicationDate)),
       ]);
-      let amendment: { scenarioLabel: string; text: string } | null = null;
+      let amendment: {
+        scenarioLabel: string;
+        text: string;
+        coherenceWarnings?: string[];
+      } | null = null;
+      let coherenceWarnings: string[] = [];
       if (reportType === "enmiendas") {
         const text = await synthesizeAmendmentPlan({
           farm,
@@ -250,7 +260,28 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
           );
           return;
         }
-        amendment = { scenarioLabel: SCENARIO_LABELS[scenario!], text };
+        // Verificación de coherencia agronómica antes de guardar el informe:
+        // reglas fijas + una segunda llamada breve a la IA. Las incidencias
+        // no bloquean el informe: se marcan con un aviso visible en el propio
+        // documento y en la lista de informes.
+        const fixedIssues = checkAmendmentCoherence(text, soil);
+        const credential = await resolveCredential(farm, user);
+        const aiIssues = credential
+          ? await reviewAmendmentPlanWithAI({
+              credential,
+              userId,
+              farmId,
+              planText: text,
+              soil,
+              log,
+            })
+          : [];
+        coherenceWarnings = mergeCoherenceIssues(fixedIssues, aiIssues);
+        amendment = {
+          scenarioLabel: SCENARIO_LABELS[scenario!],
+          text,
+          coherenceWarnings,
+        };
       }
       let technicianNotes: string | null = null;
       if (conversation) {
@@ -287,10 +318,11 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
           safetyDays: t.safetyDays,
         })),
       };
-      const warnings =
+      const genWarnings =
         parsed.data.format === "pdf"
           ? await generatePdf(data, filePath)
           : await generateDocx(data, filePath);
+      const warnings = [...coherenceWarnings, ...genWarnings];
       await db
         .update(reportsTable)
         .set({ status: "ready", filePath, warnings: warnings.length ? warnings : null })

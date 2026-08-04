@@ -72,7 +72,12 @@ export type ReportData = {
     safetyDays: number | null;
   }[];
   /** Informe de enmiendas: sustituye al programa de fertirrigación. */
-  amendment?: { scenarioLabel: string; text: string } | null;
+  amendment?: {
+    scenarioLabel: string;
+    text: string;
+    /** Avisos de la verificación de coherencia agronómica (visibles en el informe). */
+    coherenceWarnings?: string[];
+  } | null;
 };
 
 /** Fecha a partir de la cual se puede cosechar (aplicación + plazo de seguridad). */
@@ -145,10 +150,14 @@ function buildSections(d: ReportData): Section[] {
         return bullet ? `\u2022 ${bullet[1]}` : l.trim();
       })
       .filter(Boolean);
+    const coherence = (d.amendment.coherenceWarnings ?? []).map(
+      (w) => `¡AVISO DE COHERENCIA! ${w}`,
+    );
     sections.push({
       heading: `${n}. Plan de enmiendas del terreno — ${d.amendment.scenarioLabel}`,
       paragraphs: [
         "Elaborado a partir de las analíticas más recientes registradas en la finca. Debe validarlo el técnico responsable antes de aplicar.",
+        ...coherence,
         ...paragraphs,
       ],
     });
