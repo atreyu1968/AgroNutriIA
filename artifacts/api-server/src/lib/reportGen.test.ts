@@ -429,3 +429,138 @@ test("generateDocx crea un DOCX válido con contenido y pie de página", async (
   assert.match(footerXml, /NUMPAGES/, "el pie contiene el campo NUMPAGES");
   assert.ok(footerXml.includes("AgroNutri AI"), 'el pie contiene la marca "AgroNutri AI"');
 });
+
+// --- Avisos de la mezcla de fuentes de agua (mezcla incompleta) ---
+
+test("generatePdf incluye el aviso de mezcla incompleta cuando hay waterNotes", async () => {
+  const filePath = path.join(tmpDir, "informe-mezcla.pdf");
+  const aviso =
+    "La fuente «Pozo» (100 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.";
+  await generatePdf({ ...data, waterNotes: [aviso] }, filePath);
+  const { text } = await extractPdf(fs.readFileSync(filePath));
+  assert.ok(text.includes("mezcla es incompleta"), "el aviso de mezcla debe aparecer en el PDF");
+});
+
+test("generateDocx incluye el aviso de mezcla incompleta cuando hay waterNotes", async () => {
+  const docxPath = path.join(tmpDir, "informe-mezcla.docx");
+  const aviso =
+    "La fuente «Pozo» (100 % del riego) no tiene analítica de agua: la mezcla es incompleta y los valores calculados son orientativos.";
+  await generateDocx({ ...data, waterNotes: [aviso] }, docxPath);
+  const zip = await JSZip.loadAsync(fs.readFileSync(docxPath));
+  const xml = await zip.file("word/document.xml")!.async("string");
+  assert.ok(xml.includes("mezcla es incompleta"), "el aviso de mezcla debe aparecer en el DOCX");
+});
+
+// --- Sección de contraste con los rangos por fase ---
+
+const norm = (s: string) => s.replace(/\s+/g, " ");
+
+test("el informe incluye la sección de contraste con rangos del técnico dentro de rango", async () => {
+  const filePath = path.join(tmpDir, "informe-rangos-ok.pdf");
+  await generatePdf(
+    {
+      ...data,
+      stageComparison: {
+        stageLabel: "engorde / llenado del racimo",
+        rangeSource: "tecnico",
+        nPerPlantG: 12,
+        k2oPerPlantG: 35,
+        nMinG: 10,
+        nMaxG: 18,
+        k2oMinG: 30,
+        k2oMaxG: 50,
+        nStatus: "ok",
+        k2oStatus: "ok",
+      },
+    },
+    filePath,
+  );
+  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
+  assert.ok(text.includes("Contraste con los rangos de la fase fenológica"), "incluye la sección");
+  assert.ok(
+    text.includes("modulados por el técnico responsable para esta finca"),
+    "atribuye los rangos al técnico",
+  );
+  assert.ok(
+    text.includes("El programa se encuentra dentro de los rangos aplicados para esta fase"),
+    "indica que está dentro de rango",
+  );
+  assert.ok(text.includes("Dentro del rango"), "la tabla marca la situación dentro de rango");
+});
+
+test("fuera de rango, el informe explica el motivo con la justificación del programa", async () => {
+  const filePath = path.join(tmpDir, "informe-rangos-fuera.pdf");
+  await generatePdf(
+    {
+      ...data,
+      stageComparison: {
+        stageLabel: "engorde / llenado del racimo",
+        rangeSource: "orientativo",
+        nPerPlantG: 25,
+        k2oPerPlantG: 20,
+        nMinG: 10,
+        nMaxG: 18,
+        k2oMinG: 30,
+        k2oMaxG: 50,
+        nStatus: "high",
+        k2oStatus: "low",
+      },
+    },
+    filePath,
+  );
+  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
+  assert.ok(
+    text.includes("orientativos por defecto de la aplicación"),
+    "indica el origen orientativo de los rangos",
+  );
+  assert.ok(
+    text.includes("El programa queda fuera del rango en nitrógeno (N) y potasio (K2O)"),
+    "nombra los nutrientes fuera de rango",
+  );
+  assert.ok(
+    text.includes("Motivo según la justificación técnica del programa") &&
+      text.includes("Se refuerza el potasio por deficiencia en suelo y foliar."),
+    "explica el motivo con la justificación (rationale) del programa",
+  );
+  assert.ok(text.includes("Por encima del rango"), "situación de N en la tabla");
+  assert.ok(text.includes("Por debajo del rango"), "situación de K2O en la tabla");
+});
+
+test("sin justificación, el informe indica que debe valorarlo el técnico responsable", async () => {
+  const filePath = path.join(tmpDir, "informe-rangos-sin-motivo.pdf");
+  await generatePdf(
+    {
+      ...data,
+      recommendation: { ...recommendation, rationale: "  " },
+      stageComparison: {
+        stageLabel: "parón invernal",
+        rangeSource: "tecnico",
+        nPerPlantG: 12,
+        k2oPerPlantG: 8,
+        nMinG: 3,
+        nMaxG: 8,
+        k2oMinG: 5,
+        k2oMaxG: 15,
+        nStatus: "high",
+        k2oStatus: "ok",
+      },
+    },
+    filePath,
+  );
+  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
+  assert.ok(
+    text.includes("fuera del rango en nitrógeno (N)") && !text.includes("y potasio (K2O)."),
+    "solo nombra el nutriente fuera de rango",
+  );
+  assert.ok(
+    text.includes("no consta una justificación específica; debe valorarlo el técnico responsable"),
+    "usa el texto por defecto cuando no hay justificación",
+  );
+});
+
+test("sin stageComparison el informe no incluye la sección de contraste", async () => {
+  const filePath = path.join(tmpDir, "informe-sin-rangos.pdf");
+  await generatePdf({ ...data, stageComparison: null }, filePath);
+  const text = norm((await extractPdf(fs.readFileSync(filePath))).text);
+  assert.ok(!text.includes("Contraste con los rangos de la fase fenológica"));
+});

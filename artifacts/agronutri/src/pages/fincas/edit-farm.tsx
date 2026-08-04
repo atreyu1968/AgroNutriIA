@@ -90,33 +90,67 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
   const savedRanges = (farm as { stageNutrientRanges?: Record<string, { n: number[]; k2o: number[] }> | null })
     .stageNutrientRanges;
   const [customRanges, setCustomRanges] = useState(!!savedRanges);
-  const [ranges, setRanges] = useState<Record<string, { n: [number, number]; k2o: [number, number] }>>(() =>
+  // Los valores se guardan como texto para poder detectar campos vacíos o no numéricos.
+  const [ranges, setRanges] = useState<Record<string, { n: [string, string]; k2o: [string, string] }>>(() =>
     Object.fromEntries(
       DEFAULT_STAGE_RANGES.map((d) => {
         const s = savedRanges?.[d.key];
+        const toStr = (pair: number[]) => [String(pair[0]), String(pair[1])] as [string, string];
         return [
           d.key,
           {
-            n: (s?.n?.length === 2 ? [s.n[0], s.n[1]] : d.n) as [number, number],
-            k2o: (s?.k2o?.length === 2 ? [s.k2o[0], s.k2o[1]] : d.k2o) as [number, number],
+            n: s?.n?.length === 2 ? toStr(s.n) : toStr(d.n),
+            k2o: s?.k2o?.length === 2 ? toStr(s.k2o) : toStr(d.k2o),
           },
         ];
       }),
     ),
   );
-  const setRangeVal = (key: string, nutrient: "n" | "k2o", idx: 0 | 1, value: number) =>
+  const setRangeVal = (key: string, nutrient: "n" | "k2o", idx: 0 | 1, value: string) =>
     setRanges((prev) => {
       const cur = prev[key];
-      const next = [...cur[nutrient]] as [number, number];
+      const next = [...cur[nutrient]] as [string, string];
       next[idx] = value;
       return { ...prev, [key]: { ...cur, [nutrient]: next } };
     });
+
+  const parseRangeVal = (s: string): number | null => {
+    if (s.trim() === "") return null;
+    const v = Number(s);
+    return Number.isFinite(v) ? v : null;
+  };
+  /** Espejo de validStageRange del servidor: devuelve errores por campo y de rango. */
+  const rangePairError = ([minS, maxS]: [string, string]): {
+    fields: [boolean, boolean];
+    message: string | null;
+  } => {
+    const min = parseRangeVal(minS);
+    const max = parseRangeVal(maxS);
+    const minBad = min == null || min < 0;
+    const maxBad = max == null || max < 0;
+    if (minBad || maxBad) {
+      return {
+        fields: [minBad, maxBad],
+        message: "Introduce un número igual o mayor que 0.",
+      };
+    }
+    if ((min as number) > (max as number)) {
+      return { fields: [true, true], message: "El mínimo no puede superar el máximo." };
+    }
+    return { fields: [false, false], message: null };
+  };
+  const rangeErrors: Record<string, { n: ReturnType<typeof rangePairError>; k2o: ReturnType<typeof rangePairError> }> =
+    Object.fromEntries(
+      DEFAULT_STAGE_RANGES.map((d) => [
+        d.key,
+        { n: rangePairError(ranges[d.key].n), k2o: rangePairError(ranges[d.key].k2o) },
+      ]),
+    );
   const rangesValid =
     !customRanges ||
-    DEFAULT_STAGE_RANGES.every((d) => {
-      const r = ranges[d.key];
-      return r.n[0] >= 0 && r.n[0] <= r.n[1] && r.k2o[0] >= 0 && r.k2o[0] <= r.k2o[1];
-    });
+    DEFAULT_STAGE_RANGES.every(
+      (d) => !rangeErrors[d.key].n.message && !rangeErrors[d.key].k2o.message,
+    );
 
   const form = useForm<EditFarmValues>({
     resolver: zodResolver(editFarmSchema),
@@ -191,14 +225,23 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
     if (!rangesValid) {
       toast({
         title: "Rangos por fase no válidos",
-        description: "En cada rango, el mínimo no puede superar al máximo ni ser negativo.",
+        description: "Revisa los campos marcados en rojo antes de guardar.",
         variant: "destructive",
       });
       return;
     }
+    const numericRanges = Object.fromEntries(
+      DEFAULT_STAGE_RANGES.map((d) => [
+        d.key,
+        {
+          n: [Number(ranges[d.key].n[0]), Number(ranges[d.key].n[1])] as [number, number],
+          k2o: [Number(ranges[d.key].k2o[0]), Number(ranges[d.key].k2o[1])] as [number, number],
+        },
+      ]),
+    );
     updateMutation.mutate({
       farmId: farm.id,
-      data: { ...clean, stageNutrientRanges: customRanges ? ranges : null },
+      data: { ...clean, stageNutrientRanges: customRanges ? numericRanges : null },
     });
   };
 
@@ -300,22 +343,45 @@ export function EditFarmButton({ farm }: { farm: Farm }) {
                     <span>K₂O mín</span>
                     <span>K₂O máx</span>
                   </div>
-                  {DEFAULT_STAGE_RANGES.map((d) => (
-                    <div key={d.key} className="grid grid-cols-5 gap-2 items-center">
-                      <span className="text-xs">{d.label}</span>
-                      {([["n", 0], ["n", 1], ["k2o", 0], ["k2o", 1]] as const).map(([nu, idx]) => (
-                        <Input
-                          key={`${nu}${idx}`}
-                          type="number"
-                          step="0.5"
-                          min={0}
-                          value={ranges[d.key][nu][idx]}
-                          onChange={(e) => setRangeVal(d.key, nu, idx, parseFloat(e.target.value) || 0)}
-                          data-testid={`input-range-${d.key}-${nu}-${idx === 0 ? "min" : "max"}`}
-                        />
-                      ))}
-                    </div>
-                  ))}
+                  {DEFAULT_STAGE_RANGES.map((d) => {
+                    const errs = rangeErrors[d.key];
+                    const messages = [
+                      errs.n.message ? `N: ${errs.n.message}` : null,
+                      errs.k2o.message ? `K₂O: ${errs.k2o.message}` : null,
+                    ].filter(Boolean);
+                    return (
+                      <div key={d.key} className="space-y-1">
+                        <div className="grid grid-cols-5 gap-2 items-center">
+                          <span className="text-xs">{d.label}</span>
+                          {([["n", 0], ["n", 1], ["k2o", 0], ["k2o", 1]] as const).map(([nu, idx]) => (
+                            <Input
+                              key={`${nu}${idx}`}
+                              type="number"
+                              step="0.5"
+                              min={0}
+                              value={ranges[d.key][nu][idx]}
+                              onChange={(e) => setRangeVal(d.key, nu, idx, e.target.value)}
+                              aria-invalid={errs[nu].fields[idx] || undefined}
+                              className={
+                                errs[nu].fields[idx]
+                                  ? "border-destructive focus-visible:ring-destructive"
+                                  : undefined
+                              }
+                              data-testid={`input-range-${d.key}-${nu}-${idx === 0 ? "min" : "max"}`}
+                            />
+                          ))}
+                        </div>
+                        {messages.length > 0 && (
+                          <p
+                            className="text-xs text-destructive text-right"
+                            data-testid={`error-range-${d.key}`}
+                          >
+                            {messages.join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
