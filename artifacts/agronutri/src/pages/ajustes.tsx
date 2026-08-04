@@ -315,6 +315,7 @@ function CredentialItem({ credential }: { credential: any }) {
           >
             <Play className="w-3.5 h-3.5 mr-2" /> Probar
           </Button>
+          <EditCredentialDialog credential={credential} />
           <Button 
             variant="ghost" 
             size="sm" 
@@ -361,6 +362,146 @@ const AI_PROVIDERS: Record<string, { label: string; defaultModel: string; models
     ],
   },
 };
+
+const editCredentialSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido"),
+  provider: z.enum(["openai", "mistral", "deepseek"]),
+  selectedModel: z.string().min(1, "Elige un modelo"),
+  monthlyLimitEur: z.coerce.number().optional(),
+});
+
+function EditCredentialDialog({ credential }: { credential: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof editCredentialSchema>>({
+    resolver: zodResolver(editCredentialSchema),
+    values: {
+      name: credential.name ?? "",
+      provider: AI_PROVIDERS[credential.provider] ? credential.provider : "openai",
+      selectedModel:
+        credential.selectedModel ??
+        (AI_PROVIDERS[credential.provider]?.defaultModel ?? AI_PROVIDERS.openai.defaultModel),
+      monthlyLimitEur: credential.monthlyLimitEur ?? undefined,
+    },
+  });
+  const provider = form.watch("provider");
+  const providerInfo = AI_PROVIDERS[provider] ?? AI_PROVIDERS.openai;
+
+  const updateMutation = useUpdateCredential({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Credencial actualizada" });
+        queryClient.invalidateQueries({ queryKey: getListCredentialsQueryKey() });
+        setOpen(false);
+      },
+      onError: (err: any) => {
+        toast({
+          title: "Error al guardar",
+          description: err?.data?.error,
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full justify-start" data-testid={`button-edit-credential-${credential.id}`}>
+          <Edit2 className="w-3.5 h-3.5 mr-2" /> Editar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar credencial de IA</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((v) =>
+              updateMutation.mutate({ credentialId: credential.id, data: v }),
+            )}
+            className="space-y-4"
+          >
+            <FormField
+              control={form.control}
+              name="provider"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Proveedor</FormLabel>
+                  <Select
+                    onValueChange={(v) => {
+                      field.onChange(v);
+                      const info = AI_PROVIDERS[v];
+                      // Al cambiar de proveedor, el modelo se reajusta al por defecto.
+                      if (info) form.setValue("selectedModel", info.defaultModel);
+                    }}
+                    value={field.value}
+                  >
+                    <FormControl><SelectTrigger data-testid="select-edit-provider"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {Object.entries(AI_PROVIDERS).map(([value, info]) => (
+                        <SelectItem key={value} value={value}>{info.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre identificativo</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="selectedModel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modelo Preferido</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger data-testid="select-edit-model"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {providerInfo.models.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="monthlyLimitEur"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Límite Mensual (€)</FormLabel>
+                    <FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-credential">
+                {updateMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const credentialSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),

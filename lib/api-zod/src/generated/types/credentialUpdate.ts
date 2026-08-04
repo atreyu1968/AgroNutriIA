@@ -5,11 +5,14 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { CredentialUpdateProvider } from './credentialUpdateProvider';
 
 export interface CredentialUpdate {
   name?: string;
   /** @minLength 10 */
   apiKey?: string;
+  /** Cambia el proveedor; el modelo debe pertenecer al nuevo proveedor o se ajusta al modelo por defecto */
+  provider?: CredentialUpdateProvider;
   selectedModel?: string;
   /** @nullable */
   monthlyLimitEur?: number | null;

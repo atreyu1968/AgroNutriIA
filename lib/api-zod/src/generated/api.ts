@@ -1303,6 +1303,7 @@ export const updateCredentialBodyApiKeyMin = 10;
 export const UpdateCredentialBody = zod.object({
   "name": zod.string().optional(),
   "apiKey": zod.string().min(updateCredentialBodyApiKeyMin).optional(),
+  "provider": zod.enum(['openai', 'mistral', 'deepseek']).optional().describe('Cambia el proveedor; el modelo debe pertenecer al nuevo proveedor o se ajusta al modelo por defecto'),
   "selectedModel": zod.string().optional(),
   "monthlyLimitEur": zod.number().nullish(),
   "isDefault": zod.boolean().optional(),

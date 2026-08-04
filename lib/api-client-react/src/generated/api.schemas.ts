@@ -1368,10 +1368,24 @@ export interface CredentialInput {
   isDefault?: boolean;
 }
 
+/**
+ * Cambia el proveedor; el modelo debe pertenecer al nuevo proveedor o se ajusta al modelo por defecto
+ */
+export type CredentialUpdateProvider = typeof CredentialUpdateProvider[keyof typeof CredentialUpdateProvider];
+
+
+export const CredentialUpdateProvider = {
+  openai: 'openai',
+  mistral: 'mistral',
+  deepseek: 'deepseek',
+} as const;
+
 export interface CredentialUpdate {
   name?: string;
   /** @minLength 10 */
   apiKey?: string;
+  /** Cambia el proveedor; el modelo debe pertenecer al nuevo proveedor o se ajusta al modelo por defecto */
+  provider?: CredentialUpdateProvider;
   selectedModel?: string;
   /** @nullable */
   monthlyLimitEur?: number | null;

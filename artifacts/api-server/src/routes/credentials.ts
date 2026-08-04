@@ -84,7 +84,8 @@ router.patch("/settings/openai/:credentialId", async (req, res): Promise<void> =
     return;
   }
   const { apiKey, isDefault, ...rest } = parsed.data;
-  if (rest.selectedModel) {
+  const update: Record<string, unknown> = { ...rest };
+  if (rest.provider !== undefined || rest.selectedModel !== undefined) {
     const [current] = await db
       .select()
       .from(credentialsTable)
@@ -93,15 +94,27 @@ router.patch("/settings/openai/:credentialId", async (req, res): Promise<void> =
       res.status(404).json({ error: "Credencial no encontrada" });
       return;
     }
-    const provider = providerFor(current);
-    if (!AI_PROVIDERS[provider].models.includes(rest.selectedModel)) {
-      res.status(400).json({
-        error: `El modelo «${rest.selectedModel}» no es válido para ${AI_PROVIDERS[provider].label}.`,
-      });
-      return;
+    const currentProvider = providerFor(current);
+    // Proveedor efectivo tras la actualización (el actual si no se cambia).
+    const provider = rest.provider !== undefined ? providerFor({ provider: rest.provider }) : currentProvider;
+    update.provider = provider;
+    if (rest.selectedModel !== undefined) {
+      // Modelo indicado explícitamente: debe pertenecer al proveedor efectivo.
+      if (!AI_PROVIDERS[provider].models.includes(rest.selectedModel)) {
+        res.status(400).json({
+          error: `El modelo «${rest.selectedModel}» no es válido para ${AI_PROVIDERS[provider].label}.`,
+        });
+        return;
+      }
+    } else if (provider !== currentProvider) {
+      // Cambia el proveedor sin indicar modelo: si el modelo guardado no es
+      // válido para el nuevo proveedor, se reajusta a su modelo por defecto.
+      const currentModel = current.selectedModel;
+      if (!currentModel || !AI_PROVIDERS[provider].models.includes(currentModel)) {
+        update.selectedModel = AI_PROVIDERS[provider].defaultModel;
+      }
     }
   }
-  const update: Record<string, unknown> = { ...rest };
   if (apiKey) {
     update.encryptedKey = encryptSecret(apiKey);
     update.maskedKey = maskApiKey(apiKey);

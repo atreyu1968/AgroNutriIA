@@ -2852,6 +2852,10 @@ components:
       properties:
         name: { type: string }
         apiKey: { type: string, minLength: 10 }
+        provider:
+          type: string
+          enum: [openai, mistral, deepseek]
+          description: "Cambia el proveedor; el modelo debe pertenecer al nuevo proveedor o se ajusta al modelo por defecto"
         selectedModel: { type: string }
         monthlyLimitEur: { type: ["number", "null"] }
         isDefault: { type: boolean }

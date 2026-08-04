@@ -65,6 +65,7 @@ export * from './credentialInput';
 export * from './credentialInputProvider';
 export * from './credentialTestResult';
 export * from './credentialUpdate';
+export * from './credentialUpdateProvider';
 export * from './dashboardSummary';
 export * from './farm';
 export * from './farmApiConfig';
