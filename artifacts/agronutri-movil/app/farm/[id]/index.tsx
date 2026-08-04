@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,9 +26,11 @@ import {
   useListRecommendations,
   getListWaterSourcesQueryKey,
   useListWaterSources,
+  useSetWaterSources,
   type Analysis,
   type Recommendation,
   type WaterSource,
+  type WaterSourceInput,
 } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -180,37 +183,203 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
   );
 }
 
-function WaterMixCard({ sources }: { sources: WaterSource[] }) {
+function WaterMixCard({
+  farmId,
+  sources,
+  canEdit,
+}: {
+  farmId: number;
+  sources: WaterSource[];
+  canEdit: boolean;
+}) {
   const c = useColors();
-  const total = sources.reduce((a, s) => a + (s.sharePct || 0), 0);
+  const queryClient = useQueryClient();
+
+  // editing state: sourceId → sharePct
+  const [mixEdit, setMixEdit] = useState<Record<number, number>>({});
+  const [newSourceName, setNewSourceName] = useState('');
+
+  useEffect(() => {
+    setMixEdit(Object.fromEntries(sources.map((s) => [s.id, s.sharePct])));
+  }, [sources]);
+
+  const mixTotal = Object.values(mixEdit).reduce((a, b) => a + (b || 0), 0);
+  const totalError = mixTotal > 0 && Math.abs(mixTotal - 100) > 0.5;
+
+  const saveMutation = useSetWaterSources({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListWaterSourcesQueryKey(farmId) });
+        const msg = 'Fuentes de agua guardadas.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Guardado', msg);
+      },
+      onError: (err: unknown) => {
+        const anyErr = err as { data?: { error?: string } };
+        const msg = anyErr?.data?.error ?? 'Revisa los porcentajes e inténtalo de nuevo.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('No se pudo guardar', msg);
+      },
+    },
+  });
+
+  const currentPayload = (): WaterSourceInput[] =>
+    sources.map((s) => ({ id: s.id, name: s.name, sharePct: mixEdit[s.id] ?? s.sharePct }));
+
+  const handleDelete = (sourceId: number) => {
+    const payload = currentPayload().filter((x) => x.id !== sourceId);
+    const doDelete = () => saveMutation.mutate({ farmId, data: payload });
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Eliminar esta fuente?')) doDelete();
+    } else {
+      Alert.alert('¿Eliminar fuente?', 'Se quitará del reparto de riego.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  };
+
+  const handleAddSource = () => {
+    const name = newSourceName.trim();
+    if (!name) return;
+    saveMutation.mutate({
+      farmId,
+      data: [...currentPayload(), { name, sharePct: 0 }],
+    });
+    setNewSourceName('');
+  };
+
+  const handleSave = () => {
+    if (totalError) {
+      const msg = `El reparto suma ${mixTotal.toFixed(1)} % y debe sumar exactamente 100 %.`;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Reparto incorrecto', msg);
+      return;
+    }
+    saveMutation.mutate({ farmId, data: currentPayload() });
+  };
+
   const warnings: string[] = [];
-  if (Math.abs(total - 100) > 0.5) {
-    warnings.push(`El reparto suma ${total} % y debería sumar 100 %.`);
+  if (!canEdit && Math.abs(mixTotal - 100) > 0.5 && sources.length > 0) {
+    warnings.push(`El reparto suma ${mixTotal} % y debería sumar 100 %.`);
   }
   for (const s of sources) {
     if (s.sharePct > 0 && !s.latestAnalysisDate) {
       warnings.push(`La fuente "${s.name}" no tiene analítica de agua asociada.`);
     }
   }
+
   return (
     <Card style={{ gap: 8 }}>
       <Text style={[styles.cardTitle, { color: c.foreground }]}>Mezcla de agua de riego</Text>
+
+      {sources.length === 0 && !canEdit ? (
+        <Text style={[styles.doseReason, { color: c.mutedForeground }]}>
+          Sin fuentes definidas: se usa la analítica de agua más reciente de la finca.
+        </Text>
+      ) : null}
+
       {sources.map((s) => (
-        <View key={s.id} style={styles.doseRow} testID={`water-source-${s.id}`}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.doseName, { color: c.foreground }]}>{s.name}</Text>
-            <Text style={[styles.doseReason, { color: c.mutedForeground }]}>
-              {s.latestAnalysisDate
-                ? `Analítica: ${formatDate(s.latestAnalysisDate)}`
-                : 'Sin analítica de agua'}
-            </Text>
+        <View key={s.id} testID={`water-source-${s.id}`} style={{ gap: 4 }}>
+          <View style={styles.doseRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.doseName, { color: c.foreground }]}>{s.name}</Text>
+              <Text style={[styles.doseReason, { color: c.mutedForeground }]}>
+                {s.latestAnalysisDate
+                  ? `Analítica: ${formatDate(s.latestAnalysisDate)}`
+                  : 'Sin analítica de agua'}
+              </Text>
+            </View>
+            {canEdit ? (
+              <View style={styles.pctInputRow}>
+                <TextInput
+                  testID={`input-source-pct-${s.id}`}
+                  style={[styles.pctInput, { borderColor: c.border, color: c.foreground, backgroundColor: c.card }]}
+                  value={String(mixEdit[s.id] ?? s.sharePct)}
+                  onChangeText={(t) => {
+                    const v = parseFloat(t.replace(',', '.'));
+                    setMixEdit((m) => ({ ...m, [s.id]: Number.isNaN(v) ? 0 : v }));
+                  }}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                  maxLength={6}
+                />
+                <Text style={[styles.doseReason, { color: c.mutedForeground }]}>%</Text>
+                <Pressable
+                  testID={`button-delete-source-${s.id}`}
+                  accessibilityRole="button"
+                  disabled={saveMutation.isPending}
+                  onPress={() => handleDelete(s.id)}
+                  style={({ pressed }) => ({ opacity: pressed || saveMutation.isPending ? 0.5 : 1 })}
+                >
+                  <Feather name="trash-2" size={16} color={c.destructive} />
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={[styles.doseValue, { color: c.primary }]}>{s.sharePct} %</Text>
+            )}
           </View>
-          <Text style={[styles.doseValue, { color: c.primary }]}>{s.sharePct} %</Text>
         </View>
       ))}
+
+      {canEdit && sources.length > 0 ? (
+        <Text style={[styles.doseReason, { color: totalError ? c.destructive : c.mutedForeground }]}>
+          {`Reparto total: ${mixTotal.toFixed(1)} %`}
+          {totalError ? '  (debe sumar 100 %)' : ''}
+        </Text>
+      ) : null}
+
+      {canEdit ? (
+        <View style={{ gap: 8 }}>
+          <View style={styles.addSourceRow}>
+            <TextInput
+              testID="input-new-source"
+              style={[styles.addSourceInput, { borderColor: c.border, color: c.foreground, backgroundColor: c.card }]}
+              placeholder="Nueva fuente (pozo, desaladora…)"
+              placeholderTextColor={c.mutedForeground}
+              value={newSourceName}
+              onChangeText={setNewSourceName}
+              returnKeyType="done"
+              onSubmitEditing={handleAddSource}
+            />
+            <Pressable
+              testID="button-add-source"
+              accessibilityRole="button"
+              disabled={!newSourceName.trim() || saveMutation.isPending}
+              onPress={handleAddSource}
+              style={({ pressed }) => [
+                styles.addBtn,
+                { backgroundColor: c.secondary, opacity: !newSourceName.trim() || saveMutation.isPending ? 0.5 : pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Feather name="plus" size={16} color={c.foreground} />
+              <Text style={[styles.addBtnText, { color: c.foreground }]}>Añadir</Text>
+            </Pressable>
+          </View>
+
+          {sources.length > 0 ? (
+            <Pressable
+              testID="button-save-sources"
+              accessibilityRole="button"
+              disabled={saveMutation.isPending}
+              onPress={handleSave}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { backgroundColor: c.primary, opacity: saveMutation.isPending ? 0.6 : pressed ? 0.85 : 1 },
+              ]}
+            >
+              <Text style={[styles.saveBtnText, { color: c.primaryForeground }]}>
+                {saveMutation.isPending ? 'Guardando…' : 'Guardar reparto'}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       <Text style={[styles.doseReason, { color: c.mutedForeground }]}>
         El cálculo, la IA y los informes usan la mezcla ponderada de estas fuentes.
       </Text>
+
       {warnings.length > 0 ? (
         <View style={{ gap: 4 }}>
           {warnings.map((w, i) => (
@@ -543,7 +712,9 @@ export default function FarmDetailScreen() {
                 )}
               </Card>
 
-              {waterSources.length > 0 ? <WaterMixCard sources={waterSources} /> : null}
+              {waterSources.length > 0 || canEdit ? (
+                <WaterMixCard farmId={farmId} sources={waterSources} canEdit={canEdit} />
+              ) : null}
 
               <Card style={{ gap: 4 }}>
                 <Text style={[styles.cardTitle, { color: c.foreground }]}>Últimas analíticas</Text>
@@ -740,6 +911,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     flex: 1,
+  },
+  pctInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pctInput: {
+    width: 64,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'right',
+  },
+  addSourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addSourceInput: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addBtnText: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  saveBtn: {
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
   },
   rationale: {
     fontSize: 13,
