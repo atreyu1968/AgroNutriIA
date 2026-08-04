@@ -631,6 +631,41 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
     }
   }
 
+  // Coherencia con las analíticas: si un nutriente está ALTO en suelo y NO está
+  // bajo en foliar, recetar un producto cuyo aporte principal sea ese nutriente
+  // es un contrasentido — se avisa expresamente (decisión final del técnico).
+  const normName = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const statusOf = (a: typeof soil, keys: string[]) => {
+    const p = (a?.parameters ?? []).find((x) => keys.some((k) => normName(x.name).includes(k)));
+    return p?.status ? normName(p.status) : null;
+  };
+  const NUTRIENTS: { label: string; keys: string[]; pct: (f: (typeof fertilizers)[number]) => number }[] = [
+    { label: "magnesio", keys: ["magnesio", "mg"], pct: (f) => f.mgoPct ?? 0 },
+    { label: "potasio", keys: ["potasio"], pct: (f) => f.k2oPct ?? 0 },
+    { label: "calcio", keys: ["calcio"], pct: (f) => f.caoPct ?? 0 },
+    { label: "fósforo", keys: ["fosforo"], pct: (f) => f.p2o5Pct ?? 0 },
+    { label: "azufre", keys: ["azufre", "sulfato"], pct: (f) => f.so3Pct ?? 0 },
+  ];
+  const excessWarnings: string[] = [];
+  for (const nut of NUTRIENTS) {
+    const soilStatus = statusOf(soil, nut.keys);
+    const leafStatus = statusOf(leaf, nut.keys);
+    const soilHigh = soilStatus === "alto" || soilStatus === "muy_alto";
+    const leafLow = leafStatus === "bajo" || leafStatus === "muy_bajo";
+    if (!soilHigh || leafLow) continue;
+    for (const it of items) {
+      const fert = fertilizers.find((f) => f.id === it.fertilizerId);
+      if (!fert) continue;
+      const pcts = [fert.nPct ?? 0, fert.p2o5Pct ?? 0, fert.k2oPct ?? 0, fert.caoPct ?? 0, fert.mgoPct ?? 0, fert.so3Pct ?? 0];
+      const thisPct = nut.pct(fert);
+      if (thisPct > 0 && thisPct >= Math.max(...pcts)) {
+        excessWarnings.push(
+          `POSIBLE CONTRASENTIDO: «${fert.name}» aporta principalmente ${nut.label} y la analítica de suelo lo muestra en nivel ${soilStatus === "muy_alto" ? "muy alto" : "alto"} sin déficit foliar. Valorar retirarlo o reducirlo con el técnico.`,
+        );
+      }
+    }
+  }
+
   const ecWarnings: string[] = [];
   if (exceedsMaxEc(out)) {
     ecWarnings.push(
@@ -671,6 +706,7 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
           : []),
         ...out.warnings,
         ...out.compatibilityIssues,
+        ...excessWarnings,
         ...ecWarnings,
       ],
     })

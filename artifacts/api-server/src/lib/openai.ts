@@ -266,6 +266,7 @@ Reglas:
 - La CE del agua en origen consume parte de la CE máxima admisible de la finca: la suma de CE que añadan los fertilizantes debe caber en el margen (CE máxima − CE del agua). Si no cabe, reduce dosis o reparte en más riegos y adviértelo.
 - Advierte de incompatibilidades de mezcla (nitrato cálcico con sulfatos o fosfatos).
 - Sé conservador y consistente: propón dosis dentro de los rangos habituales de fertirrigación de platanera (la concentración total de fertilizantes disueltos no debe superar ~1,5-2 g/L de agua de riego). Ante la duda, la dosis más baja.
+- COHERENCIA CON LAS ANALÍTICAS: si un nutriente está alto o en exceso en suelo (y la foliar no muestra déficit de ese nutriente), NO incluyas fertilizantes cuyo aporte principal sea ese nutriente (p. ej. sulfato de magnesio con magnesio alto). La justificación debe ser coherente con los productos y dosis que propones.
 - Usa los nombres de producto EXACTAMENTE como aparecen en el catálogo, sin inventar productos ni variantes.
 - Si faltan datos, dilo claramente y pide la analítica correspondiente; no inventes valores.
 - No des ninguna recomendación como definitiva: recuerda que debe validarla el técnico responsable.
