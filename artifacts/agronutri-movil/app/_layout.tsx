@@ -19,7 +19,15 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Expo bundles run outside the web proxy: use absolute URLs + bearer token.
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+// En un servidor propio (versión web servida en /movil) no hay EXPO_PUBLIC_DOMAIN:
+// la API vive en el mismo origen que la página, así que se usa window.location.
+setBaseUrl(
+  process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+    : typeof window !== 'undefined' && window.location
+      ? window.location.origin
+      : null,
+);
 setAuthTokenGetter(() => getStoredToken());
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.

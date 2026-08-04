@@ -82,10 +82,14 @@ router.delete("/product-sheets/:sheetId", async (req, res): Promise<void> => {
   res.status(204).send();
 });
 
-router.get("/mobile-app", async (_req, res): Promise<void> => {
+router.get("/mobile-app", async (req, res): Promise<void> => {
+  // Prioridad: URL explícita > entorno Replit > servidor propio (la versión
+  // web del móvil se sirve en MOBILE_APP_PATH, p. ej. /movil, en el mismo host).
+  const mobilePath = process.env.MOBILE_APP_PATH;
   const url =
     process.env.MOBILE_APP_URL ??
-    (process.env.REPLIT_EXPO_DEV_DOMAIN ? `https://${process.env.REPLIT_EXPO_DEV_DOMAIN}` : null);
+    (process.env.REPLIT_EXPO_DEV_DOMAIN ? `https://${process.env.REPLIT_EXPO_DEV_DOMAIN}` : null) ??
+    (mobilePath ? `${req.protocol}://${req.get("host")}${mobilePath}` : null);
   res.json(GetMobileAppUrlResponse.parse({ url }));
 });
 

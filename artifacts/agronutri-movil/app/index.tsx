@@ -154,7 +154,13 @@ export default function FarmsScreen() {
           testID="banner-demo-mode"
           accessibilityRole="link"
           onPress={() =>
-            Linking.openURL(`https://${process.env.EXPO_PUBLIC_DOMAIN}/landing`)
+            Linking.openURL(
+              process.env.EXPO_PUBLIC_DOMAIN
+                ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/landing`
+                : typeof window !== 'undefined' && window.location
+                  ? `${window.location.origin}/landing`
+                  : '/landing',
+            )
           }
           style={[styles.demoBanner, { backgroundColor: '#fef3c7', borderBottomColor: '#fde68a' }]}
         >

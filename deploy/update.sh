@@ -135,6 +135,9 @@ BASE_PATH=/ PORT=3000 \
   VITE_DEMO_PASSWORD="${DEMO_PASSWORD:-}" \
   pnpm --filter @workspace/agronutri run build
 
+log "Compilando la aplicación móvil (versión web, servida en /movil)"
+BASE_PATH=/movil pnpm --filter @workspace/agronutri-movil exec expo export --platform web
+
 # ----------------------------------------------------------------------------
 # Cabeceras de caché de la PWA en instalaciones ya desplegadas: si el sitio de
 # nginx no las tiene todavía, se insertan antes del "location /". Idempotente
@@ -168,6 +171,43 @@ for site in /etc/nginx/sites-available/agronutri*; do
     { print }
   ' "$site" > "${site}.tmp" && mv "${site}.tmp" "$site"
   echo "  Cabeceras de caché añadidas a ${site}"
+done
+
+# ----------------------------------------------------------------------------
+# Versión web de la app móvil en instalaciones ya desplegadas: bloque nginx
+# /movil (idempotente, marcador "agronutri-movil") y variable MOBILE_APP_PATH
+# en el entorno de la API (para que Ajustes muestre el QR con la dirección).
+log "Comprobando la publicación de la app móvil (/movil) en nginx"
+for site in /etc/nginx/sites-available/agronutri*; do
+  [[ -f "$site" ]] || continue
+  grep -q 'agronutri-movil' "$site" && continue
+  awk -v appdir="$APP_DIR" '
+    !done && $0 ~ /^[[:space:]]*location \/ \{/ {
+      print "    # --- agronutri-movil: versión web de la app móvil ---"
+      print "    location = /movil {"
+      print "        return 301 /movil/;"
+      print "    }"
+      print "    location /movil/ {"
+      print "        alias " appdir "/artifacts/agronutri-movil/dist/;"
+      print "        try_files $uri $uri/index.html /movil/index.html;"
+      print "    }"
+      print "    location = /movil/index.html {"
+      print "        alias " appdir "/artifacts/agronutri-movil/dist/index.html;"
+      print "        add_header Cache-Control \"no-cache, must-revalidate\";"
+      print "    }"
+      print "    # --- fin agronutri-movil ---"
+      done = 1
+    }
+    { print }
+  ' "$site" > "${site}.tmp" && mv "${site}.tmp" "$site"
+  echo "  Bloque /movil añadido a ${site}"
+done
+for envf in "$ENV_FILE" /etc/agronutri/instances/*.env; do
+  [[ -f "$envf" ]] || continue
+  if ! grep -q '^MOBILE_APP_PATH=' "$envf"; then
+    echo 'MOBILE_APP_PATH=/movil' >> "$envf"
+    echo "  MOBILE_APP_PATH=/movil añadido a ${envf}"
+  fi
 done
 
 # ----------------------------------------------------------------------------

@@ -222,6 +222,9 @@ ALERT_EMAIL=${ALERT_EMAIL:-}
 # Copias de seguridad de las instalaciones de cooperativas (panel de administración).
 BACKUP_SCRIPT=${APP_DIR}/deploy/backup-coop.sh
 BACKUP_DIR=/var/backups/agronutri
+# La versión web de la app móvil se sirve en esta ruta (nginx); la tarjeta de
+# Ajustes muestra el QR apuntando aquí.
+MOBILE_APP_PATH=/movil
 ENV
 
 # Regla sudoers restringida: el servicio (usuario agronutri) solo puede
@@ -300,6 +303,9 @@ BASE_PATH=/ PORT=3000 \
   VITE_DEMO_EMAIL="${DEMO_EMAIL:-}" \
   VITE_DEMO_PASSWORD="${DEMO_PASSWORD:-}" \
   pnpm --filter @workspace/agronutri run build
+
+log "Compilando la aplicación móvil (versión web, servida en /movil)"
+BASE_PATH=/movil pnpm --filter @workspace/agronutri-movil exec expo export --platform web
 
 # ----------------------------------------------------------------------------
 log "Creando usuario de sistema y servicio systemd para la API"
@@ -406,6 +412,20 @@ server {
     }
     # --- fin agronutri-cache ---
 
+    # --- agronutri-movil: versión web de la app móvil ---
+    location = /movil {
+        return 301 /movil/;
+    }
+    location /movil/ {
+        alias ${APP_DIR}/artifacts/agronutri-movil/dist/;
+        try_files \$uri \$uri/index.html /movil/index.html;
+    }
+    location = /movil/index.html {
+        alias ${APP_DIR}/artifacts/agronutri-movil/dist/index.html;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    # --- fin agronutri-movil ---
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -502,6 +522,20 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
     # --- fin agronutri-cache ---
+
+    # --- agronutri-movil: versión web de la app móvil ---
+    location = /movil {
+        return 301 /movil/;
+    }
+    location /movil/ {
+        alias ${APP_DIR}/artifacts/agronutri-movil/dist/;
+        try_files \$uri \$uri/index.html /movil/index.html;
+    }
+    location = /movil/index.html {
+        alias ${APP_DIR}/artifacts/agronutri-movil/dist/index.html;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    # --- fin agronutri-movil ---
 
     location / {
         try_files \$uri \$uri/ /index.html;

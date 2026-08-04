@@ -110,6 +110,8 @@ REPORTS_DIR=${APP_DIR}/artifacts/api-server/storage/reports/${SUB}
 # motivo: los nombres analitica-<farmId>-<analysisId> usan ids serial por base
 # de datos y colisionarían entre cooperativas en un directorio común.
 ANALYSES_DIR=${APP_DIR}/artifacts/api-server/storage/analyses/${SUB}
+# La versión web de la app móvil se sirve en esta ruta (nginx).
+MOBILE_APP_PATH=/movil
 EOF
 install -d -o agronutri -g agronutri "${APP_DIR}/artifacts/api-server/storage/reports/${SUB}"
 install -d -o agronutri -g agronutri "${APP_DIR}/artifacts/api-server/storage/analyses/${SUB}"
@@ -228,6 +230,19 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
     # --- fin agronutri-cache ---
+    # --- agronutri-movil: versión web de la app móvil ---
+    location = /movil {
+        return 301 /movil/;
+    }
+    location /movil/ {
+        alias ${APP_DIR}/artifacts/agronutri-movil/dist/;
+        try_files \$uri \$uri/index.html /movil/index.html;
+    }
+    location = /movil/index.html {
+        alias ${APP_DIR}/artifacts/agronutri-movil/dist/index.html;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+    # --- fin agronutri-movil ---
     location / {
         try_files \$uri \$uri/ /index.html;
     }
