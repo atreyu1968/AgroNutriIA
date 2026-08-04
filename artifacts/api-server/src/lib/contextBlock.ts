@@ -82,9 +82,6 @@ export function buildFarmContext(input: {
         : ""
     }.`,
   );
-  if (f.hasDesalinatedWater) {
-    lines.push(`Agua: mezcla con ${f.desalinatedWaterPct ?? "?"} % de agua desalada.`);
-  }
   if (f.maxEcDsM != null) lines.push(`CE máxima admisible de la solución: ${f.maxEcDsM} dS/m.`);
   if (f.soilType) lines.push(`Suelo: ${f.soilType}.`);
   if (f.managementNotes) lines.push(`Notas de manejo: ${f.managementNotes}`);

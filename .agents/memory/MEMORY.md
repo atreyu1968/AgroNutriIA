@@ -15,3 +15,4 @@
 - [Schema deploys via drizzle push](db-schema-drift.md) — no migration files by design: deploy/install.sh and provision-coop.sh run `pnpm --filter @workspace/db run push-force`; new tables need no migration, just schema + push.
 - [Analítica de agua y unidades](water-blend.md) — nunca promediar/computar parámetros de agua con unidades distintas; omitir con aviso y normalizar a mg/L.
 - [Demo-mode limit tests](demo-mode-tests.md) — DEMO_MODE is per-process: own test file; demo limits count reports globally, so neutralize dev-seed rows and restore after.
+- [Pre-push data migrations](pre-push-migrations.md) — SQL run before drizzle push must CREATE TABLE IF NOT EXISTS its target; on old DBs the new table doesn't exist yet and push then drops the source columns.

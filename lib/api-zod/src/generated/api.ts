@@ -168,8 +168,6 @@ export const ListFarmsResponseItem = zod.object({
   "soilType": zod.string().nullish(),
   "hasDrainage": zod.boolean().nullish(),
   "foliarAllowed": zod.boolean().nullish(),
-  "hasDesalinatedWater": zod.boolean().nullish(),
-  "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "stageNutrientRanges": zod.record(zod.string(), zod.object({
@@ -208,8 +206,6 @@ export const CreateFarmBody = zod.object({
   "soilType": zod.string().optional(),
   "hasDrainage": zod.boolean().optional(),
   "foliarAllowed": zod.boolean().optional(),
-  "hasDesalinatedWater": zod.boolean().optional(),
-  "desalinatedWaterPct": zod.number().optional(),
   "weeklyLitresPerPlant": zod.number().optional(),
   "maxEcDsM": zod.number().optional(),
   "managementNotes": zod.string().optional(),
@@ -251,8 +247,6 @@ export const CreateFarmResponse = zod.object({
   "soilType": zod.string().nullish(),
   "hasDrainage": zod.boolean().nullish(),
   "foliarAllowed": zod.boolean().nullish(),
-  "hasDesalinatedWater": zod.boolean().nullish(),
-  "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "stageNutrientRanges": zod.record(zod.string(), zod.object({
@@ -305,8 +299,6 @@ export const GetFarmResponse = zod.object({
   "soilType": zod.string().nullish(),
   "hasDrainage": zod.boolean().nullish(),
   "foliarAllowed": zod.boolean().nullish(),
-  "hasDesalinatedWater": zod.boolean().nullish(),
-  "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "stageNutrientRanges": zod.record(zod.string(), zod.object({
@@ -358,8 +350,6 @@ export const UpdateFarmBody = zod.object({
   "soilType": zod.string().optional(),
   "hasDrainage": zod.boolean().optional(),
   "foliarAllowed": zod.boolean().optional(),
-  "hasDesalinatedWater": zod.boolean().optional(),
-  "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "stageNutrientRanges": zod.record(zod.string(), zod.object({
@@ -405,8 +395,6 @@ export const UpdateFarmResponse = zod.object({
   "soilType": zod.string().nullish(),
   "hasDrainage": zod.boolean().nullish(),
   "foliarAllowed": zod.boolean().nullish(),
-  "hasDesalinatedWater": zod.boolean().nullish(),
-  "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "stageNutrientRanges": zod.record(zod.string(), zod.object({
@@ -467,8 +455,6 @@ export const GetFarmSummaryResponse = zod.object({
   "soilType": zod.string().nullish(),
   "hasDrainage": zod.boolean().nullish(),
   "foliarAllowed": zod.boolean().nullish(),
-  "hasDesalinatedWater": zod.boolean().nullish(),
-  "desalinatedWaterPct": zod.number().nullish(),
   "weeklyLitresPerPlant": zod.number().nullish(),
   "maxEcDsM": zod.number().nullish(),
   "stageNutrientRanges": zod.record(zod.string(), zod.object({

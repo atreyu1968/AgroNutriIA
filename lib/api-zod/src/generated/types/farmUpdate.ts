@@ -26,8 +26,6 @@ export interface FarmUpdate {
   soilType?: string;
   hasDrainage?: boolean;
   foliarAllowed?: boolean;
-  hasDesalinatedWater?: boolean;
-  desalinatedWaterPct?: number | null;
   weeklyLitresPerPlant?: number | null;
   maxEcDsM?: number | null;
   /** Rangos por fase modulados por el técnico (g/planta/semana); null restaura los orientativos */

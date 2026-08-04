@@ -59,6 +59,8 @@ sudo -u postgres pg_dump -Fc "${DB_NAME}" > "${BACKUP_DIR}/${DB_NAME}-$(date +%Y
 echo "Copia de seguridad guardada en ${BACKUP_DIR}"
 DATABASE_URL="$(grep '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)"
 export DATABASE_URL
+# Migraciones de datos que deben ejecutarse antes de que push elimine columnas antiguas
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" -f "$APP_DIR/deploy/migrate-water-sources.sql"
 pnpm --filter @workspace/db run push-force
 
 # Catálogo base de fertilizantes: solo se carga si el catálogo está vacío

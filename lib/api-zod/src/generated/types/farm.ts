@@ -44,10 +44,6 @@ export interface Farm {
   /** @nullable */
   foliarAllowed?: boolean | null;
   /** @nullable */
-  hasDesalinatedWater?: boolean | null;
-  /** @nullable */
-  desalinatedWaterPct?: number | null;
-  /** @nullable */
   weeklyLitresPerPlant?: number | null;
   /** @nullable */
   maxEcDsM?: number | null;

@@ -11,6 +11,7 @@ import {
   farmsTable,
   sectorsTable,
   analysesTable,
+  waterSourcesTable,
   fertilizersTable,
   recommendationsTable,
 } from "@workspace/db";
@@ -51,8 +52,6 @@ async function main() {
       phenologicalStage: "pre-parición",
       cropSystem: "aire libre",
       soilType: "franco-arcillo-arenoso",
-      hasDesalinatedWater: true,
-      desalinatedWaterPct: 30,
       weeklyLitresPerPlant: 125,
       maxEcDsM: 2.2,
       managementNotes:
@@ -60,6 +59,11 @@ async function main() {
       responsibleTechnician: "Técnico de AGROSABINA SL",
     })
     .returning();
+
+  await db.insert(waterSourcesTable).values([
+    { farmId: farm.id, name: "Balten (TFN)", sharePct: 70 },
+    { farmId: farm.id, name: "Desaladora", sharePct: 30 },
+  ]);
 
   await db.insert(sectorsTable).values([
     { farmId: farm.id, name: "Sector Norte", plantCount: 2100, phenologicalStage: "pre-parición" },

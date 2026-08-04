@@ -2549,8 +2549,6 @@ components:
         soilType: { type: ["string", "null"] }
         hasDrainage: { type: ["boolean", "null"] }
         foliarAllowed: { type: ["boolean", "null"] }
-        hasDesalinatedWater: { type: ["boolean", "null"] }
-        desalinatedWaterPct: { type: ["number", "null"] }
         weeklyLitresPerPlant: { type: ["number", "null"] }
         maxEcDsM: { type: ["number", "null"] }
         stageNutrientRanges:
@@ -2590,8 +2588,6 @@ components:
         soilType: { type: string }
         hasDrainage: { type: boolean }
         foliarAllowed: { type: boolean }
-        hasDesalinatedWater: { type: boolean }
-        desalinatedWaterPct: { type: number }
         weeklyLitresPerPlant: { type: number }
         maxEcDsM: { type: number }
         managementNotes: { type: string }
@@ -2619,8 +2615,6 @@ components:
         soilType: { type: string }
         hasDrainage: { type: boolean }
         foliarAllowed: { type: boolean }
-        hasDesalinatedWater: { type: boolean }
-        desalinatedWaterPct: { type: number, nullable: true }
         weeklyLitresPerPlant: { type: number, nullable: true }
         maxEcDsM: { type: number, nullable: true }
         stageNutrientRanges:

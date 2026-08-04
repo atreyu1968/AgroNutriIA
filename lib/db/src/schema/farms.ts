@@ -38,8 +38,6 @@ export const farmsTable = pgTable("farms", {
   soilType: text("soil_type"),
   hasDrainage: boolean("has_drainage"),
   foliarAllowed: boolean("foliar_allowed"),
-  hasDesalinatedWater: boolean("has_desalinated_water"),
-  desalinatedWaterPct: real("desalinated_water_pct"),
   weeklyLitresPerPlant: real("weekly_litres_per_plant"),
   maxEcDsM: real("max_ec_ds_m"),
   /** Rangos orientativos por fase modulados por el técnico (g/planta/semana). */

@@ -242,6 +242,8 @@ if sudo -u postgres psql -d "${DB_NAME}" -tc "SELECT count(*) FROM information_s
   echo "Copia de seguridad guardada en ${BACKUP_DIR}"
 fi
 export DATABASE_URL
+# Migraciones de datos que deben ejecutarse antes de que push elimine columnas antiguas
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" -f "$APP_DIR/deploy/migrate-water-sources.sql"
 pnpm --filter @workspace/db run push-force
 
 # ----------------------------------------------------------------------------

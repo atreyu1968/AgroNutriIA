@@ -46,8 +46,6 @@ export function serializeFarm(f: Farm, myRole: string, sectorCount?: number) {
     soilType: f.soilType,
     hasDrainage: f.hasDrainage,
     foliarAllowed: f.foliarAllowed,
-    hasDesalinatedWater: f.hasDesalinatedWater,
-    desalinatedWaterPct: f.desalinatedWaterPct,
     weeklyLitresPerPlant: f.weeklyLitresPerPlant,
     maxEcDsM: f.maxEcDsM,
     stageNutrientRanges: f.stageNutrientRanges ?? null,

@@ -25,8 +25,6 @@ export interface FarmInput {
   soilType?: string;
   hasDrainage?: boolean;
   foliarAllowed?: boolean;
-  hasDesalinatedWater?: boolean;
-  desalinatedWaterPct?: number;
   weeklyLitresPerPlant?: number;
   maxEcDsM?: number;
   managementNotes?: string;

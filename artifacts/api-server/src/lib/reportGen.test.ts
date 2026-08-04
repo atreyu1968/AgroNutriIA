@@ -30,8 +30,6 @@ const farm: Farm = {
   soilType: "sorriba",
   hasDrainage: true,
   foliarAllowed: true,
-  hasDesalinatedWater: false,
-  desalinatedWaterPct: null,
   weeklyLitresPerPlant: 80,
   maxEcDsM: 2.2,
   stageNutrientRanges: null,
