@@ -48,6 +48,7 @@ import {
   clientFor,
   agronomistSystemPrompt,
   estimateCostEur,
+  lowTemperatureParam,
   maxOutputTokensParam,
   modelFor,
   parseJsonLoose,
@@ -418,6 +419,9 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
       const completion = await client.chat.completions.create({
         model,
         ...maxOutputTokensParam(credential, 4000),
+        // Baja aleatoriedad: con los mismos datos de partida las propuestas
+        // deben ser estables y sin dosis o productos disparatados.
+        ...lowTemperatureParam(credential),
         // Algunos proveedores compatibles no soportan json_schema estricto:
         // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
         // y la estructura se describe en el prompt.
@@ -488,13 +492,52 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     const r = reason.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return /\bph\b/.test(r) || r.includes("acidif") || r.includes("correccion") || r.includes("alcalinid") || r.includes("bicarbonat");
   };
+  // Topes de dosis plausibles (en MASA, convirtiendo litros con la densidad
+  // del producto). Se calculan según los datos disponibles, de mejor a peor:
+  // 1) volumen semanal de riego → g/L de agua (3 g/L por producto, 3 g/L total);
+  // 2) superficie → kg/ha/semana; 3) plantas → kg/planta/semana;
+  // 4) sin datos → tope fijo prudente con aviso.
+  const plausiblePlants = sector?.plantCount ?? access.farm.plantCount ?? 0;
+  const plausibleLpp =
+    sector?.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant ?? 0;
+  const plausibleHa = sector?.surfaceHa ?? access.farm.surfaceHa ?? 0;
+  const weeklyWaterL =
+    plausiblePlants > 0 && plausibleLpp > 0 ? plausiblePlants * plausibleLpp : null;
+  let maxItemKg: number;
+  let maxTotalKg: number;
+  let capNote: string | null = null;
+  if (weeklyWaterL != null) {
+    maxItemKg = Math.max(1, (weeklyWaterL * 3) / 1000);
+    maxTotalKg = maxItemKg; // 3 g/L también como techo del total disuelto
+  } else if (plausibleHa > 0) {
+    maxItemKg = plausibleHa * 100;
+    maxTotalKg = plausibleHa * 250;
+    capNote =
+      "No consta el volumen semanal de riego: las dosis se han acotado por superficie. Configura plantas y litros/planta/semana para una validación más precisa.";
+  } else if (plausiblePlants > 0) {
+    maxItemKg = plausiblePlants * 0.1;
+    maxTotalKg = plausiblePlants * 0.25;
+    capNote =
+      "No consta el volumen semanal de riego ni la superficie: las dosis se han acotado por número de plantas. Configura litros/planta/semana para una validación más precisa.";
+  } else {
+    maxItemKg = 100;
+    maxTotalKg = 250;
+    capNote =
+      "La finca no tiene configurados plantas, superficie ni riego semanal: se han aplicado topes de dosis genéricos. Configura estos datos para una validación fiable.";
+  }
+  const doseKg = (dose: number, unit: string, densityKgL: number | null | undefined) =>
+    unit === "L" ? dose * (densityKgL ?? 1.2) : dose;
+
   const buildItems = (program: ExtractedProgram) => {
     const items: RecommendationItem[] = [];
     const discarded: string[] = [];
     const acidsAsNutrient: string[] = [];
     for (const i of program.items ?? []) {
       const fert = byName.get(i.fertilizerName.toLowerCase());
-      const doseOk = Number.isFinite(i.weeklyDose) && i.weeklyDose > 0 && i.weeklyDose <= 10000;
+      const doseOk =
+        Number.isFinite(i.weeklyDose) &&
+        i.weeklyDose > 0 &&
+        (fert == null || doseKg(i.weeklyDose, i.unit, fert.densityKgL) <= maxItemKg);
       if (!fert || fert.isActive === false || !doseOk) {
         discarded.push(i.fertilizerName);
         continue;
@@ -522,6 +565,19 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     res.status(422).json({
       error:
         "La IA ha propuesto productos o dosis no válidos y se ha descartado la propuesta. Vuelve a intentarlo.",
+    });
+    return;
+  }
+
+  // Tope del TOTAL disuelto: la suma de todas las dosis (en masa) debe caber
+  // en el techo plausible; si no, la propuesta es disparatada y se rechaza.
+  const totalKg = items.reduce((acc, it) => {
+    const fert = byName.get(it.fertilizerName.toLowerCase());
+    return acc + doseKg(it.weeklyDose, it.unit, fert?.densityKgL);
+  }, 0);
+  if (totalKg > maxTotalKg) {
+    res.status(422).json({
+      error: `La IA ha propuesto una cantidad total de fertilizante fuera de todo rango plausible (${Math.round(totalKg)} kg/semana, máximo estimado ${Math.round(maxTotalKg)} kg). Se ha descartado la propuesta; vuelve a intentarlo.`,
     });
     return;
   }
@@ -605,6 +661,7 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
       estimatedWeeklyNKg: out.nutrients.n ?? null,
       stageComparison: out.stageComparison ?? null,
       warnings: [
+        ...(capNote ? [capNote] : []),
         ...blendedWater.notes,
         ...(discarded.length > 0
           ? [`Productos descartados por no estar en el catálogo o dosis inválidas: ${discarded.join(", ")}.`]

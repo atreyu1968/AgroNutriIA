@@ -65,6 +65,20 @@ export function maxOutputTokensParam(
   return usesResponsesApi(credential) ? { max_completion_tokens: n } : { max_tokens: n };
 }
 
+/**
+ * Parámetro de temperatura baja para tareas de cálculo (programas de abonado):
+ * reduce la aleatoriedad para que los mismos datos den propuestas parecidas.
+ * Los modelos razonadores (gpt-5*, o1/o3, deepseek-reasoner) no admiten
+ * temperatura distinta de la por defecto, así que se omite.
+ */
+export function lowTemperatureParam(
+  credential: Pick<Credential, "provider" | "selectedModel">,
+): { temperature: number } | Record<string, never> {
+  const model = modelFor(credential).toLowerCase();
+  if (/^(gpt-5|o1|o3|o4)/.test(model) || model.includes("reasoner")) return {};
+  return { temperature: 0.2 };
+}
+
 /** Si el proveedor admite análisis de imágenes (visión). */
 export function supportsVision(credential: Pick<Credential, "provider">): boolean {
   return AI_PROVIDERS[providerFor(credential)].vision;
@@ -251,6 +265,8 @@ Reglas:
 - El agua de riego NO es agua pura: DESCUENTA SIEMPRE de las necesidades los nutrientes que ya aporta el agua según su analítica (nitratos, potasio, calcio, magnesio, sulfatos) antes de proponer dosis.
 - La CE del agua en origen consume parte de la CE máxima admisible de la finca: la suma de CE que añadan los fertilizantes debe caber en el margen (CE máxima − CE del agua). Si no cabe, reduce dosis o reparte en más riegos y adviértelo.
 - Advierte de incompatibilidades de mezcla (nitrato cálcico con sulfatos o fosfatos).
+- Sé conservador y consistente: propón dosis dentro de los rangos habituales de fertirrigación de platanera (la concentración total de fertilizantes disueltos no debe superar ~1,5-2 g/L de agua de riego). Ante la duda, la dosis más baja.
+- Usa los nombres de producto EXACTAMENTE como aparecen en el catálogo, sin inventar productos ni variantes.
 - Si faltan datos, dilo claramente y pide la analítica correspondiente; no inventes valores.
 - No des ninguna recomendación como definitiva: recuerda que debe validarla el técnico responsable.
 
