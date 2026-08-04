@@ -1,0 +1,64 @@
+root@agrinutri:~# # 1. ¿Está la API en marcha y con errores?
+systemctl status agronutri-api --no-pager | head -8
+journalctl -u agronutri-api -n 30 --no-pager
+
+# 2. ¿Siguen los datos en la base de datos?
+sudo -u postgres psql -d agronutri -c "SELECT (SELECT count(*) FROM users) AS usuarios, (SELECT count(*) FROM farms) AS fincas, (SELECT count(*) FROM reports) AS informes;"
+
+# 3. ¿Qué copias de seguridad hay?
+ls -lh /var/backups/agronutri/
+* agronutri-api.service - AgroNutri AI API
+     Loaded: loaded (/etc/systemd/system/agronutri-api.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-08-04 20:48:18 UTC; 2min 52s ago
+ Invocation: d169b958179143f2aeb1b9b0e6a42ee0
+   Main PID: 6073 (MainThread)
+      Tasks: 13 (limit: 16695)
+     Memory: 252.7M (peak: 260.5M)
+        CPU: 1.995s
+Aug 04 20:49:14 agrinutri node[6073]: Error: Failed query: select "id", "owner_id", "name", "company_name", "cif", "island", "municipality", "latitude", "longitude", "altitude_m", "surface_ha", "main_crop", "variety", "plant_count", "phenological_stage", "crop_system", "soil_type", "has_drainage", "foliar_allowed", "weekly_litres_per_plant", "max_ec_ds_m", "stage_nutrient_ranges", "management_notes", "responsible_technician", "contact_name", "contact_phone", "contact_email", "created_at", "updated_at" from "farms" where "farms"."owner_id" = $1
+Aug 04 20:49:14 agrinutri node[6073]: params: 1
+Aug 04 20:49:14 agrinutri node[6073]:     at NodePgPreparedQuery.queryWithCache (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:73:11)
+Aug 04 20:49:14 agrinutri node[6073]:     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Aug 04 20:49:14 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)
+Aug 04 20:49:14 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/artifacts/api-server/src/routes/farms.ts:64:17)
+Aug 04 20:49:14 agrinutri node[6073]: {"level":30,"time":1785876554635,"pid":6073,"hostname":"agrinutri","req":{"id":56,"method":"GET","url":"/api/farms"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n    at onResFinished (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n    at ServerResponse.onResponseComplete (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n    at ServerResponse.emit (node:events:521:24)\n    at onFinish (node:_http_outgoing:1079:10)\n    at callback (node:internal/streams/writable:764:21)\n    at afterWrite (node:internal/streams/writable:708:5)\n    at afterWriteTick (node:internal/streams/writable:694:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)"},"responseTime":4,"msg":"request errored"}
+Aug 04 20:49:38 agrinutri node[6073]: Error: Failed query: insert into "farms" ("id", "owner_id", "name", "company_name", "cif", "island", "municipality", "latitude", "longitude", "altitude_m", "surface_ha", "main_crop", "variety", "plant_count", "phenological_stage", "crop_system", "soil_type", "has_drainage", "foliar_allowed", "weekly_litres_per_plant", "max_ec_ds_m", "stage_nutrient_ranges", "management_notes", "responsible_technician", "contact_name", "contact_phone", "contact_email", "created_at", "updated_at") values (default, $1, $2, default, default, $3, $4, default, default, default, $5, default, default, $6, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default) returning "id", "owner_id", "name", "company_name", "cif", "island", "municipality", "latitude", "longitude", "altitude_m", "surface_ha", "main_crop", "variety", "plant_count", "phenological_stage", "crop_system", "soil_type", "has_drainage", "foliar_allowed", "weekly_litres_per_plant", "max_ec_ds_m", "stage_nutrient_ranges", "management_notes", "responsible_technician", "contact_name", "contact_phone", "contact_email", "created_at", "updated_at"
+Aug 04 20:49:38 agrinutri node[6073]: params: 1,Agrosabina SL,Tenerife,Los Silos,3,5500
+Aug 04 20:49:38 agrinutri node[6073]:     at NodePgPreparedQuery.queryWithCache (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:73:11)
+Aug 04 20:49:38 agrinutri node[6073]:     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Aug 04 20:49:38 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)
+Aug 04 20:49:38 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/artifacts/api-server/src/routes/farms.ts:95:18)
+Aug 04 20:49:38 agrinutri node[6073]: {"level":30,"time":1785876578474,"pid":6073,"hostname":"agrinutri","req":{"id":57,"method":"POST","url":"/api/farms"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n    at onResFinished (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n    at ServerResponse.onResponseComplete (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n    at ServerResponse.emit (node:events:521:24)\n    at onFinish (node:_http_outgoing:1079:10)\n    at callback (node:internal/streams/writable:764:21)\n    at afterWrite (node:internal/streams/writable:708:5)\n    at afterWriteTick (node:internal/streams/writable:694:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)"},"responseTime":16,"msg":"request errored"}
+Aug 04 20:49:44 agrinutri node[6073]: {"level":30,"time":1785876584220,"pid":6073,"hostname":"agrinutri","req":{"id":58,"method":"GET","url":"/api/auth/me"},"res":{"statusCode":304},"responseTime":9,"msg":"request completed"}
+Aug 04 20:49:44 agrinutri node[6073]: {"level":30,"time":1785876584221,"pid":6073,"hostname":"agrinutri","req":{"id":59,"method":"GET","url":"/api/auth/config"},"res":{"statusCode":304},"responseTime":0,"msg":"request completed"}
+Aug 04 20:49:44 agrinutri node[6073]: Error: Failed query: select "id", "owner_id", "name", "company_name", "cif", "island", "municipality", "latitude", "longitude", "altitude_m", "surface_ha", "main_crop", "variety", "plant_count", "phenological_stage", "crop_system", "soil_type", "has_drainage", "foliar_allowed", "weekly_litres_per_plant", "max_ec_ds_m", "stage_nutrient_ranges", "management_notes", "responsible_technician", "contact_name", "contact_phone", "contact_email", "created_at", "updated_at" from "farms" where "farms"."owner_id" = $1
+Aug 04 20:49:44 agrinutri node[6073]: params: 1
+Aug 04 20:49:44 agrinutri node[6073]:     at NodePgPreparedQuery.queryWithCache (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:73:11)
+Aug 04 20:49:44 agrinutri node[6073]:     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Aug 04 20:49:44 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)
+Aug 04 20:49:44 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/artifacts/api-server/src/routes/farms.ts:64:17)
+Aug 04 20:49:44 agrinutri node[6073]: {"level":30,"time":1785876584453,"pid":6073,"hostname":"agrinutri","req":{"id":60,"method":"GET","url":"/api/farms"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n    at onResFinished (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n    at ServerResponse.onResponseComplete (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n    at ServerResponse.emit (node:events:521:24)\n    at onFinish (node:_http_outgoing:1079:10)\n    at callback (node:internal/streams/writable:764:21)\n    at afterWrite (node:internal/streams/writable:708:5)\n    at afterWriteTick (node:internal/streams/writable:694:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)"},"responseTime":3,"msg":"request errored"}
+Aug 04 20:49:45 agrinutri node[6073]: {"level":30,"time":1785876585549,"pid":6073,"hostname":"agrinutri","req":{"id":61,"method":"GET","url":"/api/farms"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n    at onResFinished (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n    at ServerResponse.onResponseComplete (/opt/agronutri/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n    at ServerResponse.emit (node:events:521:24)\n    at onFinish (node:_http_outgoing:1079:10)\n    at callback (node:internal/streams/writable:764:21)\n    at afterWrite (node:internal/streams/writable:708:5)\n    at afterWriteTick (node:internal/streams/writable:694:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)"},"responseTime":15,"msg":"request errored"}
+Aug 04 20:49:45 agrinutri node[6073]: Error: Failed query: select "id", "owner_id", "name", "company_name", "cif", "island", "municipality", "latitude", "longitude", "altitude_m", "surface_ha", "main_crop", "variety", "plant_count", "phenological_stage", "crop_system", "soil_type", "has_drainage", "foliar_allowed", "weekly_litres_per_plant", "max_ec_ds_m", "stage_nutrient_ranges", "management_notes", "responsible_technician", "contact_name", "contact_phone", "contact_email", "created_at", "updated_at" from "farms" where "farms"."owner_id" = $1
+Aug 04 20:49:45 agrinutri node[6073]: params: 1
+Aug 04 20:49:45 agrinutri node[6073]:     at NodePgPreparedQuery.queryWithCache (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:73:11)
+Aug 04 20:49:45 agrinutri node[6073]:     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Aug 04 20:49:45 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)
+Aug 04 20:49:45 agrinutri node[6073]:     at async <anonymous> (/opt/agronutri/artifacts/api-server/src/routes/farms.ts:64:17)
+ usuarios | fincas | informes 
+----------+--------+----------
+        2 |      1 |        1
+(1 row)
+
+total 1.6M
+-rw-r--r-- 1 root root 2.0K Aug  4 09:00 agronutri-20260804-090039.dump
+-rw-r--r-- 1 root root 162K Aug  4 09:07 agronutri-20260804-090753.dump
+-rw-r--r-- 1 root root 170K Aug  4 09:21 agronutri-20260804-092117.dump
+-rw-r--r-- 1 root root 171K Aug  4 16:59 agronutri-20260804-165908.dump
+-rw-r--r-- 1 root root 171K Aug  4 17:08 agronutri-20260804-170802.dump
+-rw-r--r-- 1 root root 172K Aug  4 17:21 agronutri-20260804-172105.dump
+-rw-r--r-- 1 root root 176K Aug  4 19:50 agronutri-20260804-195043.dump
+-rw-r--r-- 1 root root 176K Aug  4 20:05 agronutri-20260804-200500.dump
+-rw-r--r-- 1 root root 181K Aug  4 20:40 agronutri-20260804-204048.dump
+-rw-r--r-- 1 root root 181K Aug  4 20:46 agronutri-20260804-204608.dump
+root@agrinutri:~# 
