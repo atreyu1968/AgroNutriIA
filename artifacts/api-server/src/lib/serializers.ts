@@ -66,6 +66,7 @@ export function serializeAnalysis(a: Analysis) {
     farmId: a.farmId,
     sectorId: a.sectorId,
     type: a.type,
+    waterSourceId: a.waterSourceId,
     reference: a.reference,
     laboratory: a.laboratory,
     description: a.description,

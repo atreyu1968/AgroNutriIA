@@ -15,6 +15,8 @@ export interface Analysis {
   sectorId?: number | null;
   type: AnalysisType;
   /** @nullable */
+  waterSourceId?: number | null;
+  /** @nullable */
   reference?: string | null;
   /** @nullable */
   laboratory?: string | null;

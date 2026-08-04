@@ -23,6 +23,7 @@ import { serializeReport } from "../lib/serializers";
 import {
   latestAnalysis,
   activeRecommendation,
+  blendedWaterAnalysis,
   userName,
   resolveCredential,
 } from "../lib/farmContext";
@@ -213,10 +214,10 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
       `informe-${farmId}-${report.id}.${parsed.data.format}`,
     );
     try {
-      const [soil, leaf, water, sectors, treatments] = await Promise.all([
+      const [soil, leaf, blendedWater, sectors, treatments] = await Promise.all([
         latestAnalysis(farmId, "soil"),
         latestAnalysis(farmId, "leaf"),
-        latestAnalysis(farmId, "water"),
+        blendedWaterAnalysis(farmId),
         db.select().from(sectorsTable).where(eq(sectorsTable.farmId, farmId)),
         db
           .select()
@@ -244,7 +245,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
           farmId,
           scenario: scenario!,
           soil,
-          water,
+          water: blendedWater.analysis,
           leaf,
           sectors,
           log,
@@ -301,7 +302,7 @@ router.post("/farms/:farmId/reports", async (req, res): Promise<void> => {
         sectors,
         soil,
         leaf,
-        water,
+        water: blendedWater.analysis,
         recommendation,
         amendment,
         authorName,
@@ -421,6 +422,53 @@ router.get("/farms/:farmId/reports/:reportId/download", async (req, res): Promis
   }
   const safeName = report.title.replace(/[^\p{L}\p{N} _.-]/gu, "").slice(0, 80);
   res.download(report.filePath, `${safeName}.${report.format}`);
+});
+
+router.delete("/farms/:farmId/reports/:reportId", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const reportId = parseIntParam(req.params.reportId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos" });
+    return;
+  }
+  const [report] = await db
+    .select()
+    .from(reportsTable)
+    .where(and(eq(reportsTable.id, reportId), eq(reportsTable.farmId, farmId)));
+  if (!report) {
+    res.status(404).json({ error: "Informe no encontrado" });
+    return;
+  }
+  if (report.status === "generating") {
+    res.status(409).json({ error: "El informe se está generando: espera a que termine antes de eliminarlo." });
+    return;
+  }
+  // Delete only this report's own file, scoped inside the reports directory.
+  if (report.filePath) {
+    const resolved = path.resolve(report.filePath);
+    if (resolved.startsWith(path.resolve(REPORTS_DIR) + path.sep) && fs.existsSync(resolved)) {
+      try {
+        fs.unlinkSync(resolved);
+      } catch {
+        // El registro se borra igualmente; el fichero huérfano no bloquea el borrado.
+      }
+    }
+  }
+  await db.delete(reportsTable).where(eq(reportsTable.id, reportId));
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "report_deleted",
+    entityType: "report",
+    entityId: reportId,
+    detail: report.title,
+  });
+  res.status(204).end();
 });
 
 export default router;

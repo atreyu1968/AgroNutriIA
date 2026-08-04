@@ -213,10 +213,10 @@ export default function FincaDetail() {
 
         <TabsContent value="sectores"><SectorsTab farmId={farmId} /></TabsContent>
         <TabsContent value="analiticas"><AnalysesTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
-        <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} onCreate={() => setActiveTab("calculadora")} /></TabsContent>
-        <TabsContent value="calculadora"><CalculadoraTab farmId={farmId} defaultPlantCount={farm.plantCount} defaultWeeklyLitres={farm.weeklyLitresPerPlant} onNavigateTab={setActiveTab} /></TabsContent>
+        <TabsContent value="recomendaciones"><RecommendationsTab farmId={farmId} onCreate={() => setActiveTab("calculadora")} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
+        <TabsContent value="calculadora"><CalculadoraTab farmId={farmId} defaultPlantCount={farm.plantCount} defaultWeeklyLitres={farm.weeklyLitresPerPlant} defaultMaxEc={farm.maxEcDsM} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} onNavigateTab={setActiveTab} /></TabsContent>
         <TabsContent value="fitosanitarios"><FitosanitariosTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
-        <TabsContent value="informes"><ReportsTab farmId={farmId} /></TabsContent>
+        <TabsContent value="informes"><ReportsTab farmId={farmId} canEdit={farm.myRole === 'owner' || farm.myRole === 'technician'} /></TabsContent>
         <TabsContent value="miembros"><MembersTab farmId={farmId} /></TabsContent>
         {farm.myRole === 'owner' && <TabsContent value="config"><ConfigTab farmId={farmId} /></TabsContent>}
       </Tabs>

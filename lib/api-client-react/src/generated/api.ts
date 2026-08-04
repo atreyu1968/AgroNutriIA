@@ -112,7 +112,9 @@ import type {
   UploadConversationAttachmentBody,
   UsageSummary,
   UserProfile,
-  UserProfileUpdate
+  UserProfileUpdate,
+  WaterSource,
+  WaterSourceInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1633,6 +1635,143 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRemoveMemberMutationOptions(options));
     }
 
+export const getListWaterSourcesUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/water-sources`
+}
+
+export const listWaterSources = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<WaterSource[]> => {
+
+  return customFetch<WaterSource[]>(getListWaterSourcesUrl(farmId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWaterSourcesQueryKey = (farmId: number,) => {
+    return [
+    `/api/farms/${farmId}/water-sources`
+    ] as const;
+    }
+
+
+export const getListWaterSourcesQueryOptions = <TData = Awaited<ReturnType<typeof listWaterSources>>, TError = ErrorType<unknown>>(farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWaterSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWaterSourcesQueryKey(farmId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWaterSources>>> = ({ signal }) => listWaterSources(farmId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWaterSources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWaterSourcesQueryResult = NonNullable<Awaited<ReturnType<typeof listWaterSources>>>
+export type ListWaterSourcesQueryError = ErrorType<unknown>
+
+
+
+export function useListWaterSources<TData = Awaited<ReturnType<typeof listWaterSources>>, TError = ErrorType<unknown>>(
+ farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWaterSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWaterSourcesQueryOptions(farmId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetWaterSourcesUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/water-sources`
+}
+
+export const setWaterSources = async (farmId: number,
+    waterSourceInput: WaterSourceInput[], options?: Parameters<typeof customFetch>[1]): Promise<WaterSource[]> => {
+
+  return customFetch<WaterSource[]>(getSetWaterSourcesUrl(farmId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(waterSourceInput)
+  }
+);}
+
+
+
+
+
+export const getSetWaterSourcesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWaterSources>>, TError,{farmId: number;data: BodyType<WaterSourceInput[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setWaterSources>>, TError,{farmId: number;data: BodyType<WaterSourceInput[]>}, TContext> => {
+
+const mutationKey = ['setWaterSources'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setWaterSources>>, {farmId: number;data: BodyType<WaterSourceInput[]>}> = (props) => {
+          const {farmId,data} = props ?? {};
+
+          return  setWaterSources(farmId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetWaterSourcesMutationResult = NonNullable<Awaited<ReturnType<typeof setWaterSources>>>
+    export type SetWaterSourcesMutationBody = BodyType<WaterSourceInput[]>
+    export type SetWaterSourcesMutationError = ErrorType<void>
+
+    export const useSetWaterSources = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWaterSources>>, TError,{farmId: number;data: BodyType<WaterSourceInput[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setWaterSources>>,
+        TError,
+        {farmId: number;data: BodyType<WaterSourceInput[]>},
+        TContext
+      > => {
+      return useMutation(getSetWaterSourcesMutationOptions(options));
+    }
+
 export const getListAnalysesUrl = (farmId: number,) => {
 
 
@@ -2900,6 +3039,79 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateRecommendationMutationOptions(options));
     }
 
+export const getDeleteRecommendationUrl = (farmId: number,
+    recommendationId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/recommendations/${recommendationId}`
+}
+
+/**
+ * @summary Delete a nutrition program that has not been validated by the technician
+ */
+export const deleteRecommendation = async (farmId: number,
+    recommendationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteRecommendationUrl(farmId,recommendationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteRecommendationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRecommendation>>, TError,{farmId: number;recommendationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRecommendation>>, TError,{farmId: number;recommendationId: number}, TContext> => {
+
+const mutationKey = ['deleteRecommendation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRecommendation>>, {farmId: number;recommendationId: number}> = (props) => {
+          const {farmId,recommendationId} = props ?? {};
+
+          return  deleteRecommendation(farmId,recommendationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRecommendationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRecommendation>>>
+
+    export type DeleteRecommendationMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a nutrition program that has not been validated by the technician
+ */
+export const useDeleteRecommendation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRecommendation>>, TError,{farmId: number;recommendationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRecommendation>>,
+        TError,
+        {farmId: number;recommendationId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRecommendationMutationOptions(options));
+    }
+
 export const getChangeRecommendationStatusUrl = (farmId: number,
     recommendationId: number,) => {
 
@@ -4152,6 +4364,79 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateReportMutationOptions(options));
+    }
+
+export const getDeleteReportUrl = (farmId: number,
+    reportId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/reports/${reportId}`
+}
+
+/**
+ * @summary Delete a generated report and its file
+ */
+export const deleteReport = async (farmId: number,
+    reportId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteReportUrl(farmId,reportId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReport>>, TError,{farmId: number;reportId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReport>>, TError,{farmId: number;reportId: number}, TContext> => {
+
+const mutationKey = ['deleteReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReport>>, {farmId: number;reportId: number}> = (props) => {
+          const {farmId,reportId} = props ?? {};
+
+          return  deleteReport(farmId,reportId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReportMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReport>>>
+
+    export type DeleteReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a generated report and its file
+ */
+export const useDeleteReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReport>>, TError,{farmId: number;reportId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReport>>,
+        TError,
+        {farmId: number;reportId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteReportMutationOptions(options));
     }
 
 export const getPreviewReportNotesUrl = (farmId: number,) => {

@@ -342,6 +342,46 @@ paths:
         "204":
           description: Removed
 
+  /farms/{farmId}/water-sources:
+    get:
+      operationId: listWaterSources
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Water sources of the farm with their current share
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaterSource"
+    put:
+      operationId: setWaterSources
+      tags: [analyses]
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/WaterSourceInput"
+      responses:
+        "200":
+          description: Updated list of water sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaterSource"
+        "400":
+          description: Invalid shares (must sum 100 when any share > 0)
+
   /farms/{farmId}/analyses:
     get:
       operationId: listAnalyses
@@ -645,6 +685,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recommendation"
+    delete:
+      operationId: deleteRecommendation
+      tags: [recommendations]
+      summary: Delete a nutrition program that has not been validated by the technician
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - $ref: "#/components/parameters/RecommendationId"
+      responses:
+        "204":
+          description: Deleted
+        "409":
+          description: The program was validated (or applied) and cannot be deleted
   /farms/{farmId}/recommendations/{recommendationId}/status:
     post:
       operationId: changeRecommendationStatus
@@ -944,6 +996,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Report"
+
+  /farms/{farmId}/reports/{reportId}:
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete a generated report and its file
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
 
   /farms/{farmId}/reports/notes-preview:
     post:
@@ -2607,6 +2674,7 @@ components:
         farmId: { type: integer }
         sectorId: { type: ["integer", "null"] }
         type: { type: string, enum: [soil, leaf, water] }
+        waterSourceId: { type: ["integer", "null"] }
         reference: { type: ["string", "null"] }
         laboratory: { type: ["string", "null"] }
         description: { type: ["string", "null"] }
@@ -2617,6 +2685,23 @@ components:
             $ref: "#/components/schemas/AnalysisParameter"
         notes: { type: ["string", "null"] }
         createdAt: { type: ["string", "null"] }
+    WaterSource:
+      type: object
+      required: [id, farmId, name, sharePct]
+      properties:
+        id: { type: integer }
+        farmId: { type: integer }
+        name: { type: string }
+        sharePct: { type: number }
+        latestAnalysisId: { type: ["integer", "null"] }
+        latestAnalysisDate: { type: ["string", "null"], description: "YYYY-MM-DD of the latest water analysis of this source" }
+    WaterSourceInput:
+      type: object
+      required: [name, sharePct]
+      properties:
+        id: { type: integer, description: "Existing source id to update; omit to create" }
+        name: { type: string, minLength: 1 }
+        sharePct: { type: number, minimum: 0, maximum: 100 }
     AnalysisParameter:
       type: object
       required: [name, value]
@@ -2633,6 +2718,9 @@ components:
       properties:
         sectorId: { type: integer }
         type: { type: string, enum: [soil, leaf, water] }
+        waterSourceId:
+          type: integer
+          description: Water source this analysis belongs to (water analyses only)
         reference: { type: string }
         laboratory: { type: string }
         description: { type: string }
@@ -2789,6 +2877,23 @@ components:
         sectorId: { type: integer }
         weeklyLitresPerPlant: { type: number }
         plantCount: { type: integer }
+        phenologicalStage:
+          type: string
+          description: Overrides the farm/sector phenological stage for this calculation
+        maxEcDsM:
+          type: number
+          minimum: 0.1
+          maximum: 10
+          description: Overrides the farm's maximum EC (dS/m) for this calculation
+        waterMix:
+          type: array
+          description: Overrides the stored share of each water source for this calculation
+          items:
+            type: object
+            required: [waterSourceId, sharePct]
+            properties:
+              waterSourceId: { type: integer }
+              sharePct: { type: number, minimum: 0, maximum: 100 }
         items:
           type: array
           items:
@@ -2805,9 +2910,15 @@ components:
           additionalProperties:
             type: number
         estimatedEcDsM: { type: ["number", "null"] }
+        waterEcDsM:
+          type: ["number", "null"]
+          description: "EC of the source irrigation water (dS/m), from the latest water analysis"
+        fertilizersEcDsM:
+          type: ["number", "null"]
+          description: "EC added by the fertilizers alone (dS/m)"
         waterContribution:
           type: object
-          description: "Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity"
+          description: "Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity"
           additionalProperties:
             type: number
         sar: { type: ["number", "null"] }
@@ -2819,6 +2930,24 @@ components:
           type: array
           items:
             type: string
+        stageComparison:
+          oneOf:
+            - $ref: "#/components/schemas/StageComparison"
+            - type: "null"
+    StageComparison:
+      type: object
+      description: Orientative comparison of the weekly program against phenological stage targets (g/plant/week)
+      required: [stageLabel, nPerPlantG, k2oPerPlantG, nMinG, nMaxG, k2oMinG, k2oMaxG, nStatus, k2oStatus]
+      properties:
+        stageLabel: { type: string }
+        nPerPlantG: { type: number }
+        k2oPerPlantG: { type: number }
+        nMinG: { type: number }
+        nMaxG: { type: number }
+        k2oMinG: { type: number }
+        k2oMaxG: { type: number }
+        nStatus: { type: string, enum: [low, ok, high] }
+        k2oStatus: { type: string, enum: [low, ok, high] }
 
     Credential:
       type: object

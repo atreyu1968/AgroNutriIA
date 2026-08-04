@@ -982,6 +982,8 @@ export interface Analysis {
   sectorId?: number | null;
   type: AnalysisType;
   /** @nullable */
+  waterSourceId?: number | null;
+  /** @nullable */
   reference?: string | null;
   /** @nullable */
   laboratory?: string | null;
@@ -1139,6 +1141,32 @@ export interface AdminReassignTechnicianInput {
   toUserId: number;
 }
 
+export interface WaterSource {
+  id: number;
+  farmId: number;
+  name: string;
+  sharePct: number;
+  /** @nullable */
+  latestAnalysisId?: number | null;
+  /**
+     * YYYY-MM-DD of the latest water analysis of this source
+     * @nullable
+     */
+  latestAnalysisDate?: string | null;
+}
+
+export interface WaterSourceInput {
+  /** Existing source id to update; omit to create */
+  id?: number;
+  /** @minLength 1 */
+  name: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  sharePct: number;
+}
+
 export type AnalysisInputType = typeof AnalysisInputType[keyof typeof AnalysisInputType];
 
 
@@ -1151,6 +1179,8 @@ export const AnalysisInputType = {
 export interface AnalysisInput {
   sectorId?: number;
   type: AnalysisInputType;
+  /** Water source this analysis belongs to (water analyses only) */
+  waterSourceId?: number;
   reference?: string;
   laboratory?: string;
   description?: string;
@@ -1295,10 +1325,29 @@ export interface RecommendationStatusChange {
   comment?: string;
 }
 
+export type CalculationRequestWaterMixItem = {
+  waterSourceId: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  sharePct: number;
+};
+
 export interface CalculationRequest {
   sectorId?: number;
   weeklyLitresPerPlant?: number;
   plantCount?: number;
+  /** Overrides the farm/sector phenological stage for this calculation */
+  phenologicalStage?: string;
+  /**
+     * Overrides the farm's maximum EC (dS/m) for this calculation
+     * @minimum 0.1
+     * @maximum 10
+     */
+  maxEcDsM?: number;
+  /** Overrides the stored share of each water source for this calculation */
+  waterMix?: CalculationRequestWaterMixItem[];
   items: RecommendationItem[];
 }
 
@@ -1308,9 +1357,42 @@ export interface CalculationRequest {
 export type CalculationResultNutrients = {[key: string]: number};
 
 /**
- * Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity
+ * Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity
  */
 export type CalculationResultWaterContribution = {[key: string]: number};
+
+export type StageComparisonNStatus = typeof StageComparisonNStatus[keyof typeof StageComparisonNStatus];
+
+
+export const StageComparisonNStatus = {
+  low: 'low',
+  ok: 'ok',
+  high: 'high',
+} as const;
+
+export type StageComparisonK2oStatus = typeof StageComparisonK2oStatus[keyof typeof StageComparisonK2oStatus];
+
+
+export const StageComparisonK2oStatus = {
+  low: 'low',
+  ok: 'ok',
+  high: 'high',
+} as const;
+
+/**
+ * Orientative comparison of the weekly program against phenological stage targets (g/plant/week)
+ */
+export interface StageComparison {
+  stageLabel: string;
+  nPerPlantG: number;
+  k2oPerPlantG: number;
+  nMinG: number;
+  nMaxG: number;
+  k2oMinG: number;
+  k2oMaxG: number;
+  nStatus: StageComparisonNStatus;
+  k2oStatus: StageComparisonK2oStatus;
+}
 
 export interface CalculationResult {
   weeklyWaterLitres: number;
@@ -1319,12 +1401,23 @@ export interface CalculationResult {
   nutrients: CalculationResultNutrients;
   /** @nullable */
   estimatedEcDsM?: number | null;
-  /** Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity */
+  /**
+     * EC of the source irrigation water (dS/m), from the latest water analysis
+     * @nullable
+     */
+  waterEcDsM?: number | null;
+  /**
+     * EC added by the fertilizers alone (dS/m)
+     * @nullable
+     */
+  fertilizersEcDsM?: number | null;
+  /** Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity */
   waterContribution?: CalculationResultWaterContribution;
   /** @nullable */
   sar?: number | null;
   warnings: string[];
   compatibilityIssues: string[];
+  stageComparison?: StageComparison | null;
 }
 
 export interface Credential {

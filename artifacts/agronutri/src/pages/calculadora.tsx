@@ -9,6 +9,11 @@ import {
   useCreateRecommendation,
   useUpdateRecommendation,
   getListRecommendationsQueryKey,
+  useListWaterSources,
+  useSetWaterSources,
+  getListWaterSourcesQueryKey,
+  useUpdateFarm,
+  getGetFarmSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { ChatTecnicoPanel } from "@/components/chat-tecnico";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,11 +36,15 @@ export default function CalculadoraTab({
   farmId,
   defaultPlantCount,
   defaultWeeklyLitres,
+  defaultMaxEc,
+  canEdit = false,
   onNavigateTab,
 }: {
   farmId: number;
   defaultPlantCount?: number | null;
   defaultWeeklyLitres?: number | null;
+  defaultMaxEc?: number | null;
+  canEdit?: boolean;
   onNavigateTab?: (tab: string) => void;
 }) {
   const { data: fertilizers } = useListFertilizers();
@@ -51,10 +60,24 @@ export default function CalculadoraTab({
 
   const [plantCount, setPlantCount] = useState(defaultPlantCount ?? 1000);
   const [weeklyLitresPerPlant, setWeeklyLitresPerPlant] = useState(defaultWeeklyLitres ?? 150);
+  const [maxEc, setMaxEc] = useState<number>(defaultMaxEc ?? 2.5);
+  const farmSaveMutation = useUpdateFarm({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Datos de la finca actualizados" });
+        queryClient.invalidateQueries({ queryKey: getGetFarmSummaryQueryKey(farmId) });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "No se pudo actualizar la finca", description: msg ?? "Inténtalo de nuevo.", variant: "destructive" });
+      },
+    },
+  });
   useEffect(() => {
     if (defaultPlantCount != null) setPlantCount(defaultPlantCount);
     if (defaultWeeklyLitres != null) setWeeklyLitresPerPlant(defaultWeeklyLitres);
-  }, [defaultPlantCount, defaultWeeklyLitres]);
+    if (defaultMaxEc != null) setMaxEc(defaultMaxEc);
+  }, [defaultPlantCount, defaultWeeklyLitres, defaultMaxEc]);
   
   const [items, setItems] = useState<Array<{id: number, fertId: string, dose: number}>>([
     { id: Date.now(), fertId: "", dose: 0 }
@@ -63,7 +86,21 @@ export default function CalculadoraTab({
   const calcMutation = useRunCalculation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fase fenológica para el cálculo ("auto" = la de la finca/sector)
+  const [stageChoice, setStageChoice] = useState<string>("auto");
+  // Fuentes de agua: reparto editable localmente (por id)
+  const { data: waterSources } = useListWaterSources(farmId);
+  const [mixEdit, setMixEdit] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (waterSources) {
+      setMixEdit(Object.fromEntries(waterSources.map((s) => [s.id, s.sharePct])));
+    }
+  }, [waterSources]);
+  const mixTotal = Object.values(mixEdit).reduce((a, b) => a + (b || 0), 0);
   const [aiDraft, setAiDraft] = useState<{ id: number; title: string; rationale: string | null; sectorId: number | null } | null>(null);
+  // Justificación técnica obligatoria al guardar un programa manual.
+  const [saveRationale, setSaveRationale] = useState("");
   const [edited, setEdited] = useState(false);
 
   const aiMutation = useGenerateAiDraftRecommendation({
@@ -157,7 +194,9 @@ export default function CalculadoraTab({
       });
     }
   }
-  const acidBlocked = useAcid && (analysesLoading || acidMissing.length > 0);
+  // Ya no se bloquea la generación: los datos que falten se estiman con valores
+  // típicos y la IA lo advierte en la justificación. El aviso pasa a ser informativo.
+  const acidBlocked = useAcid && analysesLoading;
 
   const buildValidItems = () =>
     items
@@ -175,11 +214,20 @@ export default function CalculadoraTab({
   const handleSaveAsTechnician = () => {
     const validItems = buildValidItems();
     if (validItems.length === 0) return;
+    const rationale = (saveRationale.trim() || aiDraft?.rationale || "").trim();
+    if (rationale.length < 10) {
+      toast({
+        title: "Falta la justificación técnica",
+        description: "Todo programa debe explicar su motivación agronómica. Escríbela antes de guardar.",
+        variant: "destructive",
+      });
+      return;
+    }
     saveMutation.mutate({
       farmId,
       data: {
         title: aiDraft ? `${aiDraft.title} (ajustado por el técnico)` : "Programa del técnico",
-        rationale: aiDraft?.rationale ?? undefined,
+        rationale,
         // Conserva el ámbito del borrador IA: un programa sectorial no debe volverse global.
         ...(aiDraft?.sectorId != null ? { sectorId: aiDraft.sectorId } : {}),
         items: validItems,
@@ -207,7 +255,17 @@ export default function CalculadoraTab({
       data: {
         plantCount,
         weeklyLitresPerPlant,
-        items: validItems
+        ...(maxEc > 0 ? { maxEcDsM: maxEc } : {}),
+        items: validItems,
+        ...(stageChoice !== "auto" ? { phenologicalStage: stageChoice } : {}),
+        ...(waterSources && waterSources.length > 0
+          ? {
+              waterMix: waterSources.map((s) => ({
+                waterSourceId: s.id,
+                sharePct: mixEdit[s.id] ?? s.sharePct,
+              })),
+            }
+          : {}),
       }
     });
   };
@@ -254,8 +312,106 @@ export default function CalculadoraTab({
                   onChange={e => setWeeklyLitresPerPlant(parseInt(e.target.value) || 0)} 
                 />
               </div>
+              <div className="space-y-2">
+                <Label>CE objetivo / máxima (dS/m)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min={0.1}
+                  max={10}
+                  value={maxEc}
+                  onChange={e => setMaxEc(parseFloat(e.target.value) || 0)}
+                  data-testid="input-max-ec"
+                />
+              </div>
+              {canEdit && (
+              <div className="space-y-2 flex items-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={farmSaveMutation.isPending || plantCount <= 0 || weeklyLitresPerPlant <= 0 || !(maxEc > 0)}
+                  onClick={() =>
+                    farmSaveMutation.mutate({
+                      farmId,
+                      data: { plantCount, weeklyLitresPerPlant, maxEcDsM: maxEc },
+                    })
+                  }
+                  data-testid="button-save-farm-params"
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  {farmSaveMutation.isPending ? "Guardando…" : "Guardar en la finca"}
+                </Button>
+              </div>
+              )}
+              <div className="space-y-2 col-span-2">
+                <Label>Fase fenológica del cálculo</Label>
+                <Select value={stageChoice} onValueChange={setStageChoice}>
+                  <SelectTrigger data-testid="select-stage"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">La de la finca / sector</SelectItem>
+                    <SelectItem value="pre-floración">Pre-floración / parición</SelectItem>
+                    <SelectItem value="engorde">Engorde / llenado del racimo</SelectItem>
+                    <SelectItem value="parón invernal">Parón invernal</SelectItem>
+                    <SelectItem value="postcosecha">Postcosecha / arranque vegetativo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  El resultado se contrasta con los rangos orientativos de N y K₂O de esa fase.
+                </p>
+              </div>
             </CardContent>
           </Card>
+
+          {waterSources && waterSources.length > 0 && (
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-primary" /> Mezcla de agua para este cálculo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {waterSources.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2">
+                    <div className="flex-1 text-sm">
+                      {s.name}
+                      <span className="block text-xs text-muted-foreground">
+                        {s.latestAnalysisDate ? `Analítica: ${s.latestAnalysisDate}` : "Sin analítica de agua"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="w-20"
+                        value={mixEdit[s.id] ?? s.sharePct}
+                        onChange={(e) => setMixEdit((m) => ({ ...m, [s.id]: parseFloat(e.target.value) || 0 }))}
+                        data-testid={`input-source-pct-${s.id}`}
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                ))}
+                <p className={`text-xs ${Math.abs(mixTotal - 100) > 0.5 ? "text-destructive" : "text-muted-foreground"}`}>
+                  Reparto total: {formatNumber(mixTotal)} % {Math.abs(mixTotal - 100) > 0.5 ? "(debe sumar 100 %)" : ""}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMixEdit(Object.fromEntries(waterSources.map((s) => [s.id, s.sharePct])))}
+                    data-testid="button-reset-mix"
+                  >
+                    Volver al reparto de la finca
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Ajuste solo para simular. Las fuentes y su reparto se gestionan en la finca (pestaña Analíticas).
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="shadow-sm">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -366,7 +522,11 @@ export default function CalculadoraTab({
                 >
                   <p className="font-medium flex items-center gap-2 text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
-                    Faltan datos para calcular los litros de ácido
+                    Faltan datos para afinar el cálculo de ácido
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Se usarán los datos disponibles y, para lo que falte, valores típicos (se advertirá en la
+                    justificación). Para un cálculo preciso conviene completar:
                   </p>
                   <ul className="space-y-1.5">
                     {acidMissing.map((m) => (
@@ -387,7 +547,7 @@ export default function CalculadoraTab({
                     ))}
                   </ul>
                   <p className="text-xs text-muted-foreground">
-                    Completa esos datos o desmarca la opción de ácido para poder generar el programa.
+                    El programa se generará igualmente; completa esos datos cuando puedas para un cálculo de ácido preciso.
                   </p>
                 </div>
               )}
@@ -481,6 +641,21 @@ export default function CalculadoraTab({
                   {updateMutation.isPending ? "Actualizando..." : "Actualizar borrador IA con mis ajustes"}
                 </Button>
               )}
+              <div className="space-y-1">
+                <Label className="text-xs" htmlFor="save-rationale">Justificación técnica del programa</Label>
+                <Textarea
+                  id="save-rationale"
+                  rows={3}
+                  placeholder={
+                    aiDraft?.rationale
+                      ? "Si la dejas vacía se usará la justificación del borrador IA."
+                      : "Explica la motivación agronómica del programa (obligatoria al guardar)."
+                  }
+                  value={saveRationale}
+                  onChange={(e) => setSaveRationale(e.target.value)}
+                  data-testid="textarea-save-rationale"
+                />
+              </div>
               <Button
                 variant="outline"
                 className="w-full gap-2"
@@ -510,6 +685,11 @@ export default function CalculadoraTab({
                   <CardContent className="p-4 text-center">
                     <p className="text-sm text-muted-foreground mb-1">CE Estimada</p>
                     <p className="text-2xl font-bold text-secondary">{formatNumber(calcMutation.data.estimatedEcDsM)} <span className="text-sm font-normal text-muted-foreground">dS/m</span></p>
+                    {calcMutation.data.waterEcDsM != null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Agua origen {formatNumber(calcMutation.data.waterEcDsM)} + abonos {formatNumber(calcMutation.data.fertilizersEcDsM)}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -532,6 +712,30 @@ export default function CalculadoraTab({
                   </div>
                 </CardContent>
               </Card>
+
+              {calcMutation.data.stageComparison && (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3 border-b">
+                    <CardTitle className="text-lg">Fase fenológica: {calcMutation.data.stageComparison.stageLabel}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-2 text-sm">
+                    {([
+                      ["N", calcMutation.data.stageComparison.nPerPlantG, calcMutation.data.stageComparison.nMinG, calcMutation.data.stageComparison.nMaxG, calcMutation.data.stageComparison.nStatus],
+                      ["K₂O", calcMutation.data.stageComparison.k2oPerPlantG, calcMutation.data.stageComparison.k2oMinG, calcMutation.data.stageComparison.k2oMaxG, calcMutation.data.stageComparison.k2oStatus],
+                    ] as const).map(([label, v, lo, hi, status]) => (
+                      <div key={label} className="flex items-center justify-between gap-2">
+                        <span>{label}: <strong>{formatNumber(v)}</strong> g/planta/sem (orientativo {lo}–{hi})</span>
+                        <Badge variant={status === "ok" ? "success" : "destructive"}>
+                          {status === "ok" ? "En rango" : status === "high" ? "Por encima" : "Por debajo"}
+                        </Badge>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">
+                      Rangos orientativos de platanera por fase; la decisión final es del técnico.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
               {(calcMutation.data.warnings.length > 0 || calcMutation.data.compatibilityIssues.length > 0) && (
                 <Card className="border-destructive/50 bg-destructive/5">

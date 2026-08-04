@@ -73,6 +73,7 @@ function analysis(id: number, type: string, params: Analysis["parameters"]): Ana
     id,
     farmId: 1,
     sectorId: 1,
+    waterSourceId: null,
     type,
     reference: `REF-${id}`,
     laboratory: "Laboratorio Insular",

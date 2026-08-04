@@ -25,6 +25,7 @@ import { encryptSecret } from "../lib/crypto";
 // must be set before the app (and its routes) create any client.
 let openaiStub: Server;
 let openaiCalls = 0;
+let lastOpenaiBody = "";
 
 let server: Server;
 let baseUrl: string;
@@ -83,6 +84,7 @@ before(async () => {
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {
+      lastOpenaiBody = body;
       res.setHeader("content-type", "application/json");
       res.end(
         JSON.stringify({
@@ -198,73 +200,67 @@ after(async () => {
   await pool.end();
 });
 
-test("useAcid sin analítica de agua → 422 claro, sin llamada al modelo ni borrador", async () => {
+test("useAcid sin analítica de agua → se genera igualmente estimando y advirtiendo", async () => {
   await insertAnalysis(farmId, "soil", [{ name: "pH", value: 6.5, unit: "" }]);
   const callsBefore = openaiCalls;
-  const usageBefore = await usageCount();
   const draftsBefore = await draftCount(farmId);
 
   const { status, json } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
     useAcid: true,
   });
 
-  assert.equal(status, 422);
-  assert.match(json.error ?? "", /analítica de agua/i);
-  assert.match(json.error ?? "", /ácido/i);
-  assert.equal(openaiCalls, callsBefore, "no debe llamar al modelo");
-  assert.equal(await usageCount(), usageBefore, "no debe registrar uso de IA");
-  assert.equal(await draftCount(farmId), draftsBefore, "no debe crear borrador");
+  assert.equal(status, 201, `esperaba 201, recibí ${status}: ${JSON.stringify(json)}`);
+  assert.ok(openaiCalls > callsBefore, "debe llamar al modelo");
+  assert.equal(await draftCount(farmId), draftsBefore + 1);
+  assert.match(lastOpenaiBody, /No consta el pH/);
+  assert.match(lastOpenaiBody, /No constan bicarbonatos/);
+  assert.match(lastOpenaiBody, /valor típico/);
 });
 
-test("useAcid con analítica de agua sin pH → 422 que menciona el pH", async () => {
+test("useAcid con agua sin pH → usa los bicarbonatos disponibles y estima el pH", async () => {
   await insertAnalysis(farmId, "water", [
     { name: "Bicarbonatos", value: 250, unit: "mg/L" },
   ]);
-  const callsBefore = openaiCalls;
   const draftsBefore = await draftCount(farmId);
 
-  const { status, json } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
+  const { status } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
     useAcid: true,
   });
 
-  assert.equal(status, 422);
-  assert.match(json.error ?? "", /pH/);
-  assert.equal(openaiCalls, callsBefore);
-  assert.equal(await draftCount(farmId), draftsBefore);
+  assert.equal(status, 201);
+  assert.equal(await draftCount(farmId), draftsBefore + 1);
+  assert.match(lastOpenaiBody, /No consta el pH/);
+  assert.match(lastOpenaiBody, /Bicarbonatos\/alcalinidad disponibles: 250/);
 });
 
-test("useAcid con agua sin bicarbonatos/alcalinidad → 422 que los menciona", async () => {
+test("useAcid con agua sin bicarbonatos → usa el pH disponible y estima los bicarbonatos", async () => {
   await insertAnalysis(farmId, "water", [{ name: "pH", value: 7.8, unit: "" }]);
-  const callsBefore = openaiCalls;
   const draftsBefore = await draftCount(farmId);
 
-  const { status, json } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
+  const { status } = await api(`/farms/${farmId}/recommendations/ai-draft`, {
     useAcid: true,
   });
 
-  assert.equal(status, 422);
-  assert.match(json.error ?? "", /bicarbonatos|alcalinidad/i);
-  assert.equal(openaiCalls, callsBefore);
-  assert.equal(await draftCount(farmId), draftsBefore);
+  assert.equal(status, 201);
+  assert.equal(await draftCount(farmId), draftsBefore + 1);
+  assert.match(lastOpenaiBody, /pH del agua disponible: 7.8/);
+  assert.match(lastOpenaiBody, /No constan bicarbonatos/);
 });
 
-test("useAcid sin riego semanal configurado → 422 que menciona el riego", async () => {
+test("useAcid sin riego semanal → pide la dosis en mL por m³ en vez de bloquear", async () => {
   await insertAnalysis(dryFarmId, "water", [
     { name: "pH", value: 7.8, unit: "" },
     { name: "Bicarbonatos", value: 250, unit: "mg/L" },
   ]);
-  const callsBefore = openaiCalls;
   const draftsBefore = await draftCount(dryFarmId);
 
   const { status, json } = await api(`/farms/${dryFarmId}/recommendations/ai-draft`, {
     useAcid: true,
   });
 
-  assert.equal(status, 422);
-  assert.match(json.error ?? "", /riego semanal/i);
-  assert.match(json.error ?? "", /litros por planta/i);
-  assert.equal(openaiCalls, callsBefore);
-  assert.equal(await draftCount(dryFarmId), draftsBefore);
+  assert.equal(status, 201, `esperaba 201, recibí ${status}: ${JSON.stringify(json)}`);
+  assert.equal(await draftCount(dryFarmId), draftsBefore + 1);
+  assert.match(lastOpenaiBody, /mL por m³/);
 });
 
 test("useAcid con targetPh válido se acepta y crea el borrador", async () => {

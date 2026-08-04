@@ -12,6 +12,7 @@ import {
   farmsTable,
   fertilizersTable,
   recommendationsTable,
+  reportsTable,
   auditLogTable,
 } from "@workspace/db";
 import { UpdateRecommendationResponse } from "@workspace/api-zod";
@@ -210,4 +211,87 @@ test("PATCH devuelve 404 si la recomendación no es de la finca", async () => {
   const { status } = await apiPatch(`/farms/${farmId}/recommendations/999999`, { title: "x" },
   );
   assert.equal(status, 404);
+});
+
+async function apiDelete(path: string) {
+  const res = await fetch(`${baseUrl}/api${path}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return res.status;
+}
+
+test("DELETE elimina un programa en borrador y deja auditoría", async () => {
+  const rec = await createDraft();
+  const status = await apiDelete(`/farms/${farmId}/recommendations/${rec.id}`);
+  assert.equal(status, 204);
+  const [stored] = await db
+    .select()
+    .from(recommendationsTable)
+    .where(eq(recommendationsTable.id, rec.id));
+  assert.equal(stored, undefined);
+});
+
+test("DELETE elimina programas pendientes de revisión y rechazados", async () => {
+  for (const s of ["pending_review", "rejected"]) {
+    const rec = await createDraft(s);
+    assert.equal(await apiDelete(`/farms/${farmId}/recommendations/${rec.id}`), 204);
+  }
+});
+
+test("DELETE rechaza eliminar un programa validado, en aplicación o finalizado", async () => {
+  for (const s of ["validated", "applying", "finished"]) {
+    const rec = await createDraft(s);
+    assert.equal(await apiDelete(`/farms/${farmId}/recommendations/${rec.id}`), 409);
+    const [stored] = await db
+      .select()
+      .from(recommendationsTable)
+      .where(eq(recommendationsTable.id, rec.id));
+    assert.ok(stored, `el programa ${s} debe seguir existiendo`);
+    await db.delete(recommendationsTable).where(eq(recommendationsTable.id, rec.id));
+  }
+});
+
+test("DELETE de un programa de otra finca responde 404", async () => {
+  const rec = await createDraft();
+  assert.equal(await apiDelete(`/farms/${farmId + 999999}/recommendations/${rec.id}`), 404);
+  await db.delete(recommendationsTable).where(eq(recommendationsTable.id, rec.id));
+});
+
+test("DELETE de un programa conserva sus informes desvinculándolos", async () => {
+  const rec = await createDraft();
+  const [rep] = await db
+    .insert(reportsTable)
+    .values({
+      farmId,
+      recommendationId: rec.id,
+      title: "Informe ligado al borrador",
+      reportType: "fertirrigacion",
+      format: "pdf",
+      status: "ready",
+      createdBy: userId,
+    })
+    .returning();
+  assert.equal(await apiDelete(`/farms/${farmId}/recommendations/${rec.id}`), 204);
+  const [storedRep] = await db.select().from(reportsTable).where(eq(reportsTable.id, rep.id));
+  assert.ok(storedRep, "el informe debe conservarse");
+  assert.equal(storedRep.recommendationId, null);
+  await db.delete(reportsTable).where(eq(reportsTable.id, rep.id));
+});
+
+test("DELETE de un informe en generación responde 409; listo se elimina", async () => {
+  const [gen] = await db
+    .insert(reportsTable)
+    .values({ farmId, title: "Generando", reportType: "fertirrigacion", format: "pdf", status: "generating", createdBy: userId })
+    .returning();
+  assert.equal(await apiDelete(`/farms/${farmId}/reports/${gen.id}`), 409);
+  await db.delete(reportsTable).where(eq(reportsTable.id, gen.id));
+
+  const [ready] = await db
+    .insert(reportsTable)
+    .values({ farmId, title: "Listo", reportType: "fertirrigacion", format: "pdf", status: "ready", createdBy: userId })
+    .returning();
+  assert.equal(await apiDelete(`/farms/${farmId}/reports/${ready.id}`), 204);
+  const [stored] = await db.select().from(reportsTable).where(eq(reportsTable.id, ready.id));
+  assert.equal(stored, undefined);
 });

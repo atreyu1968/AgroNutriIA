@@ -3,8 +3,12 @@ import multer from "multer";
 import { PDFParse } from "pdf-parse";
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
-import { db, analysesTable, sectorsTable } from "@workspace/db";
+import { db, analysesTable, sectorsTable, waterSourcesTable } from "@workspace/db";
+import { inArray, notInArray } from "drizzle-orm";
 import {
+  ListWaterSourcesResponse,
+  SetWaterSourcesBody,
+  SetWaterSourcesResponse,
   ListAnalysesResponse,
   CreateAnalysisBody,
   CreateAnalysisResponse,
@@ -279,6 +283,116 @@ router.get("/farms/:farmId/analyses", async (req, res): Promise<void> => {
   res.json(ListAnalysesResponse.parse(rows.map(serializeAnalysis)));
 });
 
+async function waterSourceBelongsToFarm(waterSourceId: number | null | undefined, farmId: number) {
+  if (waterSourceId == null) return true;
+  const [s] = await db
+    .select({ id: waterSourcesTable.id })
+    .from(waterSourcesTable)
+    .where(and(eq(waterSourcesTable.id, waterSourceId), eq(waterSourcesTable.farmId, farmId)));
+  return !!s;
+}
+
+async function listSourcesWithLatest(farmId: number) {
+  const sources = await db
+    .select()
+    .from(waterSourcesTable)
+    .where(eq(waterSourcesTable.farmId, farmId))
+    .orderBy(waterSourcesTable.id);
+  const result = [];
+  for (const s of sources) {
+    const [a] = await db
+      .select({ id: analysesTable.id, sampleDate: analysesTable.sampleDate })
+      .from(analysesTable)
+      .where(and(eq(analysesTable.waterSourceId, s.id), eq(analysesTable.type, "water")))
+      .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
+      .limit(1);
+    result.push({
+      id: s.id,
+      farmId: s.farmId,
+      name: s.name,
+      sharePct: s.sharePct,
+      latestAnalysisId: a?.id ?? null,
+      latestAnalysisDate: a?.sampleDate ?? null,
+    });
+  }
+  return result;
+}
+
+router.get("/farms/:farmId/water-sources", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  res.json(ListWaterSourcesResponse.parse(await listSourcesWithLatest(farmId)));
+});
+
+router.put("/farms/:farmId/water-sources", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  if (!canEdit(access.role)) {
+    res.status(403).json({ error: "Sin permisos" });
+    return;
+  }
+  const parsed = SetWaterSourcesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const items = parsed.data;
+  const total = items.reduce((acc, s) => acc + s.sharePct, 0);
+  if (items.length > 0 && total > 0 && Math.abs(total - 100) > 0.5) {
+    res.status(400).json({ error: `El reparto entre fuentes debe sumar 100 % (ahora suma ${Math.round(total * 10) / 10} %).` });
+    return;
+  }
+  // Ids to update must belong to this farm.
+  const ids = items.filter((s) => s.id != null).map((s) => s.id!) ;
+  if (ids.length > 0) {
+    const owned = await db
+      .select({ id: waterSourcesTable.id })
+      .from(waterSourcesTable)
+      .where(and(eq(waterSourcesTable.farmId, farmId), inArray(waterSourcesTable.id, ids)));
+    if (owned.length !== ids.length) {
+      res.status(400).json({ error: "Alguna fuente indicada no pertenece a esta finca" });
+      return;
+    }
+  }
+  await db.transaction(async (tx) => {
+    // Remove sources not present anymore (their analyses keep waterSourceId=null via FK).
+    if (ids.length > 0) {
+      await tx
+        .delete(waterSourcesTable)
+        .where(and(eq(waterSourcesTable.farmId, farmId), notInArray(waterSourcesTable.id, ids)));
+    } else {
+      await tx.delete(waterSourcesTable).where(eq(waterSourcesTable.farmId, farmId));
+    }
+    for (const s of items) {
+      if (s.id != null) {
+        await tx
+          .update(waterSourcesTable)
+          .set({ name: s.name, sharePct: s.sharePct })
+          .where(and(eq(waterSourcesTable.id, s.id), eq(waterSourcesTable.farmId, farmId)));
+      } else {
+        await tx.insert(waterSourcesTable).values({ farmId, name: s.name, sharePct: s.sharePct });
+      }
+    }
+  });
+  await audit({
+    userId: req.user!.id,
+    farmId,
+    action: "water_sources_updated",
+    entityType: "farm",
+    entityId: farmId,
+    detail: items.map((s) => `${s.name} ${s.sharePct}%`).join(" + ") || "sin fuentes",
+  });
+  res.json(SetWaterSourcesResponse.parse(await listSourcesWithLatest(farmId)));
+});
+
 router.post("/farms/:farmId/analyses", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
   const access = await farmAccess(req.user!, farmId);
@@ -299,9 +413,18 @@ router.post("/farms/:farmId/analyses", async (req, res): Promise<void> => {
     res.status(400).json({ error: "El sector indicado no existe en esta finca" });
     return;
   }
+  if (!(await waterSourceBelongsToFarm(parsed.data.waterSourceId, farmId))) {
+    res.status(400).json({ error: "La fuente de agua indicada no existe en esta finca" });
+    return;
+  }
   const [analysis] = await db
     .insert(analysesTable)
-    .values({ ...parsed.data, farmId, createdBy: req.user!.id })
+    .values({
+      ...parsed.data,
+      waterSourceId: parsed.data.type === "water" ? parsed.data.waterSourceId ?? null : null,
+      farmId,
+      createdBy: req.user!.id,
+    })
     .returning();
   await audit({
     userId: req.user!.id,
@@ -354,9 +477,14 @@ router.put("/farms/:farmId/analyses/:analysisId", async (req, res): Promise<void
     res.status(400).json({ error: "El sector indicado no existe en esta finca" });
     return;
   }
+  if (!(await waterSourceBelongsToFarm(parsed.data.waterSourceId, farmId))) {
+    res.status(400).json({ error: "La fuente de agua indicada no existe en esta finca" });
+    return;
+  }
   const [analysis] = await db
     .update(analysesTable)
     .set({
+      waterSourceId: parsed.data.type === "water" ? parsed.data.waterSourceId ?? null : null,
       type: parsed.data.type,
       sampleDate: parsed.data.sampleDate,
       parameters: parsed.data.parameters,

@@ -11,6 +11,8 @@ import type { AnalysisParameter } from './analysisParameter';
 export interface AnalysisInput {
   sectorId?: number;
   type: AnalysisInputType;
+  /** Water source this analysis belongs to (water analyses only) */
+  waterSourceId?: number;
   reference?: string;
   laboratory?: string;
   description?: string;

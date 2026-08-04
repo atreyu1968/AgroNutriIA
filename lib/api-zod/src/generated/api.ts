@@ -395,6 +395,7 @@ export const GetFarmSummaryResponse = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -415,6 +416,7 @@ export const GetFarmSummaryResponse = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -435,6 +437,7 @@ export const GetFarmSummaryResponse = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -623,6 +626,49 @@ export const RemoveMemberParams = zod.object({
 export const RemoveMemberResponse = zod.void()
 
 
+export const ListWaterSourcesParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const ListWaterSourcesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "name": zod.string(),
+  "sharePct": zod.number(),
+  "latestAnalysisId": zod.number().int().nullish(),
+  "latestAnalysisDate": zod.string().nullish().describe('YYYY-MM-DD of the latest water analysis of this source')
+})
+export const ListWaterSourcesResponse = zod.array(ListWaterSourcesResponseItem)
+
+
+export const SetWaterSourcesParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+
+export const setWaterSourcesBodySharePctMin = 0;
+export const setWaterSourcesBodySharePctMax = 100;
+
+
+
+export const SetWaterSourcesBodyItem = zod.object({
+  "id": zod.number().int().optional().describe('Existing source id to update; omit to create'),
+  "name": zod.string().min(1),
+  "sharePct": zod.number().min(setWaterSourcesBodySharePctMin).max(setWaterSourcesBodySharePctMax)
+})
+export const SetWaterSourcesBody = zod.array(SetWaterSourcesBodyItem)
+
+export const SetWaterSourcesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "farmId": zod.number().int(),
+  "name": zod.string(),
+  "sharePct": zod.number(),
+  "latestAnalysisId": zod.number().int().nullish(),
+  "latestAnalysisDate": zod.string().nullish().describe('YYYY-MM-DD of the latest water analysis of this source')
+})
+export const SetWaterSourcesResponse = zod.array(SetWaterSourcesResponseItem)
+
+
 export const ListAnalysesParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
@@ -632,6 +678,7 @@ export const ListAnalysesResponseItem = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -657,6 +704,7 @@ export const CreateAnalysisParams = zod.object({
 export const CreateAnalysisBody = zod.object({
   "sectorId": zod.number().int().optional(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().optional().describe('Water source this analysis belongs to (water analyses only)'),
   "reference": zod.string().optional(),
   "laboratory": zod.string().optional(),
   "description": zod.string().optional(),
@@ -677,6 +725,7 @@ export const CreateAnalysisResponse = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -708,6 +757,7 @@ export const ImportAnalysisPdfBody = zod.object({
 export const ImportAnalysisPdfResponse = zod.object({
   "sectorId": zod.number().int().optional(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().optional().describe('Water source this analysis belongs to (water analyses only)'),
   "reference": zod.string().optional(),
   "laboratory": zod.string().optional(),
   "description": zod.string().optional(),
@@ -734,6 +784,7 @@ export const GetAnalysisResponse = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -759,6 +810,7 @@ export const UpdateAnalysisParams = zod.object({
 export const UpdateAnalysisBody = zod.object({
   "sectorId": zod.number().int().optional(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().optional().describe('Water source this analysis belongs to (water analyses only)'),
   "reference": zod.string().optional(),
   "laboratory": zod.string().optional(),
   "description": zod.string().optional(),
@@ -779,6 +831,7 @@ export const UpdateAnalysisResponse = zod.object({
   "farmId": zod.number().int(),
   "sectorId": zod.number().int().nullish(),
   "type": zod.enum(['soil', 'leaf', 'water']),
+  "waterSourceId": zod.number().int().nullish(),
   "reference": zod.string().nullish(),
   "laboratory": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -1179,6 +1232,17 @@ export const UpdateRecommendationResponse = zod.object({
 })
 
 
+/**
+ * @summary Delete a nutrition program that has not been validated by the technician
+ */
+export const DeleteRecommendationParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "recommendationId": zod.coerce.number().int()
+})
+
+export const DeleteRecommendationResponse = zod.void()
+
+
 export const ChangeRecommendationStatusParams = zod.object({
   "farmId": zod.coerce.number().int(),
   "recommendationId": zod.coerce.number().int()
@@ -1223,10 +1287,24 @@ export const RunCalculationParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
 
+export const runCalculationBodyMaxEcDsMMin = 0.1;
+export const runCalculationBodyMaxEcDsMMax = 10;
+
+export const runCalculationBodyWaterMixItemSharePctMin = 0;
+export const runCalculationBodyWaterMixItemSharePctMax = 100;
+
+
+
 export const RunCalculationBody = zod.object({
   "sectorId": zod.number().int().optional(),
   "weeklyLitresPerPlant": zod.number().optional(),
   "plantCount": zod.number().int().optional(),
+  "phenologicalStage": zod.string().optional().describe('Overrides the farm\/sector phenological stage for this calculation'),
+  "maxEcDsM": zod.number().min(runCalculationBodyMaxEcDsMMin).max(runCalculationBodyMaxEcDsMMax).optional().describe('Overrides the farm\'s maximum EC (dS\/m) for this calculation'),
+  "waterMix": zod.array(zod.object({
+  "waterSourceId": zod.number().int(),
+  "sharePct": zod.number().min(runCalculationBodyWaterMixItemSharePctMin).max(runCalculationBodyWaterMixItemSharePctMax)
+})).optional().describe('Overrides the stored share of each water source for this calculation'),
   "items": zod.array(zod.object({
   "fertilizerId": zod.number().int().nullish(),
   "fertilizerName": zod.string(),
@@ -1242,10 +1320,23 @@ export const RunCalculationResponse = zod.object({
   "weeklyWaterM3": zod.number(),
   "nutrients": zod.record(zod.string(), zod.number()).describe('Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b'),
   "estimatedEcDsM": zod.number().nullish(),
-  "waterContribution": zod.record(zod.string(), zod.number()).optional().describe('Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity'),
+  "waterEcDsM": zod.number().nullish().describe('EC of the source irrigation water (dS\/m), from the latest water analysis'),
+  "fertilizersEcDsM": zod.number().nullish().describe('EC added by the fertilizers alone (dS\/m)'),
+  "waterContribution": zod.record(zod.string(), zod.number()).optional().describe('Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity'),
   "sar": zod.number().nullish(),
   "warnings": zod.array(zod.string()),
-  "compatibilityIssues": zod.array(zod.string())
+  "compatibilityIssues": zod.array(zod.string()),
+  "stageComparison": zod.union([zod.object({
+  "stageLabel": zod.string(),
+  "nPerPlantG": zod.number(),
+  "k2oPerPlantG": zod.number(),
+  "nMinG": zod.number(),
+  "nMaxG": zod.number(),
+  "k2oMinG": zod.number(),
+  "k2oMaxG": zod.number(),
+  "nStatus": zod.enum(['low', 'ok', 'high']),
+  "k2oStatus": zod.enum(['low', 'ok', 'high'])
+}).describe('Orientative comparison of the weekly program against phenological stage targets (g\/plant\/week)'),zod.null()]).optional()
 })
 
 
@@ -1579,6 +1670,17 @@ export const CreateReportResponse = zod.object({
   "createdByName": zod.string().nullish(),
   "createdAt": zod.string()
 })
+
+
+/**
+ * @summary Delete a generated report and its file
+ */
+export const DeleteReportParams = zod.object({
+  "farmId": zod.coerce.number().int(),
+  "reportId": zod.coerce.number().int()
+})
+
+export const DeleteReportResponse = zod.void()
 
 
 /**

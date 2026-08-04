@@ -8,6 +8,9 @@ export type CalculationInput = {
   items: RecommendationItem[];
   weeklyLitresPerPlant?: number | null;
   plantCount?: number | null;
+  maxEcOverride?: number | null;
+  /** Overrides the farm/sector phenological stage (e.g. from the calculator). */
+  stageOverride?: string | null;
 };
 
 export type CalculationOutput = {
@@ -15,13 +18,71 @@ export type CalculationOutput = {
   weeklyWaterM3: number;
   nutrients: Record<string, number>;
   estimatedEcDsM: number | null;
+  waterEcDsM: number | null;
+  fertilizersEcDsM: number | null;
   waterContribution: Record<string, number>;
   sar: number | null;
   warnings: string[];
   compatibilityIssues: string[];
+  stageComparison: StageComparison | null;
 };
 
-function param(a: Analysis | null | undefined, names: string[]): number | null {
+export type StageComparison = {
+  stageLabel: string;
+  nPerPlantG: number;
+  k2oPerPlantG: number;
+  nMinG: number;
+  nMaxG: number;
+  k2oMinG: number;
+  k2oMaxG: number;
+  nStatus: "low" | "ok" | "high";
+  k2oStatus: "low" | "ok" | "high";
+};
+
+/**
+ * Orientative weekly targets for platanera by phenological stage,
+ * in grams per plant per week. Matched against the free-text stage.
+ */
+const STAGE_PROFILES: {
+  label: string;
+  match: RegExp;
+  n: [number, number];
+  k2o: [number, number];
+}[] = [
+  {
+    label: "pre-floración / parición",
+    match: /(pre.?flor|paric|belote|pre.?paric)/i,
+    n: [15, 25],
+    k2o: [25, 40],
+  },
+  {
+    label: "engorde / llenado del racimo",
+    match: /(engord|llenad|racimo|cuaj)/i,
+    n: [10, 18],
+    k2o: [30, 50],
+  },
+  {
+    label: "parón invernal",
+    match: /(paron|parón|invern|invierno)/i,
+    n: [3, 8],
+    k2o: [5, 15],
+  },
+  {
+    label: "postcosecha / arranque vegetativo",
+    match: /(post.?cosech|corte|arranque|vegetativ)/i,
+    n: [12, 20],
+    k2o: [15, 30],
+  },
+];
+
+export function param(a: Analysis | null | undefined, names: string[]): number | null {
+  return paramEntry(a, names)?.value ?? null;
+}
+
+export function paramEntry(
+  a: Analysis | null | undefined,
+  names: string[],
+): { value: number; unit: string | null } | null {
   if (!a) return null;
   const lower = names.map((n) => n.toLowerCase());
   for (const p of a.parameters) {
@@ -30,10 +91,33 @@ function param(a: Analysis | null | undefined, names: string[]): number | null {
     // unrelated words (e.g. "eléctrica", "alcalinidad").
     const tokens = pn.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
     if (lower.some((n) => (n.length <= 3 ? tokens.includes(n) : pn.includes(n)))) {
-      return p.value;
+      return { value: p.value, unit: p.unit ?? null };
     }
   }
   return null;
+}
+
+/**
+ * Concentration in mg/L only when the declared unit is mg/L, ppm or absent.
+ * Returns null for mmol/L, meq/L, etc. so we never misread lab units.
+ */
+export function mgPerLParam(a: Analysis | null | undefined, names: string[]): number | null {
+  const e = paramEntry(a, names);
+  if (!e) return null;
+  const u = (e.unit ?? "").toLowerCase().replace(/\s/g, "");
+  if (u === "" || u.includes("mg/l") || u.includes("ppm")) return e.value;
+  return null;
+}
+
+/** Water EC normalised to dS/m using the declared unit when available. */
+export function waterEcDsMFrom(a: Analysis | null | undefined): number | null {
+  const e = paramEntry(a, ["conductividad", "ce"]);
+  if (!e) return null;
+  const u = (e.unit ?? "").toLowerCase().replace(/\s/g, "");
+  if (u.includes("µs") || u.includes("us/cm") || u.includes("micros")) return e.value / 1000;
+  if (u.includes("ms/cm") || u.includes("ds/m")) return e.value;
+  // Unit missing or unrecognised: heuristic (µS/cm readings are typically > 20).
+  return e.value > 20 ? e.value / 1000 : e.value;
 }
 
 const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
@@ -142,15 +226,22 @@ export function runEngine(input: CalculationInput): CalculationOutput {
       mg: ["magnesio", "mg"],
       k: ["potasio", "k"],
       b: ["boro", "b"],
+      no3: ["nitrato", "no3"],
+      so4: ["sulfato", "so4"],
       alkalinity: ["alcalinidad", "bicarbonato", "hco3"],
     };
     for (const [key, names] of Object.entries(map)) {
-      const v = param(wa, names);
+      const v = mgPerLParam(wa, names);
       if (v != null) waterContribution[key] = round((v * weeklyWaterLitres) / 1e6, 2);
+      else if (paramEntry(wa, names)) {
+        warnings.push(
+          `El parámetro del agua «${names[0]}» viene en una unidad distinta de mg/L: no se computa su aporte con el riego (revisar la analítica).`,
+        );
+      }
     }
-    const na = param(wa, ["sodio"]);
-    const ca = param(wa, ["calcio"]);
-    const mg = param(wa, ["magnesio"]);
+    const na = mgPerLParam(wa, ["sodio", "na"]);
+    const ca = mgPerLParam(wa, ["calcio", "ca"]);
+    const mg = mgPerLParam(wa, ["magnesio", "mg"]);
     if (na != null && ca != null && mg != null) {
       const naMeq = na / 23;
       const caMeq = ca / 20;
@@ -162,7 +253,7 @@ export function runEngine(input: CalculationInput): CalculationOutput {
         );
       }
     }
-    const alk = param(wa, ["alcalinidad", "bicarbonato"]);
+    const alk = mgPerLParam(wa, ["alcalinidad", "bicarbonato", "hco3"]);
     if (alk != null && alk > 200) {
       warnings.push(
         `Alcalinidad del agua alta (${alk} mg/L CaCO3): mantener acidificación del agua (ácido nítrico, fosfórico o sulfúrico según necesidades) para evitar bloqueos de Ca/Fe y obstrucción de goteros.`,
@@ -172,8 +263,10 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     warnings.push("Sin analítica de agua registrada: CE, SAR y aportes del riego no incluyen el agua.");
   }
 
-  // Estimated EC of the fertigation solution.
+  // Estimated EC of the fertigation solution (water EC at source + fertilizer salts).
   let estimatedEcDsM: number | null = null;
+  let waterEcDsM: number | null = null;
+  let fertilizersEcDsM: number | null = null;
   if (weeklyWaterLitres > 0) {
     let ecFert = 0;
     for (const r of resolved) {
@@ -181,22 +274,64 @@ export function runEngine(input: CalculationInput): CalculationOutput {
       const gPerL = (r.kg * 1000) / weeklyWaterLitres;
       ecFert += gPerL * (r.fert.ecContribution ?? 1.4);
     }
-    const waterEc = param(wa, ["conductividad", "ce"]);
-    const waterEcDsM = waterEc != null ? (waterEc > 20 ? waterEc / 1000 : waterEc) : 0;
-    estimatedEcDsM = round(ecFert + waterEcDsM, 2);
-    const maxEc = input.farm.maxEcDsM ?? 2.5;
-    if (estimatedEcDsM > maxEc) {
+    const waterEc = waterEcDsMFrom(wa);
+    waterEcDsM = waterEc != null ? round(waterEc, 2) : null;
+    fertilizersEcDsM = round(ecFert, 2);
+    estimatedEcDsM = round(ecFert + (waterEcDsM ?? 0), 2);
+    const maxEc = input.maxEcOverride ?? input.farm.maxEcDsM ?? 2.5;
+    const ecMargin = round(maxEc - (waterEcDsM ?? 0), 2);
+    if (waterEcDsM != null && waterEcDsM >= maxEc) {
       warnings.push(
-        `CE estimada de la solución (${estimatedEcDsM} dS/m) supera el máximo configurado (${maxEc} dS/m): repartir dosis en más riegos o reducir concentración.`,
+        `La CE del agua en origen (${waterEcDsM} dS/m) ya alcanza o supera la CE máxima de la finca (${maxEc} dS/m): no hay margen para abonado sin superar el límite. Valorar mezcla con agua de mejor calidad o revisar el límite con el técnico.`,
+      );
+    } else if (estimatedEcDsM > maxEc) {
+      warnings.push(
+        `CE estimada de la solución (${estimatedEcDsM} dS/m = ${waterEcDsM ?? 0} del agua + ${fertilizersEcDsM} de los abonos) supera el máximo configurado (${maxEc} dS/m). Margen disponible para abonos: ${ecMargin} dS/m. Repartir dosis en más riegos o reducir concentración.`,
       );
     }
   }
 
-  if (nutrients.n > 0 && weeklyWaterLitres > 0) {
+  // Phenological stage comparison (orientative platanera targets).
+  let stageComparison: StageComparison | null = null;
+  const stageText =
+    input.stageOverride ?? input.sector?.phenologicalStage ?? input.farm.phenologicalStage ?? "";
+  const profile = stageText ? STAGE_PROFILES.find((p) => p.match.test(stageText)) : undefined;
+  if (profile && plantCount > 0) {
+    const nPerPlantG = round((nutrients.n * 1000) / plantCount, 1);
+    const k2oPerPlantG = round((nutrients.k2o * 1000) / plantCount, 1);
+    const statusOf = (v: number, [lo, hi]: [number, number]) =>
+      v < lo ? ("low" as const) : v > hi ? ("high" as const) : ("ok" as const);
+    stageComparison = {
+      stageLabel: profile.label,
+      nPerPlantG,
+      k2oPerPlantG,
+      nMinG: profile.n[0],
+      nMaxG: profile.n[1],
+      k2oMinG: profile.k2o[0],
+      k2oMaxG: profile.k2o[1],
+      nStatus: statusOf(nPerPlantG, profile.n),
+      k2oStatus: statusOf(k2oPerPlantG, profile.k2o),
+    };
+    const describe = (label: string, v: number, [lo, hi]: [number, number], status: "low" | "ok" | "high") =>
+      status === "ok"
+        ? null
+        : `${label} ${status === "high" ? "por encima" : "por debajo"} del rango orientativo para ${profile.label} (${v} g/planta/semana frente a ${lo}–${hi}): revisar con el técnico.`;
+    for (const w of [
+      describe("Aporte de N", stageComparison.nPerPlantG, profile.n, stageComparison.nStatus),
+      describe("Aporte de K2O", stageComparison.k2oPerPlantG, profile.k2o, stageComparison.k2oStatus),
+    ]) {
+      if (w) warnings.push(w);
+    }
+  } else if (nutrients.n > 0 && weeklyWaterLitres > 0) {
     const nPerPlantG = (nutrients.n * 1000) / Math.max(plantCount, 1);
     if (nPerPlantG > 25) {
       warnings.push(
         `Aporte de N elevado (${round(nPerPlantG, 1)} g/planta/semana): revisar frente a la fase fenológica.`,
+      );
+    }
+    if (!stageText) {
+      warnings.push(
+        "Sin fase fenológica indicada en la finca o el sector: no se puede contrastar el programa con los rangos orientativos por fase.",
       );
     }
   }
@@ -206,10 +341,13 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     weeklyWaterM3: round(weeklyWaterLitres / 1000, 1),
     nutrients,
     estimatedEcDsM,
+    waterEcDsM,
+    fertilizersEcDsM,
     waterContribution,
     sar,
     warnings,
     compatibilityIssues,
+    stageComparison,
   };
 }
 

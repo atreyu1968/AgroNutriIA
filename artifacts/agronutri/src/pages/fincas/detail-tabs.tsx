@@ -7,7 +7,8 @@ import {
   useListSectors, useCreateSector, useUpdateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis, useUpdateAnalysis,
   useListRecommendations, useChangeRecommendationStatus, useListConversations, getListConversationsQueryKey,
-  useListReports, useCreateReport, usePreviewReportNotes,
+  useListReports, useCreateReport, usePreviewReportNotes, useDeleteReport, useDeleteRecommendation,
+  useListWaterSources, useSetWaterSources, getListWaterSourcesQueryKey,
   useListMembers, useAddMember, useRemoveMember,
   useGetFarmApiConfig, useSetFarmApiConfig, useListCredentials,
   getListSectorsQueryKey, getListAnalysesQueryKey, 
@@ -260,6 +261,7 @@ type EditableDraft = {
   description: string;
   notes: string;
   sectorId?: number | null;
+  waterSourceId?: number | null;
   parameters: EditableParam[];
 };
 
@@ -271,6 +273,7 @@ function toEditableDraft(input: {
   description?: string | null;
   notes?: string | null;
   sectorId?: number | null;
+  waterSourceId?: number | null;
   parameters?: AnalysisInput["parameters"];
 }): EditableDraft {
   return {
@@ -281,6 +284,7 @@ function toEditableDraft(input: {
     description: input.description ?? "",
     notes: input.notes ?? "",
     sectorId: input.sectorId ?? null,
+    waterSourceId: input.waterSourceId ?? null,
     parameters: (input.parameters ?? []).map((p) => ({
       name: p.name ?? "",
       value: p.value != null ? String(p.value) : "",
@@ -715,6 +719,134 @@ function ParameterTrendCard({ analyses }: { analyses: AnalysisRow[] }) {
   );
 }
 
+function WaterSourcesCard({ farmId, canEdit }: { farmId: number; canEdit: boolean }) {
+  const { data: waterSources } = useListWaterSources(farmId);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [mixEdit, setMixEdit] = useState<Record<number, number>>({});
+  const [newSourceName, setNewSourceName] = useState("");
+  useEffect(() => {
+    if (waterSources) setMixEdit(Object.fromEntries(waterSources.map((s) => [s.id, s.sharePct])));
+  }, [waterSources]);
+  const mixTotal = Object.values(mixEdit).reduce((a, b) => a + (b || 0), 0);
+  const saveMutation = useSetWaterSources({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Fuentes de agua guardadas" });
+        queryClient.invalidateQueries({ queryKey: getListWaterSourcesQueryKey(farmId) });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "No se pudo guardar el reparto", description: msg ?? "Revisa los porcentajes.", variant: "destructive" });
+      },
+    },
+  });
+  const currentPayload = () =>
+    (waterSources ?? []).map((x) => ({ id: x.id, name: x.name, sharePct: mixEdit[x.id] ?? x.sharePct }));
+
+  if (!canEdit && (waterSources ?? []).length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Droplets className="w-4 h-4 text-primary" /> Fuentes de agua y mezcla de riego
+        </CardTitle>
+        <CardDescription>
+          Define las fuentes (pozo, desaladora, balsa...) y el % de cada una en el riego actual. Cada fuente
+          usa su analítica de agua más reciente y el cálculo, la IA y los informes emplean la mezcla ponderada.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {(waterSources ?? []).length > 0 ? (
+          <>
+            {(waterSources ?? []).map((s) => (
+              <div key={s.id} className="flex items-center gap-2">
+                <div className="flex-1 text-sm">
+                  {s.name}
+                  <span className="block text-xs text-muted-foreground">
+                    {s.latestAnalysisDate ? `Analítica: ${formatDate(s.latestAnalysisDate)}` : "Sin analítica de agua asociada"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="w-20"
+                    value={mixEdit[s.id] ?? s.sharePct}
+                    disabled={!canEdit}
+                    onChange={(e) => setMixEdit((m) => ({ ...m, [s.id]: parseFloat(e.target.value) || 0 }))}
+                    data-testid={`input-source-pct-${s.id}`}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      disabled={saveMutation.isPending}
+                      onClick={() =>
+                        saveMutation.mutate({ farmId, data: currentPayload().filter((x) => x.id !== s.id) })
+                      }
+                      data-testid={`button-delete-source-${s.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <p className={`text-xs ${Math.abs(mixTotal - 100) > 0.5 && mixTotal > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+              Reparto total: {formatNumber(mixTotal)} % {Math.abs(mixTotal - 100) > 0.5 && mixTotal > 0 ? "(debe sumar 100 %)" : ""}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Sin fuentes definidas: se usa la analítica de agua más reciente de la finca como agua única.
+          </p>
+        )}
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Nueva fuente (pozo, desaladora...)"
+              className="max-w-xs"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              data-testid="input-new-source"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!newSourceName.trim() || saveMutation.isPending}
+              onClick={() => {
+                saveMutation.mutate({
+                  farmId,
+                  data: [...currentPayload(), { name: newSourceName.trim(), sharePct: 0 }],
+                });
+                setNewSourceName("");
+              }}
+              data-testid="button-add-source"
+            >
+              <Plus className="w-4 h-4" /> Añadir
+            </Button>
+            {(waterSources ?? []).length > 0 && (
+              <Button
+                size="sm"
+                disabled={saveMutation.isPending}
+                onClick={() => saveMutation.mutate({ farmId, data: currentPayload() })}
+                data-testid="button-save-sources"
+              >
+                Guardar reparto
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEdit?: boolean }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
   const { data: sectorsForNames } = useListSectors(farmId);
@@ -775,6 +907,7 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
       <p className="text-sm text-muted-foreground -mt-2">
         Sube el PDF del laboratorio y el técnico virtual extraerá los parámetros automáticamente (requiere clave de OpenAI en Ajustes).
       </p>
+      <WaterSourcesCard farmId={farmId} canEdit={canEdit} />
       {!isLoading && analyses && analyses.length > 0 && <ParameterTrendCard analyses={analyses} />}
       <Card>
         <Table>
@@ -844,10 +977,27 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
 }
 
 // --- Recommendations Tab ---
-export function RecommendationsTab({ farmId, onCreate }: { farmId: number; onCreate?: () => void }) {
+const DELETABLE_REC_STATUSES = ["draft", "pending_review", "rejected"];
+
+export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: number; onCreate?: () => void; canEdit?: boolean }) {
   const { data: recommendations, isLoading } = useListRecommendations(farmId);
   const { data: recSectors } = useListSectors(farmId);
   const [selectedRec, setSelectedRec] = useState<NonNullable<typeof recommendations>[number] | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const deleteRecMutation = useDeleteRecommendation({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Programa eliminado" });
+        queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+      },
+      onError: (err: unknown) => {
+        const message =
+          (err as { data?: { error?: string } })?.data?.error ?? "No se pudo eliminar el programa.";
+        toast({ title: "No eliminado", description: message, variant: "destructive" });
+      },
+    },
+  });
   const recSectorName = (id: number | null | undefined) =>
     id == null ? null : recSectors?.find((s) => s.id === id)?.name ?? `Sector ${id}`;
   return (
@@ -880,14 +1030,49 @@ export function RecommendationsTab({ farmId, onCreate }: { farmId: number; onCre
                     {r.updatedByName && <span>Ajustado por {r.updatedByName}</span>}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedRec(r)}
-                  data-testid={`button-view-program-${r.id}`}
-                >
-                  Ver detalles
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedRec(r)}
+                    data-testid={`button-view-program-${r.id}`}
+                  >
+                    Ver detalles
+                  </Button>
+                  {canEdit && DELETABLE_REC_STATUSES.includes(r.status) && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          data-testid={`button-delete-program-${r.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar este programa?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Se eliminará «{r.title || "Recomendación sin título"}». Solo se pueden eliminar
+                            programas que no han sido validados por el técnico. Esta acción no se puede deshacer.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deleteRecMutation.isPending}
+                            onClick={() => deleteRecMutation.mutate({ farmId, recommendationId: r.id })}
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))
@@ -958,7 +1143,7 @@ export function RecommendationsTab({ farmId, onCreate }: { farmId: number; onCre
 }
 
 // --- Reports Tab ---
-export function ReportsTab({ farmId }: { farmId: number }) {
+export function ReportsTab({ farmId, canEdit }: { farmId: number; canEdit?: boolean }) {
   const { data: reports, isLoading, refetch } = useListReports(farmId);
   const anyGenerating = reports?.some(r => r.status === 'generating') ?? false;
   useEffect(() => {
@@ -983,6 +1168,20 @@ export function ReportsTab({ farmId }: { farmId: number }) {
         toast({ title: "Informe no generado", description: message, variant: "destructive" });
       },
     }
+  });
+
+  const deleteReportMutation = useDeleteReport({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Informe eliminado" });
+        queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(farmId) });
+      },
+      onError: (err: unknown) => {
+        const message =
+          (err as { data?: { error?: string } })?.data?.error ?? "No se pudo eliminar el informe.";
+        toast({ title: "No eliminado", description: message, variant: "destructive" });
+      },
+    },
   });
 
   const { data: recommendations } = useListRecommendations(farmId);
@@ -1206,11 +1405,45 @@ export function ReportsTab({ farmId }: { farmId: number }) {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {r.status === 'ready' && r.downloadUrl && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <a href={r.downloadUrl} download><Download className="w-4 h-4 mr-2"/> Descargar</a>
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      {r.status === 'ready' && r.downloadUrl && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={r.downloadUrl} download><Download className="w-4 h-4 mr-2"/> Descargar</a>
+                        </Button>
+                      )}
+                      {canEdit && r.status !== 'generating' && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              data-testid={`button-delete-report-${r.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar este informe?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Se eliminará «{r.title}» y su fichero generado. Esta acción no se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                disabled={deleteReportMutation.isPending}
+                                onClick={() => deleteReportMutation.mutate({ farmId, reportId: r.id })}
+                              >
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -1490,6 +1723,7 @@ function draftToPayload(draft: EditableDraft): AnalysisInput {
     ...(draft.description.trim() ? { description: draft.description.trim() } : {}),
     ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
     ...(draft.sectorId != null ? { sectorId: draft.sectorId } : {}),
+    ...(draft.type === "water" && draft.waterSourceId != null ? { waterSourceId: draft.waterSourceId } : {}),
     parameters: draft.parameters.map((p) => ({
       name: p.name.trim(),
       value: parseNum(p.value),
@@ -1513,6 +1747,7 @@ function AnalysisDraftEditor({
   showErrors: boolean;
 }) {
   const { data: sectors } = useListSectors(farmId);
+  const { data: waterSources } = useListWaterSources(farmId);
   const errors = draftValidation(draft)!;
   const updateParam = (i: number, patch: Partial<EditableParam>) =>
     setDraft((d) => d && { ...d, parameters: d.parameters.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
@@ -1553,6 +1788,28 @@ function AnalysisDraftEditor({
             </SelectContent>
           </Select>
         </div>
+        {draft.type === "water" && (waterSources ?? []).length > 0 && (
+          <div className="space-y-1 col-span-2">
+            <label className="text-xs font-medium">Fuente de agua</label>
+            <Select
+              value={draft.waterSourceId != null ? String(draft.waterSourceId) : "none"}
+              onValueChange={(v) =>
+                setDraft((d) => d && { ...d, waterSourceId: v === "none" ? null : Number(v) })
+              }
+            >
+              <SelectTrigger data-testid="select-analysis-water-source"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin fuente (agua general de la finca)</SelectItem>
+                {(waterSources ?? []).map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Asocia la analítica a una fuente para que la mezcla de riego se calcule con el % de cada una.
+            </p>
+          </div>
+        )}
         <div className="space-y-1">
           <label className="text-xs font-medium">Fecha de muestreo</label>
           <Input

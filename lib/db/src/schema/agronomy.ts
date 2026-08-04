@@ -21,6 +21,17 @@ export type AnalysisParameter = {
   status?: string | null; // muy_bajo | bajo | normal | alto | muy_alto
 };
 
+export const waterSourcesTable = pgTable("water_sources", {
+  id: serial("id").primaryKey(),
+  farmId: integer("farm_id")
+    .notNull()
+    .references(() => farmsTable.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  sharePct: real("share_pct").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type WaterSource = typeof waterSourcesTable.$inferSelect;
+
 export const analysesTable = pgTable("analyses", {
   id: serial("id").primaryKey(),
   farmId: integer("farm_id")
@@ -30,6 +41,9 @@ export const analysesTable = pgTable("analyses", {
     onDelete: "set null",
   }),
   type: text("type").notNull(), // soil | leaf | water
+  waterSourceId: integer("water_source_id").references(() => waterSourcesTable.id, {
+    onDelete: "set null",
+  }),
   reference: text("reference"),
   laboratory: text("laboratory"),
   description: text("description"),

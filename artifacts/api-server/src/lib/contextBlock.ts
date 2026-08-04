@@ -1,4 +1,48 @@
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
+import { mgPerLParam, waterEcDsMFrom } from "./engine";
+
+const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
+
+/**
+ * Explicit summary of what the irrigation water already provides, so the AI
+ * discounts it from the program instead of dosing as if the water were pure.
+ */
+function waterBudgetBlock(farm: Farm, water: Analysis | null): string[] {
+  if (!water) return [];
+  const lines: string[] = [];
+  const maxEc = farm.maxEcDsM ?? 2.5;
+  const rawEc = waterEcDsMFrom(water);
+  const waterEc = rawEc != null ? round(rawEc, 2) : null;
+  if (waterEc != null) {
+    const margin = round(maxEc - waterEc, 2);
+    lines.push(
+      `CE DEL AGUA EN ORIGEN: ${waterEc} dS/m. CE máxima admisible de la solución: ${maxEc} dS/m. ` +
+        (margin > 0
+          ? `MARGEN DE CE DISPONIBLE PARA LOS ABONOS: ${margin} dS/m — la suma de las aportaciones de CE de los fertilizantes NO debe superar ese margen; ajusta las dosis (o reparte en más riegos) para cumplirlo.`
+          : `El agua por sí sola ya alcanza o supera la CE máxima: NO hay margen para abonado sin superar el límite; adviértelo expresamente y propone dosis mínimas repartidas o mejora de la calidad del agua.`),
+    );
+  }
+  const weeklyLitres =
+    farm.plantCount && farm.weeklyLitresPerPlant ? farm.plantCount * farm.weeklyLitresPerPlant : null;
+  if (weeklyLitres && weeklyLitres > 0) {
+    const contrib: string[] = [];
+    const add = (label: string, names: string[], factor: number) => {
+      const v = mgPerLParam(water, names);
+      if (v != null && v > 0) contrib.push(`${label} ≈ ${round((v * factor * weeklyLitres) / 1e6, 2)} kg/semana`);
+    };
+    add("N (de nitratos)", ["nitrato", "no3"], 0.226);
+    add("K2O", ["potasio", "k"], 1.205);
+    add("CaO", ["calcio", "ca"], 1.399);
+    add("MgO", ["magnesio", "mg"], 1.658);
+    add("SO3 (de sulfatos)", ["sulfato", "so4"], 0.833);
+    if (contrib.length) {
+      lines.push(
+        `APORTES SEMANALES DEL AGUA DE RIEGO (ya entran con el riego, DESCUÉNTALOS de las necesidades antes de dosificar fertilizantes): ${contrib.join("; ")}.`,
+      );
+    }
+  }
+  return lines;
+}
 
 function analysisBlock(label: string, a: Analysis | null): string {
   if (!a) return `${label}: sin datos.`;
@@ -54,6 +98,7 @@ export function buildFarmContext(input: {
   }
   lines.push("");
   lines.push(analysisBlock("ANALÍTICA DE AGUA", input.water));
+  for (const l of waterBudgetBlock(f, input.water)) lines.push(l);
   lines.push("");
   lines.push(analysisBlock("ANALÍTICA DE SUELO", input.soil));
   lines.push("");

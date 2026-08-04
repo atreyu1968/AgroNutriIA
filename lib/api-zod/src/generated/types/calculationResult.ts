@@ -7,6 +7,7 @@
  */
 import type { CalculationResultNutrients } from './calculationResultNutrients';
 import type { CalculationResultWaterContribution } from './calculationResultWaterContribution';
+import type { StageComparison } from './stageComparison';
 
 export interface CalculationResult {
   weeklyWaterLitres: number;
@@ -15,10 +16,21 @@ export interface CalculationResult {
   nutrients: CalculationResultNutrients;
   /** @nullable */
   estimatedEcDsM?: number | null;
-  /** Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity */
+  /**
+     * EC of the source irrigation water (dS/m), from the latest water analysis
+     * @nullable
+     */
+  waterEcDsM?: number | null;
+  /**
+     * EC added by the fertilizers alone (dS/m)
+     * @nullable
+     */
+  fertilizersEcDsM?: number | null;
+  /** Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity */
   waterContribution?: CalculationResultWaterContribution;
   /** @nullable */
   sar?: number | null;
   warnings: string[];
   compatibilityIssues: string[];
+  stageComparison?: StageComparison | null;
 }

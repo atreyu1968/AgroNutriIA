@@ -2,6 +2,8 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   db,
   analysesTable,
+  waterSourcesTable,
+  type WaterSource,
   recommendationsTable,
   farmApiConfigTable,
   credentialsTable,
@@ -53,6 +55,141 @@ export async function latestAnalysisScoped(
     );
   }
   return (await pick(isNull(analysesTable.sectorId))) ?? (await pick());
+}
+
+export type WaterMixOverride = { waterSourceId: number; sharePct: number }[];
+
+export type BlendedWater = {
+  analysis: Analysis | null;
+  /** Mix actually used: source name + normalized pct (null when a single plain analysis was used). */
+  mix: { name: string; sharePct: number }[] | null;
+  notes: string[];
+};
+
+/**
+ * Effective water analysis for a farm.
+ * - Without configured water sources (or none with share > 0 and an analysis):
+ *   falls back to the latest water analysis of the farm.
+ * - With sources: weighted average (by share) of each source's latest water
+ *   analysis. Parameters are matched by name (case-insensitive); a parameter
+ *   whose unit differs between sources is skipped with a note. Missing
+ *   parameters in a source are treated as not contributing (weighted over the
+ *   sources that do have the parameter).
+ * - `overrides` (e.g. from the calculator) replaces the stored shares.
+ */
+export async function blendedWaterAnalysis(
+  farmId: number,
+  opts: { sectorId?: number | null; overrides?: WaterMixOverride } = {},
+): Promise<BlendedWater> {
+  const notes: string[] = [];
+  const sources = await db
+    .select()
+    .from(waterSourcesTable)
+    .where(eq(waterSourcesTable.farmId, farmId))
+    .orderBy(waterSourcesTable.id);
+
+  const shareOf = (s: WaterSource) => {
+    const o = opts.overrides?.find((x) => x.waterSourceId === s.id);
+    return o ? o.sharePct : s.sharePct;
+  };
+
+  const active = sources.filter((s) => shareOf(s) > 0);
+  if (active.length === 0) {
+    const analysis =
+      opts.sectorId !== undefined
+        ? await latestAnalysisScoped(farmId, "water", opts.sectorId)
+        : await latestAnalysis(farmId, "water");
+    return { analysis, mix: null, notes };
+  }
+
+  // Latest water analysis per active source.
+  const withAnalysis: { source: WaterSource; share: number; analysis: Analysis }[] = [];
+  for (const s of active) {
+    const [a] = await db
+      .select()
+      .from(analysesTable)
+      .where(
+        and(
+          eq(analysesTable.farmId, farmId),
+          eq(analysesTable.type, "water"),
+          eq(analysesTable.waterSourceId, s.id),
+        ),
+      )
+      .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
+      .limit(1);
+    if (a) withAnalysis.push({ source: s, share: shareOf(s), analysis: a });
+    else notes.push(`La fuente «${s.name}» no tiene analítica de agua: se reparte su ${round1(shareOf(s))} % entre las demás.`);
+  }
+
+  if (withAnalysis.length === 0) {
+    notes.push("Ninguna fuente de agua tiene analítica: se usa la analítica de agua más reciente de la finca.");
+    const analysis =
+      opts.sectorId !== undefined
+        ? await latestAnalysisScoped(farmId, "water", opts.sectorId)
+        : await latestAnalysis(farmId, "water");
+    return { analysis, mix: null, notes };
+  }
+
+  const totalShare = withAnalysis.reduce((acc, w) => acc + w.share, 0);
+  const mix = withAnalysis.map((w) => ({
+    name: w.source.name,
+    sharePct: round1((w.share / totalShare) * 100),
+  }));
+  if (withAnalysis.length === 1) {
+    return { analysis: withAnalysis[0].analysis, mix, notes };
+  }
+
+  // Weighted average by parameter name; units must agree.
+  type Acc = { name: string; unit: string | null; weighted: number; weight: number; skip: boolean };
+  const acc = new Map<string, Acc>();
+  const keyOf = (name: string) => name.trim().toLowerCase();
+  const normUnit = (u?: string | null) => (u ?? "").trim().toLowerCase() || null;
+  for (const w of withAnalysis) {
+    const weight = w.share / totalShare;
+    for (const p of w.analysis.parameters ?? []) {
+      const k = keyOf(p.name);
+      const existing = acc.get(k);
+      if (!existing) {
+        acc.set(k, { name: p.name, unit: normUnit(p.unit) === null ? null : (p.unit ?? null), weighted: p.value * weight, weight, skip: false });
+      } else if (normUnit(existing.unit) !== normUnit(p.unit)) {
+        if (!existing.skip) {
+          existing.skip = true;
+          notes.push(`El parámetro «${p.name}» tiene unidades distintas entre fuentes y se ha omitido de la mezcla.`);
+        }
+      } else {
+        existing.weighted += p.value * weight;
+        existing.weight += weight;
+      }
+    }
+  }
+  const parameters = [...acc.values()]
+    .filter((a) => !a.skip)
+    .map((a) => ({
+      name: a.name,
+      value: Math.round((a.weighted / a.weight) * 1000) / 1000,
+      unit: a.unit,
+    }));
+
+  const base = withAnalysis[0].analysis;
+  const oldestSample = withAnalysis
+    .map((w) => w.analysis.sampleDate)
+    .sort()[0];
+  const blended: Analysis = {
+    ...base,
+    id: 0,
+    waterSourceId: null,
+    reference: null,
+    laboratory: null,
+    sampleDate: oldestSample,
+    description: `Mezcla de agua: ${mix.map((m) => `${m.name} ${m.sharePct}%`).join(" + ")}`,
+    parameters,
+    notes: null,
+  };
+  return { analysis: blended, mix, notes };
+}
+
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
 }
 
 export async function activeRecommendation(farmId: number): Promise<Recommendation | null> {

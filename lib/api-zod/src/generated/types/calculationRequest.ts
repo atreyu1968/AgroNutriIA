@@ -5,11 +5,22 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { CalculationRequestWaterMixItem } from './calculationRequestWaterMixItem';
 import type { RecommendationItem } from './recommendationItem';
 
 export interface CalculationRequest {
   sectorId?: number;
   weeklyLitresPerPlant?: number;
   plantCount?: number;
+  /** Overrides the farm/sector phenological stage for this calculation */
+  phenologicalStage?: string;
+  /**
+     * Overrides the farm's maximum EC (dS/m) for this calculation
+     * @minimum 0.1
+     * @maximum 10
+     */
+  maxEcDsM?: number;
+  /** Overrides the stored share of each water source for this calculation */
+  waterMix?: CalculationRequestWaterMixItem[];
   items: RecommendationItem[];
 }

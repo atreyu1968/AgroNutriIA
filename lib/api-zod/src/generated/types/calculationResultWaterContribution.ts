@@ -7,6 +7,6 @@
  */
 
 /**
- * Weekly kg from irrigation water: na, ca, mg, k, b, alkalinity
+ * Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity
  */
 export type CalculationResultWaterContribution = {[key: string]: number};
