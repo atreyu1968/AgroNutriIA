@@ -65,6 +65,12 @@ sudo -u postgres pg_dump -Fc "${DB_NAME}" > "${BACKUP_DIR}/${DB_NAME}-$(date +%Y
 echo "Copia de seguridad guardada en ${BACKUP_DIR}"
 DATABASE_URL="$(grep '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)"
 export DATABASE_URL
+
+# Columnas nuevas ambiguas para drizzle: crearlas antes del push para que
+# no pregunte interactivamente si son un renombrado (idempotente).
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" \
+  -c "ALTER TABLE IF EXISTS farms ADD COLUMN IF NOT EXISTS stage_nutrient_ranges jsonb;"
+
 pnpm --filter @workspace/db run push-force
 
 # Catálogo base de fertilizantes: solo se carga si el catálogo está vacío
