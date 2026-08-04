@@ -79,13 +79,21 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; expanded: boolean; onToggle: () => void }) {
   const c = useColors();
+  const exceedsCe = rec.warnings?.[0]?.startsWith('SUPERA LA CE MÁXIMA') ?? false;
+  const otherWarnings = exceedsCe ? (rec.warnings ?? []).slice(1) : (rec.warnings ?? []);
   return (
-    <Card style={{ gap: 10 }}>
+    <Card style={{ gap: 0, overflow: 'hidden' }}>
+      {exceedsCe && (
+        <View style={styles.ceBanner} testID={`banner-ce-exceeded-${rec.id}`}>
+          <Feather name="alert-triangle" size={14} color="#b91c1c" />
+          <Text style={styles.ceBannerText} numberOfLines={2}>{rec.warnings![0]}</Text>
+        </View>
+      )}
       <Pressable
         onPress={onToggle}
         accessibilityRole="button"
         testID={`rec-toggle-${rec.id}`}
-        style={styles.recHeader}
+        style={[styles.recHeader, { paddingTop: exceedsCe ? 8 : 0 }]}
       >
         <View style={{ flex: 1, gap: 6 }}>
           <Text style={[styles.recTitle, { color: c.foreground }]} numberOfLines={2}>
@@ -94,6 +102,7 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
             <Badge label={STATUS_LABEL[rec.status] ?? rec.status} tone={STATUS_TONE[rec.status] ?? 'muted'} />
             {rec.source === 'ai' ? <Badge label="IA" tone="accent" /> : null}
+            {exceedsCe ? <Badge label="CE máxima" tone="destructive" /> : null}
             <Badge label={formatDate(rec.createdAt)} />
           </View>
         </View>
@@ -101,10 +110,10 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
       </Pressable>
 
       {expanded ? (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10, paddingBottom: 4 }}>
           <View style={[styles.divider, { backgroundColor: c.border }]} />
           {rec.items.map((item, idx) => (
-            <View key={idx} style={styles.doseRow}>
+            <View key={idx} style={[styles.doseRow, { paddingHorizontal: 0 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.doseName, { color: c.foreground }]}>{item.fertilizerName}</Text>
                 {item.reason ? (
@@ -118,7 +127,9 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
           ))}
           {rec.estimatedEcDsM != null || rec.estimatedWeeklyNKg != null ? (
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-              {rec.estimatedEcDsM != null ? <Badge label={`CE est. ${rec.estimatedEcDsM} dS/m`} /> : null}
+              {rec.estimatedEcDsM != null ? (
+                <Badge label={`CE est. ${rec.estimatedEcDsM} dS/m`} tone={exceedsCe ? 'destructive' : undefined} />
+              ) : null}
               {rec.estimatedWeeklyNKg != null ? <Badge label={`N sem. ${rec.estimatedWeeklyNKg} kg`} /> : null}
             </View>
           ) : null}
@@ -150,9 +161,9 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
               ))}
             </View>
           ) : null}
-          {rec.warnings && rec.warnings.length > 0 ? (
+          {otherWarnings.length > 0 ? (
             <View style={{ gap: 4 }}>
-              {rec.warnings.map((w, i) => (
+              {otherWarnings.map((w, i) => (
                 <View key={i} style={styles.warningRow}>
                   <Feather name="alert-triangle" size={14} color="#8a6a08" />
                   <Text style={[styles.warningText, { color: c.foreground }]}>{w}</Text>
@@ -738,5 +749,21 @@ const styles = StyleSheet.create({
   mutedNote: {
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
+  },
+  ceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(185,28,28,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(185,28,28,0.3)',
+  },
+  ceBannerText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#b91c1c',
+    flex: 1,
   },
 });

@@ -1047,8 +1047,16 @@ export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: numb
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : recommendations && recommendations.length > 0 ? (
-          recommendations.map(r => (
-            <Card key={r.id}>
+          recommendations.map(r => {
+            const exceedsCe = r.warnings?.[0]?.startsWith('SUPERA LA CE MÁXIMA') ?? false;
+            return (
+            <Card key={r.id} className={exceedsCe ? 'border-destructive' : ''}>
+              {exceedsCe && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 border-b border-destructive/30 rounded-t-lg text-destructive text-sm font-semibold" data-testid={`banner-ce-exceeded-${r.id}`}>
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{r.warnings![0]}</span>
+                </div>
+              )}
               <CardContent className="p-4 flex justify-between items-center">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -1057,11 +1065,14 @@ export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: numb
                     {r.source === 'ai' && (
                       <Badge variant="secondary" className="gap-1"><Bot className="w-3 h-3" /> IA</Badge>
                     )}
+                    {exceedsCe && (
+                      <Badge variant="destructive" className="gap-1 shrink-0"><AlertTriangle className="w-3 h-3" /> CE máxima</Badge>
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground flex gap-4">
                     <span>{formatDate(r.createdAt)}</span>
                     <span>{r.items?.length || 0} fertilizantes</span>
-                    {r.estimatedEcDsM && <span>CE: {r.estimatedEcDsM} dS/m</span>}
+                    {r.estimatedEcDsM && <span className={exceedsCe ? 'text-destructive font-medium' : ''}>CE: {r.estimatedEcDsM} dS/m</span>}
                     {r.updatedByName && <span>Ajustado por {r.updatedByName}</span>}
                   </div>
                 </div>
@@ -1110,7 +1121,7 @@ export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: numb
                 </div>
               </CardContent>
             </Card>
-          ))
+          );})
         ) : (
           <div className="text-center py-10 border-2 border-dashed rounded-lg bg-muted/10">
             <Sprout className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-20" />
@@ -1121,56 +1132,80 @@ export function RecommendationsTab({ farmId, onCreate, canEdit }: { farmId: numb
 
       <Dialog open={!!selectedRec} onOpenChange={(open) => !open && setSelectedRec(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          {selectedRec && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="pr-8">{selectedRec.title || "Recomendación sin título"}</DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={selectedRec.status === "applying" ? "success" : selectedRec.status === "draft" ? "outline" : "secondary"}>
-                  {selectedRec.status}
-                </Badge>
-                {selectedRec.source === "ai" && (
-                  <Badge variant="secondary" className="gap-1"><Bot className="w-3 h-3" /> IA</Badge>
+          {selectedRec && (() => {
+            const detailExceedsCe = selectedRec.warnings?.[0]?.startsWith('SUPERA LA CE MÁXIMA') ?? false;
+            const otherWarnings = detailExceedsCe ? (selectedRec.warnings ?? []).slice(1) : (selectedRec.warnings ?? []);
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="pr-8">{selectedRec.title || "Recomendación sin título"}</DialogTitle>
+                </DialogHeader>
+                {detailExceedsCe && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/40 text-destructive" data-testid="banner-detail-ce-exceeded">
+                    <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-sm">{selectedRec.warnings![0]}</p>
+                    </div>
+                  </div>
                 )}
-                <Badge variant="outline">
-                  {recSectorName(selectedRec.sectorId) ? `Sector: ${recSectorName(selectedRec.sectorId)}` : "Global de la finca"}
-                </Badge>
-                <span className="text-sm text-muted-foreground">{formatDate(selectedRec.createdAt)}</span>
-              </div>
-              <div className="text-sm text-muted-foreground flex flex-wrap gap-4">
-                {selectedRec.estimatedEcDsM != null && <span>CE estimada: {selectedRec.estimatedEcDsM} dS/m</span>}
-                {selectedRec.updatedByName && <span>Ajustado por {selectedRec.updatedByName}</span>}
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fertilizante</TableHead>
-                    <TableHead className="text-right">Dosis semanal</TableHead>
-                    <TableHead>Motivo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(selectedRec.items ?? []).map((it, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{it.fertilizerName}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">{it.weeklyDose} {it.unit}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{it.reason || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                  {(selectedRec.items ?? []).length === 0 && (
-                    <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sin fertilizantes.</TableCell></TableRow>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={selectedRec.status === "applying" ? "success" : selectedRec.status === "draft" ? "outline" : "secondary"}>
+                    {selectedRec.status}
+                  </Badge>
+                  {selectedRec.source === "ai" && (
+                    <Badge variant="secondary" className="gap-1"><Bot className="w-3 h-3" /> IA</Badge>
                   )}
-                </TableBody>
-              </Table>
-              {selectedRec.rationale && (
-                <div className="space-y-1">
-                  <h4 className="text-sm font-semibold">Justificación agronómica</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedRec.rationale}</p>
+                  <Badge variant="outline">
+                    {recSectorName(selectedRec.sectorId) ? `Sector: ${recSectorName(selectedRec.sectorId)}` : "Global de la finca"}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">{formatDate(selectedRec.createdAt)}</span>
                 </div>
-              )}
-            </>
-          )}
+                <div className="text-sm text-muted-foreground flex flex-wrap gap-4">
+                  {selectedRec.estimatedEcDsM != null && (
+                    <span className={detailExceedsCe ? 'text-destructive font-semibold' : ''}>CE estimada: {selectedRec.estimatedEcDsM} dS/m</span>
+                  )}
+                  {selectedRec.updatedByName && <span>Ajustado por {selectedRec.updatedByName}</span>}
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fertilizante</TableHead>
+                      <TableHead className="text-right">Dosis semanal</TableHead>
+                      <TableHead>Motivo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(selectedRec.items ?? []).map((it, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{it.fertilizerName}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{it.weeklyDose} {it.unit}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{it.reason || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(selectedRec.items ?? []).length === 0 && (
+                      <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sin fertilizantes.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                {otherWarnings.length > 0 && (
+                  <div className="space-y-1">
+                    {otherWarnings.map((w, i) => (
+                      <div key={i} className="flex items-start gap-1.5 text-sm text-amber-700">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                        <span>{w}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedRec.rationale && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold">Justificación agronómica</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedRec.rationale}</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
