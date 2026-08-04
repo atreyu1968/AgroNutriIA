@@ -13,3 +13,6 @@ description: Cómo se publica la app Expo como web estática en /movil en instal
   saldrían enlaces http:// en sitios HTTPS. Express no tiene `trust proxy` activado.
 - En la app móvil, sin `EXPO_PUBLIC_DOMAIN` (caso servidor propio) la base de la API y los enlaces a
   /landing usan `window.location.origin`.
+
+## PWA (añadido después)
+La exportación web es PWA instalable: `public/manifest.json`, `public/sw.js` e iconos se copian solos con `expo export`, pero **no** con `scripts/build.js` (static-build de Replit) — por eso build.js tiene `copyPublicAssets()`. El registro del SW y el enlace al manifiesto se inyectan en runtime (`lib/pwa.ts`, `setupPwa()`) deduciendo el base path del `<script src="..._expo/static/...">`, porque la app vive bajo subruta (/movil). Biometría web: WebAuthn platform authenticator (`lib/webBiometric.ts`); el credentialId vive en localStorage. Tras enrolar, `BiometricGate` debe re-evaluar `supported` cuando cambia la preferencia, si no el bloqueo no se activa hasta recargar.
