@@ -338,89 +338,15 @@ IMPORTANTE — SIN ACIDIFICACIÓN: el agricultor NO va a usar ácido para correg
 - Si el agua tiene pH o bicarbonatos altos, adviértelo en la justificación y explica cómo el programa lo compensa y qué limitaciones tendrá frente a un agua acidificada.`;
 
   const model = modelFor(credential);
-  const start = Date.now();
-  let extracted: {
+
+  type ExtractedProgram = {
     title: string;
     rationale: string;
     items: { fertilizerName: string; weeklyDose: number; unit: string; reason?: string | null }[];
   };
-  try {
-    const client = clientFor(credential);
-    const completion = await client.chat.completions.create({
-      model,
-      ...maxOutputTokensParam(credential, 4000),
-      // Algunos proveedores compatibles no soportan json_schema estricto:
-      // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
-      // y la estructura se describe en el prompt.
-      ...(usesResponsesApi(credential)
-        ? { response_format: { type: "json_schema" as const, json_schema: aiProgramSchema } }
-        : supportsJsonResponseFormat(credential)
-          ? { response_format: { type: "json_object" as const } }
-          : {}),
-      messages: [
-        {
-          role: "system",
-          content:
-            agronomistSystemPrompt(access.farm, contextBlock) +
-            (usesResponsesApi(credential)
-              ? ""
-              : `\n\nResponde SOLO con un objeto JSON válido con esta estructura exacta: ${JSON.stringify(aiProgramSchema.schema)}`),
-        },
-        {
-          role: "user",
-          content: sector
-            ? `Diseña el programa semanal de fertirrigación más adecuado para el sector «${sector.name}» de esta finca a partir de las últimas analíticas disponibles (las analíticas mostradas son las del propio sector cuando existen; si no, las globales de la finca).
-Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"} ha, riego ${sector.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant ?? "?"} L/planta/semana${sector.phenologicalStage ? `, fase fenológica ${sector.phenologicalStage}` : ""}.
-Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
-${catalog}
+  let extracted: ExtractedProgram;
 
-Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`
-            : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
-Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
-${catalog}
-
-Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`,
-        },
-      ],
-    });
-    const raw = completion.choices[0]?.message?.content ?? "";
-    extracted = parseJsonLoose(raw);
-    const inputTokens = completion.usage?.prompt_tokens ?? 0;
-    const outputTokens = completion.usage?.completion_tokens ?? 0;
-    await recordUsage({
-      userId: req.user!.id,
-      farmId,
-      model,
-      operation: "ai_draft_program",
-      inputTokens,
-      outputTokens,
-      estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
-      durationMs: Date.now() - start,
-      result: "ok",
-    });
-  } catch (err) {
-    req.log.error({ err: (err as Error).message }, "OpenAI ai-draft program failed");
-    await recordUsage({
-      userId: req.user!.id,
-      farmId,
-      model,
-      operation: "ai_draft_program",
-      durationMs: Date.now() - start,
-      result: "error",
-    });
-    res.status(502).json({
-      error: "No se ha podido generar el programa con IA. Inténtalo de nuevo en unos momentos.",
-    });
-    return;
-  }
-
-  if (!Array.isArray(extracted.items) || extracted.items.length === 0) {
-    res.status(422).json({
-      error: "La IA no ha propuesto ningún fertilizante. Revisa que las analíticas tengan datos y vuelve a intentarlo.",
-    });
-    return;
-  }
-
+  let { items, discarded, acidsAsNutrient } = buildItems(extracted);
   const byName = new Map(fertilizers.map((f) => [f.name.toLowerCase(), f]));
   // Salvaguarda: si el agricultor NO marcó el uso de ácido, un ácido solo puede
   // llegar al programa como fuente de nutrientes (su motivo debe indicarlo y no
@@ -434,38 +360,36 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     const r = reason.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return /\bph\b/.test(r) || r.includes("acidif") || r.includes("correccion") || r.includes("alcalinid") || r.includes("bicarbonat");
   };
-  const items: RecommendationItem[] = [];
-  const discarded: string[] = [];
-  const acidsAsNutrient: string[] = [];
-  for (const i of extracted.items) {
-    const fert = byName.get(i.fertilizerName.toLowerCase());
-    const doseOk = Number.isFinite(i.weeklyDose) && i.weeklyDose > 0 && i.weeklyDose <= 10000;
-    if (!fert || fert.isActive === false || !doseOk) {
-      discarded.push(i.fertilizerName);
-      continue;
-    }
-    if (!useAcid && isAcidProduct(fert.name)) {
-      if (isPhCorrectionReason(i.reason)) {
+
+  const buildItems = (program: ExtractedProgram) => {
+    const items: RecommendationItem[] = [];
+    const discarded: string[] = [];
+    const acidsAsNutrient: string[] = [];
+    for (const i of program.items ?? []) {
+      const fert = byName.get(i.fertilizerName.toLowerCase());
+      const doseOk = Number.isFinite(i.weeklyDose) && i.weeklyDose > 0 && i.weeklyDose <= 10000;
+      if (!fert || fert.isActive === false || !doseOk) {
         discarded.push(i.fertilizerName);
         continue;
       }
-      acidsAsNutrient.push(fert.name);
+      if (!useAcid && isAcidProduct(fert.name)) {
+        if (isPhCorrectionReason(i.reason)) {
+          discarded.push(i.fertilizerName);
+          continue;
+        }
+        acidsAsNutrient.push(fert.name);
+      }
+      items.push({
+        fertilizerId: fert.id,
+        fertilizerName: fert.name,
+        weeklyDose: i.weeklyDose,
+        unit: i.unit === "L" ? "L" : "kg",
+        reason: i.reason ?? null,
+      });
     }
-    items.push({
-      fertilizerId: fert.id,
-      fertilizerName: fert.name,
-      weeklyDose: i.weeklyDose,
-      unit: i.unit === "L" ? "L" : "kg",
-      reason: i.reason ?? null,
-    });
-  }
-  if (items.length === 0) {
-    res.status(422).json({
-      error:
-        "La IA ha propuesto productos o dosis no válidos y se ha descartado la propuesta. Vuelve a intentarlo.",
-    });
-    return;
-  }
+    return { items, discarded, acidsAsNutrient };
+  };
+  const ecWarnings: string[] = [];
   const out = runEngine({
     farm: access.farm,
     sector,
@@ -478,6 +402,7 @@ Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con u
     maxEcOverride: parsed.data.maxEcDsM ?? null,
   });
 
+  const maxEc = access.farm.maxEcDsM ?? 2.5;
     const [rec] = await db
       .update(recommendationsTable)
       .set(update)
@@ -744,7 +669,106 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     stageOverride: parsed.data.phenologicalStage ?? null,
     maxEcOverride: parsed.data.maxEcDsM ?? null,
   });
+
+  const maxEc = access.farm.maxEcDsM ?? 2.5;
   res.json(RunCalculationResponse.parse({ ...out, warnings: [...blended.notes, ...out.warnings] }));
 });
 
 export default router;
+
+  const exceedsMaxEc = (o: typeof out) => o.estimatedEcDsM != null && o.estimatedEcDsM > maxEc;
+
+      const second = await requestProgram([
+        { role: "assistant", content: JSON.stringify(extracted) },
+        { role: "user", content: correction },
+      ]);
+
+    const margin = round2(maxEc - (out.waterEcDsM ?? 0));
+
+  const baseMessages = [
+    {
+      role: "system" as const,
+      content:
+        agronomistSystemPrompt(access.farm, contextBlock) +
+        (usesResponsesApi(credential)
+          ? ""
+          : `\n\nResponde SOLO con un objeto JSON válido con esta estructura exacta: ${JSON.stringify(aiProgramSchema.schema)}`),
+    },
+    {
+      role: "user" as const,
+      content: sector
+        ? `Diseña el programa semanal de fertirrigación más adecuado para el sector «${sector.name}» de esta finca a partir de las últimas analíticas disponibles (las analíticas mostradas son las del propio sector cuando existen; si no, las globales de la finca).
+Datos del sector: ${sector.plantCount ?? "?"} plantas, ${sector.surfaceHa ?? "?"} ha, riego ${sector.weeklyLitresPerPlant ?? access.farm.weeklyLitresPerPlant ?? "?"} L/planta/semana${sector.phenologicalStage ? `, fase fenológica ${sector.phenologicalStage}` : ""}.
+Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
+${catalog}
+
+Devuelve dosis semanales TOTALES para ese sector (no para toda la finca) en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`
+        : `Diseña el programa semanal de fertirrigación más adecuado para esta finca a partir de las últimas analíticas disponibles.
+Usa EXCLUSIVAMENTE fertilizantes de este catálogo (productos de fertirrigación):
+${catalog}
+
+Devuelve dosis semanales TOTALES para la finca en kg o L por fertilizante, con un motivo breve por producto, y una justificación agronómica general basada en los datos de las analíticas.${stageRangesBlock}${acidBlock}`,
+    },
+  ];
+
+  const requestProgram = async (
+    extraMessages: { role: "assistant" | "user"; content: string }[],
+  ): Promise<ExtractedProgram> => {
+    const start = Date.now();
+    try {
+      const client = clientFor(credential);
+      const completion = await client.chat.completions.create({
+        model,
+        ...maxOutputTokensParam(credential, 4000),
+        // Algunos proveedores compatibles no soportan json_schema estricto:
+        // se usa json_object (o solo el prompt si el modelo no tiene JSON mode)
+        // y la estructura se describe en el prompt.
+        ...(usesResponsesApi(credential)
+          ? { response_format: { type: "json_schema" as const, json_schema: aiProgramSchema } }
+          : supportsJsonResponseFormat(credential)
+            ? { response_format: { type: "json_object" as const } }
+            : {}),
+        messages: [...baseMessages, ...extraMessages],
+      });
+      const raw = completion.choices[0]?.message?.content ?? "";
+      const parsed = parseJsonLoose(raw) as ExtractedProgram;
+      const inputTokens = completion.usage?.prompt_tokens ?? 0;
+      const outputTokens = completion.usage?.completion_tokens ?? 0;
+      await recordUsage({
+        userId: req.user!.id,
+        farmId,
+        model,
+        operation: "ai_draft_program",
+        inputTokens,
+        outputTokens,
+        estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
+        durationMs: Date.now() - start,
+        result: "ok",
+      });
+      return parsed;
+    } catch (err) {
+      req.log.error({ err: (err as Error).message }, "OpenAI ai-draft program failed");
+      await recordUsage({
+        userId: req.user!.id,
+        farmId,
+        model,
+        operation: "ai_draft_program",
+        durationMs: Date.now() - start,
+        result: "error",
+      });
+      throw err;
+    }
+  };
+
+    const correction = `El programa que has propuesto NO es válido: la CE estimada de la solución es ${out.estimatedEcDsM} dS/m (${out.waterEcDsM ?? 0} dS/m del agua + ${out.fertilizersEcDsM ?? 0} dS/m de los abonos), que supera en ${excess} dS/m la CE máxima permitida de la finca (${maxEc} dS/m).
+Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de menor aporte salino) para que la CE aportada por los abonos no supere ${margin} dS/m. Mantén el equilibrio nutricional en lo posible y usa el mismo catálogo. Responde con la misma estructura JSON.`;
+
+  const ecWarnings: string[] = [];
+
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+
+        const rebuilt = buildItems(second);
+
+    const excess = round2(out.estimatedEcDsM! - maxEc);
+
+  let ecRetried = false;
