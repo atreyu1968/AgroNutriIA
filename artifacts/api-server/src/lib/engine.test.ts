@@ -140,3 +140,99 @@ test("sin fase fenológica se mantiene el aviso genérico", () => {
   assert.equal(out.stageComparison, null);
   assert.ok(out.warnings.some((w) => w.includes("fase fenológica")));
 });
+
+// --- Rangos por fase modulados por el técnico ---
+
+// Con nitrato potásico 13/46 a 50 kg/semana y 1000 plantas:
+// N = 6,5 g/planta/semana, K2O = 23 g/planta/semana.
+const engordeFarm = (stageNutrientRanges: Farm["stageNutrientRanges"]) =>
+  ({
+    plantCount: 1000,
+    weeklyLitresPerPlant: 100,
+    maxEcDsM: 2.5,
+    phenologicalStage: "engorde del racimo",
+    stageNutrientRanges,
+  }) as Farm;
+
+const ENGORDE_DEFAULT_N: [number, number] = [10, 18];
+const ENGORDE_DEFAULT_K2O: [number, number] = [30, 50];
+
+test("el motor aplica los rangos del técnico cuando N y K2O son ambos válidos", () => {
+  const out = runEngine({
+    farm: engordeFarm({ engorde: { n: [5, 10], k2o: [20, 30] } }),
+    fertilizers: [nitratoPotasico],
+    items,
+  });
+  const sc = out.stageComparison!;
+  assert.ok(sc, "debe haber contraste de fase");
+  assert.equal(sc.rangeSource, "tecnico");
+  assert.deepEqual([sc.nMinG, sc.nMaxG], [5, 10]);
+  assert.deepEqual([sc.k2oMinG, sc.k2oMaxG], [20, 30]);
+  assert.equal(sc.nStatus, "ok");
+  assert.equal(sc.k2oStatus, "ok");
+});
+
+test("el motor ignora la modulación si el rango de K2O tiene mínimo mayor que máximo", () => {
+  const out = runEngine({
+    farm: engordeFarm({ engorde: { n: [5, 10], k2o: [30, 20] } }),
+    fertilizers: [nitratoPotasico],
+    items,
+  });
+  const sc = out.stageComparison!;
+  assert.equal(sc.rangeSource, "orientativo", "no se mezclan rangos propios y orientativos");
+  assert.deepEqual([sc.nMinG, sc.nMaxG], ENGORDE_DEFAULT_N);
+  assert.deepEqual([sc.k2oMinG, sc.k2oMaxG], ENGORDE_DEFAULT_K2O);
+});
+
+test("el motor ignora la modulación si N contiene valores no finitos", () => {
+  const out = runEngine({
+    farm: engordeFarm({
+      engorde: { n: [Number.NaN, 10] as [number, number], k2o: [20, 30] },
+    }),
+    fertilizers: [nitratoPotasico],
+    items,
+  });
+  const sc = out.stageComparison!;
+  assert.equal(sc.rangeSource, "orientativo");
+  assert.deepEqual([sc.nMinG, sc.nMaxG], ENGORDE_DEFAULT_N);
+});
+
+test("el motor ignora la modulación si falta uno de los dos rangos", () => {
+  const out = runEngine({
+    farm: engordeFarm({
+      engorde: { n: [5, 10] } as unknown as NonNullable<Farm["stageNutrientRanges"]>[string],
+    } as Farm["stageNutrientRanges"]),
+    fertilizers: [nitratoPotasico],
+    items,
+  });
+  const sc = out.stageComparison!;
+  assert.equal(sc.rangeSource, "orientativo");
+  assert.deepEqual([sc.k2oMinG, sc.k2oMaxG], ENGORDE_DEFAULT_K2O);
+});
+
+test("la modulación de otra fase no afecta a la fase activa", () => {
+  const out = runEngine({
+    farm: engordeFarm({ paron: { n: [1, 2], k2o: [3, 4] } }),
+    fertilizers: [nitratoPotasico],
+    items,
+  });
+  const sc = out.stageComparison!;
+  assert.equal(sc.rangeSource, "orientativo");
+  assert.deepEqual([sc.nMinG, sc.nMaxG], ENGORDE_DEFAULT_N);
+});
+
+test("fuera del rango del técnico se genera aviso que lo atribuye al técnico", () => {
+  const out = runEngine({
+    farm: engordeFarm({ engorde: { n: [10, 12], k2o: [30, 40] } }),
+    fertilizers: [nitratoPotasico],
+    items,
+  });
+  const sc = out.stageComparison!;
+  assert.equal(sc.rangeSource, "tecnico");
+  assert.equal(sc.nStatus, "low");
+  assert.equal(sc.k2oStatus, "low");
+  assert.ok(
+    out.warnings.some((w) => w.includes("rango fijado por el técnico")),
+    `avisos: ${JSON.stringify(out.warnings)}`,
+  );
+});

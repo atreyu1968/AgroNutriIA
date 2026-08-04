@@ -1863,4 +1863,3 @@ export type AdminRestoreBackup200 = {
   ok: boolean;
   detail: string;
 };
-
