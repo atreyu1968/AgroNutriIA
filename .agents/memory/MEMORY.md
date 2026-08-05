@@ -22,5 +22,7 @@
 - [Unidades de CE](ec-units.md) — normalizar toda CE a dS/m (>10 sin unidad ⇒ µS/cm ÷1000) antes de motor/IA; nunca pasar valores de usuario sin normalizar al prompt.
 - [PDF text extraction](pdf-text-extraction.md) — pdf-parse devuelve µ como μ griega; los tests sobre texto extraído deben aceptar ambas.
 - [App móvil web en /movil](mobile-web-selfhost.md) — en el servidor propio la app Expo se exporta como web (/movil, nginx); leer X-Forwarded-Proto para las URLs públicas.
+- [Paridad móvil vs web](mobile-parity-gaps.md) — el móvil usa @workspace/api-client-react (react-query) igual que la web; casi todos los endpoints CRUD ya existían en la spec; incompatibilidad de rename de conversaciones (sin endpoint). El preview web Expo en dev da error CORS (dominio .expo.spock → API en otro subdominio): esperado, no es regresión; la app va pensada para Expo Go o /movil mismo-origen.
+- [Delegar edits en app/farm/[id]](mobile-subagent-safety.md) — un subagente general puede borrar/romper archivos grandes compartidos (accidente en index.tsx); restaurar con git checkout y rehacer. Enviar cada área a subagente separado sin que compartan archivo.
 - [Push a GitHub](github-push.md) — git push directo falla; usar gitPush con remoto origin y upstream origin/main (crear ref con update-ref si no existe).
 - [Equilibrio catiónico](cation-balance.md) — diag. determinista compartido IA+web para calcio bloqueado por Na/Mg y pH alcalino; uncoupled de reglas frontend.
