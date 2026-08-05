@@ -19,6 +19,7 @@ Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canari
 - Ámbito global de la finca o por sector, con selección del ámbito al darlas de alta.
 - Importación asistida: sube el PDF del laboratorio y la IA extrae los parámetros.
 - El PDF original del laboratorio se guarda junto a la analítica y puede consultarse en cualquier momento desde su detalle ("Ver PDF del laboratorio").
+- **Motor de problemas agronómicos**: cruza las analíticas de suelo, foliar y agua de la finca (respetando el sector elegido) y detecta desequilibrios (calcio bloqueado por sodio/magnesio, pH alcalino, salinidad, sodio del agua por SAR/RAS, alcalinidad residual, etc.), cada uno con su recomendación. Es la única fuente de reglas compartida entre la web y el asistente IA, y su resultado se muestra como avisos en el panel de la finca.
 
 ### Nutrición y calculadora
 - Calculadora de fertirrigación: plan de abonado semanal con dosis por fertilizante, estimación de CE y de nutrientes aportados, y avisos de compatibilidad entre productos.
@@ -65,7 +66,7 @@ Plataforma de fertirrigación y sanidad vegetal para fincas de platanera (Canari
 
 ### Aplicaciones
 - **Web** (React + Vite): instalable como PWA en el móvil o el escritorio.
-- **Móvil** (Expo): acceso a fincas, sectores y programas, con bloqueo biométrico opcional (huella / Face ID).
+- **Móvil** (Expo): funcionalidades a la par de la web, con bloqueo biométrico opcional (huella / Face ID). Incluye gestión completa de fincas y sectores, analíticas (alta, edición, borrado, filtro por sector y tendencias), programas de abonado con flujo de aprobación y estados, catálogo de fertilizantes y fitosanitarios con plan en PDF, chat con el técnico virtual (conversaciones y borrador de programa desde la respuesta), calculadora con guardado del plan y descarga de informes.
 
 ## Estructura del proyecto
 
