@@ -1247,8 +1247,41 @@ export interface WaterSourceInput {
   sharePct: number;
 }
 
-export interface CationBalanceDiagnosis {
-  /** Avisos del equilibrio catiónico del suelo cruzado con la foliar (calcio bloqueado por Na/Mg y pH alcalino). Vacío si no hay desequilibrio. */
+export type FertilityProblemSeverity = typeof FertilityProblemSeverity[keyof typeof FertilityProblemSeverity];
+
+
+export const FertilityProblemSeverity = {
+  info: 'info',
+  warning: 'warning',
+  critical: 'critical',
+} as const;
+
+export type FertilityProblemSourcesItem = typeof FertilityProblemSourcesItem[keyof typeof FertilityProblemSourcesItem];
+
+
+export const FertilityProblemSourcesItem = {
+  soil: 'soil',
+  leaf: 'leaf',
+  water: 'water',
+} as const;
+
+export interface FertilityProblem {
+  /** Identificador estable del problema (p. ej. calcium_absorption, soil_sodium). */
+  id: string;
+  severity: FertilityProblemSeverity;
+  title: string;
+  /** Qué ocurre según los datos. */
+  message: string;
+  /** Recomendación práctica para el programa de abonado. */
+  advice: string;
+  /** Analíticas que evidencian el problema. */
+  sources: FertilityProblemSourcesItem[];
+}
+
+export interface FarmProblemsReport {
+  /** Problemas detectados al cruzar suelo+foliar+agua. Vacío si no hay desequilibrios. */
+  problems: FertilityProblem[];
+  /** Avisos planos legibles para el banner web. Vacío si no hay problemas. */
   warnings: string[];
 }
 

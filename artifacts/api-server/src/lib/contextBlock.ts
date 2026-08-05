@@ -1,6 +1,6 @@
 import type { Analysis, Farm, Recommendation, Sector } from "@workspace/db";
 import { mgPerLParam, normalizeMaxEc, waterEcDsMFrom } from "./engine";
-import { cationBalanceReport } from "./cationBalance";
+import { runProblems } from "./problems";
 
 const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
 
@@ -131,8 +131,8 @@ export function buildFarmContext(input: {
   lines.push(analysisBlock("ANALÍTICA DE SUELO", input.soil));
   lines.push("");
   lines.push(analysisBlock("ANALÍTICA FOLIAR", input.leaf));
-  const cation = cationBalanceReport(input.soil, input.leaf);
-  if (cation.contextBlock) lines.push(cation.contextBlock);
+  const problems = runProblems({ soil: input.soil, leaf: input.leaf, water: input.water, farm: input.farm });
+  if (problems.contextBlock) lines.push(problems.contextBlock);
   lines.push("");
   if (input.active) {
     lines.push(

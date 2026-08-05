@@ -841,14 +841,23 @@ export const CreateAnalysisResponse = zod.object({
 
 
 /**
- * @summary Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+ * Detección determinista (suelo+foliar+agua) de desequilibrios del cultivo, cada uno con su recomendación. Las mismas reglas alimentan al contexto de la IA.
+ * @summary Problemas detectados al cruzar las analíticas de suelo, foliar y agua
  */
-export const GetCationBalanceDiagnosisParams = zod.object({
+export const GetFarmProblemsParams = zod.object({
   "farmId": zod.coerce.number().int()
 })
 
-export const GetCationBalanceDiagnosisResponse = zod.object({
-  "warnings": zod.array(zod.string()).describe('Avisos del equilibrio catiónico del suelo cruzado con la foliar (calcio bloqueado por Na\/Mg y pH alcalino). Vacío si no hay desequilibrio.')
+export const GetFarmProblemsResponse = zod.object({
+  "problems": zod.array(zod.object({
+  "id": zod.string().describe('Identificador estable del problema (p. ej. calcium_absorption, soil_sodium).'),
+  "severity": zod.enum(['info', 'warning', 'critical']),
+  "title": zod.string(),
+  "message": zod.string().describe('Qué ocurre según los datos.'),
+  "advice": zod.string().describe('Recomendación práctica para el programa de abonado.'),
+  "sources": zod.array(zod.enum(['soil', 'leaf', 'water'])).describe('Analíticas que evidencian el problema.')
+})).describe('Problemas detectados al cruzar suelo+foliar+agua. Vacío si no hay desequilibrios.'),
+  "warnings": zod.array(zod.string()).describe('Avisos planos legibles para el banner web. Vacío si no hay problemas.')
 })
 
 

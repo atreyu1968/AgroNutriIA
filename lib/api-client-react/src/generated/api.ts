@@ -48,7 +48,6 @@ import type {
   AuthConfig,
   CalculationRequest,
   CalculationResult,
-  CationBalanceDiagnosis,
   CheckSubdomain,
   CheckSubdomainParams,
   Conversation,
@@ -66,6 +65,7 @@ import type {
   FarmMember,
   FarmMemberInput,
   FarmMemberUpdate,
+  FarmProblemsReport,
   FarmSummary,
   FarmUpdate,
   Fertilizer,
@@ -1911,20 +1911,21 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreateAnalysisMutationOptions(options));
     }
 
-export const getGetCationBalanceDiagnosisUrl = (farmId: number,) => {
+export const getGetFarmProblemsUrl = (farmId: number,) => {
 
 
 
 
-  return `/api/farms/${farmId}/analyses/cation-balance`
+  return `/api/farms/${farmId}/analyses/problems`
 }
 
 /**
- * @summary Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+ * Detección determinista (suelo+foliar+agua) de desequilibrios del cultivo, cada uno con su recomendación. Las mismas reglas alimentan al contexto de la IA.
+ * @summary Problemas detectados al cruzar las analíticas de suelo, foliar y agua
  */
-export const getCationBalanceDiagnosis = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<CationBalanceDiagnosis> => {
+export const getFarmProblems = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<FarmProblemsReport> => {
 
-  return customFetch<CationBalanceDiagnosis>(getGetCationBalanceDiagnosisUrl(farmId),
+  return customFetch<FarmProblemsReport>(getGetFarmProblemsUrl(farmId),
   {
     ...options,
     method: 'GET'
@@ -1937,45 +1938,45 @@ export const getCationBalanceDiagnosis = async (farmId: number, options?: Parame
 
 
 
-export const getGetCationBalanceDiagnosisQueryKey = (farmId: number,) => {
+export const getGetFarmProblemsQueryKey = (farmId: number,) => {
     return [
-    `/api/farms/${farmId}/analyses/cation-balance`
+    `/api/farms/${farmId}/analyses/problems`
     ] as const;
     }
 
 
-export const getGetCationBalanceDiagnosisQueryOptions = <TData = Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError = ErrorType<unknown>>(farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetFarmProblemsQueryOptions = <TData = Awaited<ReturnType<typeof getFarmProblems>>, TError = ErrorType<unknown>>(farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFarmProblems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetCationBalanceDiagnosisQueryKey(farmId);
+  const queryKey =  queryOptions?.queryKey ?? getGetFarmProblemsQueryKey(farmId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>> = ({ signal }) => getCationBalanceDiagnosis(farmId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFarmProblems>>> = ({ signal }) => getFarmProblems(farmId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFarmProblems>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetCationBalanceDiagnosisQueryResult = NonNullable<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>>
-export type GetCationBalanceDiagnosisQueryError = ErrorType<unknown>
+export type GetFarmProblemsQueryResult = NonNullable<Awaited<ReturnType<typeof getFarmProblems>>>
+export type GetFarmProblemsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+ * @summary Problemas detectados al cruzar las analíticas de suelo, foliar y agua
  */
 
-export function useGetCationBalanceDiagnosis<TData = Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError = ErrorType<unknown>>(
- farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetFarmProblems<TData = Awaited<ReturnType<typeof getFarmProblems>>, TError = ErrorType<unknown>>(
+ farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFarmProblems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetCationBalanceDiagnosisQueryOptions(farmId,options)
+  const queryOptions = getGetFarmProblemsQueryOptions(farmId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
