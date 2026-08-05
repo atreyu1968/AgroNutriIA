@@ -22,7 +22,10 @@ import {
   getConversation,
   getGetConversationQueryKey,
   getListConversationsQueryKey,
+  getListRecommendationsQueryKey,
   useCreateConversation,
+  useCreateDraftFromMessage,
+  useDeleteConversation,
   useGetConversation,
   useListConversations,
   useSendMessage,
@@ -115,6 +118,7 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<PendingMessage | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const conversationsQuery = useListConversations(farmId, {
     query: {
@@ -123,6 +127,8 @@ export default function ChatScreen() {
     },
   });
   const createConversation = useCreateConversation();
+  const deleteConversation = useDeleteConversation();
+  const createDraftFromMessage = useCreateDraftFromMessage();
 
   // Pick the most recent conversation once loaded (unless we created one).
   const activeConversationId = useMemo(() => {
@@ -135,6 +141,11 @@ export default function ChatScreen() {
     }
     return null;
   }, [conversationId, conversationsQuery.data]);
+
+  const activeConversation = useMemo(
+    () => conversationsQuery.data?.find((conversation) => conversation.id === activeConversationId) ?? null,
+    [activeConversationId, conversationsQuery.data],
+  );
 
   const conversationQuery = useGetConversation(farmId, activeConversationId ?? 0, {
     query: {
@@ -153,7 +164,11 @@ export default function ChatScreen() {
   }, [conversationQuery.data, pending]);
 
   const isSending =
-    sendMessage.isPending || createConversation.isPending || uploadAttachment.isPending;
+    sendMessage.isPending ||
+    createConversation.isPending ||
+    uploadAttachment.isPending ||
+    deleteConversation.isPending ||
+    createDraftFromMessage.isPending;
 
   const handleSend = async () => {
     const content = draft.trim();
@@ -207,6 +222,47 @@ export default function ChatScreen() {
       setConversationId(conv.id);
     }
     return convId;
+  };
+
+  const confirmAction = async (title: string, message: string) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      return window.confirm(message);
+    }
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert(title, message, [
+        { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Confirmar', style: 'destructive', onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const handleCreateConversation = async () => {
+    const conv = await createConversation.mutateAsync({
+      farmId,
+      data: { title: 'Nueva conversación' },
+    });
+    setConversationId(conv.id);
+    setPickerOpen(false);
+    await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey(farmId) });
+  };
+
+  const handleDeleteConversation = async (idToDelete: number) => {
+    const ok = await confirmAction('Eliminar conversación', '¿Seguro que quieres eliminar esta conversación?');
+    if (!ok) return;
+    await deleteConversation.mutateAsync({ farmId, conversationId: idToDelete });
+    if (conversationId === idToDelete) setConversationId(null);
+    await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey(farmId) });
+  };
+
+  const handleCreateDraftFromMessage = async (messageId: number) => {
+    if (activeConversationId == null) return;
+    await createDraftFromMessage.mutateAsync({
+      farmId,
+      conversationId: activeConversationId,
+      messageId,
+    });
+    await queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+    Alert.alert('Borrador creado', 'Se ha generado un borrador de programa a partir de la respuesta.');
   };
 
   const refreshConversation = async (convId: number) => {
@@ -339,10 +395,68 @@ export default function ChatScreen() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.foreground }]}>Técnico virtual</Text>
           <Text style={[styles.headerSub, { color: c.mutedForeground }]}>
-            Pregunta sobre abonado, analíticas o manejo
+            {activeConversation?.title ?? 'Conversación reciente'}
           </Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setPickerOpen((value) => !value)}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Feather name="list" size={18} color={c.foreground} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void handleCreateConversation()}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Feather name="plus" size={18} color={c.foreground} />
+        </Pressable>
       </View>
+      {pickerOpen ? (
+        <View style={[styles.picker, { backgroundColor: c.card, borderBottomColor: c.border }]}>
+          {conversationsQuery.data?.map((conversation) => (
+            <View key={conversation.id} style={styles.pickerRow}>
+              <Pressable
+                onPress={() => {
+                  setConversationId(conversation.id);
+                  setPickerOpen(false);
+                }}
+                style={({ pressed }) => [
+                  styles.pickerItem,
+                  {
+                    backgroundColor: conversation.id === activeConversationId ? c.muted : 'transparent',
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.pickerTitle, { color: c.foreground }]} numberOfLines={1}>
+                  {conversation.title}
+                </Text>
+                <Text style={[styles.pickerMeta, { color: c.mutedForeground }]}>
+                  {new Date(conversation.updatedAt ?? conversation.createdAt).toLocaleString('es-ES')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void handleDeleteConversation(conversation.id)}
+                style={({ pressed }) => [
+                  styles.deleteButton,
+                  { backgroundColor: c.destructive, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Feather name="trash-2" size={14} color={c.primaryForeground} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
         {conversationsQuery.isError ? (
@@ -393,7 +507,28 @@ export default function ChatScreen() {
                 </Text>
               </View>
             }
-            renderItem={({ item }) => <MessageBubble item={item} />}
+            renderItem={({ item }) => (
+              <View>
+                <MessageBubble item={item} />
+                {item.role === 'assistant' ? (
+                  <View style={styles.messageActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => void handleCreateDraftFromMessage(item.id)}
+                      style={({ pressed }) => [
+                        styles.draftButton,
+                        { backgroundColor: c.muted, opacity: pressed ? 0.75 : 1 },
+                      ]}
+                    >
+                      <Feather name="file-plus" size={14} color={c.foreground} />
+                      <Text style={[styles.draftButtonText, { color: c.foreground }]}>
+                        Generar borrador de programa
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            )}
           />
         )}
 
@@ -486,6 +621,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  picker: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    maxHeight: 240,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  pickerItem: {
+    flex: 1,
+  },
+  pickerTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+  },
+  pickerMeta: {
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  deleteButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   messages: {
     padding: 16,
     gap: 10,
@@ -531,6 +697,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     paddingHorizontal: 16,
     paddingBottom: 4,
+  },
+  messageActions: {
+    marginTop: 6,
+    alignItems: 'flex-start',
+  },
+  draftButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  draftButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
   },
   inputBar: {
     flexDirection: 'row',

@@ -102,26 +102,35 @@ function ReportRow({ report, farmId }: { report: Report; farmId: number }) {
       <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
         <Badge label={TYPE_LABEL[report.reportType ?? 'fertirrigacion'] ?? report.reportType ?? ''} />
         <Badge label={report.format.toUpperCase()} />
-        <Badge label={formatDate(report.createdAt)} />
         {report.status === 'generating' ? (
           <Badge label="Generando…" tone="warning" />
         ) : report.status === 'error' ? (
           <Badge label="Error" tone="destructive" />
-        ) : null}
+        ) : (
+          <Badge label="Listo" />
+        )}
       </View>
       {report.createdByName ? (
         <Text style={[styles.metaText, { color: c.mutedForeground }]}>
           Creado por {report.createdByName}
         </Text>
       ) : null}
+      <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+        Creado {formatDate(report.createdAt)}
+      </Text>
       {(report.warnings ?? []).map((w, i) => (
         <View key={i} style={styles.warningRow}>
           <Feather name="alert-triangle" size={13} color="#8a6a08" />
           <Text style={[styles.warningText, { color: c.foreground }]}>{w}</Text>
         </View>
       ))}
+      {report.status === 'error' ? (
+        <Text style={[styles.errorText, { color: c.destructive }]}>
+          El informe falló al generarse. Reintenta desde el formulario superior.
+        </Text>
+      ) : null}
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-        {report.status === 'ready' && report.downloadUrl ? (
+        {(report.status === 'ready' || report.status === 'error') && report.downloadUrl ? (
           <Pressable
             testID={`button-download-report-${report.id}`}
             accessibilityRole="button"
@@ -134,8 +143,21 @@ function ReportRow({ report, farmId }: { report: Report; farmId: number }) {
           >
             <Feather name="download" size={15} color={c.primary} />
             <Text style={[styles.actionBtnText, { color: c.primary }]}>
-              {downloading ? 'Descargando…' : 'Descargar'}
+              {downloading ? 'Descargando…' : 'Descargar PDF'}
             </Text>
+          </Pressable>
+        ) : null}
+        {report.status === 'error' && report.downloadUrl ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => notify('Reintentar', 'Vuelve a generar el informe desde el formulario superior.')}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Feather name="refresh-cw" size={15} color={c.foreground} />
+            <Text style={[styles.actionBtnText, { color: c.foreground }]}>Reintentar</Text>
           </Pressable>
         ) : null}
         {report.status !== 'generating' ? (
@@ -184,7 +206,7 @@ export default function ReportsScreen() {
         (query.state.data ?? []).some((r) => r.status === 'generating') ? 4000 : false,
     },
   });
-
+  const anyGenerating = reportsQuery.data?.some((r) => r.status === 'generating') ?? false;
   const createMutation = useCreateReport({
     mutation: {
       onSuccess: () => {
@@ -253,6 +275,9 @@ export default function ReportsScreen() {
         {canEdit ? (
           <Card style={{ gap: 10 }}>
             <Text style={[styles.cardTitle, { color: c.foreground }]}>Generar informe PDF</Text>
+            <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+              Tipos admitidos por el backend: fertirrigación y enmiendas.
+            </Text>
             <TextInput
               testID="input-report-title"
               style={[styles.input, { borderColor: c.border, color: c.foreground, backgroundColor: c.card }]}
@@ -297,6 +322,11 @@ export default function ReportsScreen() {
             <Text style={[styles.metaText, { color: c.mutedForeground }]}>
               El informe usa el programa vigente, la mezcla de agua y las últimas analíticas de la finca.
             </Text>
+            {anyGenerating ? (
+              <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+                Hay informes en generación; la lista se refresca automáticamente.
+              </Text>
+            ) : null}
           </Card>
         ) : null}
 
@@ -360,6 +390,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   reportTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   metaText: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  errorText: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   warningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   warningText: { fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 },
   actionBtn: {

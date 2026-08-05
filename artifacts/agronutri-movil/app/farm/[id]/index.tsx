@@ -21,12 +21,17 @@ import {
   useDeleteFarm,
   getListAnalysesQueryKey,
   getListRecommendationsQueryKey,
+  getListSectorsQueryKey,
   useGetFarmSummary,
   useListAnalyses,
   useListRecommendations,
+  useListSectors,
   getListWaterSourcesQueryKey,
   useListWaterSources,
   useSetWaterSources,
+  useChangeRecommendationStatus,
+  useDeleteRecommendation,
+  useDeleteAnalysis,
   type Analysis,
   type Recommendation,
   type WaterSource,
@@ -80,10 +85,93 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; expanded: boolean; onToggle: () => void }) {
+function RecommendationCard({
+  rec,
+  expanded,
+  onToggle,
+  canEdit,
+  farmId,
+}: {
+  rec: Recommendation;
+  expanded: boolean;
+  onToggle: () => void;
+  canEdit?: boolean;
+  farmId?: number;
+}) {
   const c = useColors();
+  const queryClient = useQueryClient();
   const exceedsCe = rec.warnings?.[0]?.startsWith('SUPERA LA CE MÁXIMA') ?? false;
   const otherWarnings = exceedsCe ? (rec.warnings ?? []).slice(1) : (rec.warnings ?? []);
+
+  const statusMutation = useChangeRecommendationStatus({
+    mutation: {
+      onSuccess: () => {
+        if (farmId) {
+          queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+          queryClient.invalidateQueries({ queryKey: getGetFarmSummaryQueryKey(farmId) });
+        }
+      },
+      onError: (err: unknown) => {
+        const anyErr = err as { data?: { error?: string } };
+        const msg = anyErr?.data?.error ?? 'No se pudo actualizar el estado del programa.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Error', msg);
+      },
+    },
+  });
+  const deleteMutation = useDeleteRecommendation({
+    mutation: {
+      onSuccess: () => {
+        if (farmId) {
+          queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+          queryClient.invalidateQueries({ queryKey: getGetFarmSummaryQueryKey(farmId) });
+        }
+      },
+      onError: (err: unknown) => {
+        const anyErr = err as { data?: { error?: string } };
+        const msg = anyErr?.data?.error ?? 'No se pudo eliminar el programa.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Error', msg);
+      },
+    },
+  });
+
+  const changeStatus = (action: 'submit' | 'approve' | 'reject' | 'start_application' | 'finish') => {
+    if (farmId == null) return;
+    const apply = (comment?: string) =>
+      statusMutation.mutate({ farmId, recommendationId: rec.id, data: { action, comment } });
+    if (action === 'reject') {
+      const doReject = () => {
+        if (Platform.OS === 'web') {
+          const comment = window.prompt('Motivo del rechazo (opcional):') ?? undefined;
+          apply(comment || undefined);
+        } else {
+          Alert.alert('Rechazar programa', 'Indica el motivo (opcional).', [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Rechazar', style: 'destructive', onPress: () => apply(undefined) },
+          ]);
+        }
+      };
+      doReject();
+    } else {
+      apply(undefined);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (farmId == null) return;
+    const doDelete = () => deleteMutation.mutate({ farmId, recommendationId: rec.id });
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Eliminar este programa de abonado?')) doDelete();
+    } else {
+      Alert.alert('¿Eliminar programa?', 'Esta acción no se puede deshacer.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  };
+
+  const peding = statusMutation.isPending || deleteMutation.isPending;
   return (
     <Card style={{ gap: 0, overflow: 'hidden' }}>
       {exceedsCe && (
@@ -177,9 +265,94 @@ function RecommendationCard({ rec, expanded, onToggle }: { rec: Recommendation; 
           {rec.rationale ? (
             <Text style={[styles.rationale, { color: c.mutedForeground }]}>{rec.rationale}</Text>
           ) : null}
+          {canEdit && farmId != null ? (
+            <View style={[styles.recActions, { marginTop: 4 }]}>
+              {rec.status === 'draft' ? (
+                <ActionBtn
+                  label="Enviar a revisión"
+                  icon="send"
+                  tone="primary"
+                  disabled={peding}
+                  onPress={() => changeStatus('submit')}
+                />
+              ) : null}
+              {rec.status === 'pending_review' ? (
+                <>
+                  <ActionBtn
+                    label="Validar"
+                    icon="check"
+                    tone="primary"
+                    disabled={peding}
+                    onPress={() => changeStatus('approve')}
+                  />
+                  <ActionBtn
+                    label="Rechazar"
+                    icon="x"
+                    tone="destructive"
+                    disabled={peding}
+                    onPress={() => changeStatus('reject')}
+                  />
+                </>
+              ) : null}
+              {rec.status === 'validated' ? (
+                <ActionBtn
+                  label="Iniciar aplicación"
+                  icon="play"
+                  tone="primary"
+                  disabled={peding}
+                  onPress={() => changeStatus('start_application')}
+                />
+              ) : null}
+              {rec.status === 'applying' ? (
+                <ActionBtn
+                  label="Marcar finalizado"
+                  icon="flag"
+                  tone="accent"
+                  disabled={peding}
+                  onPress={() => changeStatus('finish')}
+                />
+              ) : null}
+              <ActionBtn
+                label="Eliminar"
+                icon="trash-2"
+                tone="destructive"
+                disabled={peding}
+                onPress={confirmDelete}
+              />
+            </View>
+          ) : null}
         </View>
       ) : null}
     </Card>
+  );
+}
+
+function ActionBtn({
+  label,
+  icon,
+  tone,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon: 'send' | 'check' | 'x' | 'play' | 'flag' | 'trash-2' | 'edit-2';
+  tone: 'primary' | 'destructive' | 'accent';
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const c = useColors();
+  const bg = tone === 'destructive' ? 'rgba(220,38,38,0.12)' : tone === 'accent' ? c.muted : c.primary;
+  const fg = tone === 'primary' ? c.primaryForeground : tone === 'destructive' ? c.destructive : c.foreground;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionChip, { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.7 : 1 }]}
+    >
+      <Feather name={icon} size={14} color={fg} />
+      <Text style={[styles.actionChipText, { color: fg }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -394,7 +567,19 @@ function WaterMixCard({
   );
 }
 
-function AnalysisCard({ analysis, waterSourceName }: { analysis: Analysis; waterSourceName?: string | null }) {
+function AnalysisCard({
+  analysis,
+  waterSourceName,
+  history,
+  onEdit,
+  onDelete,
+}: {
+  analysis: Analysis;
+  waterSourceName?: string | null;
+  history?: Analysis[] | null;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const c = useColors();
   const [expanded, setExpanded] = useState(false);
   const abnormal = analysis.parameters.filter(
@@ -426,22 +611,39 @@ function AnalysisCard({ analysis, waterSourceName }: { analysis: Analysis; water
         <View style={{ gap: 6 }}>
           <View style={[styles.divider, { backgroundColor: c.border }]} />
           {analysis.parameters.map((p, i) => (
-            <View key={i} style={styles.doseRow}>
-              <Text style={[styles.doseName, { color: c.foreground, flex: 1 }]}>{p.name}</Text>
-              <Text
-                style={[
-                  styles.doseValue,
-                  {
-                    color:
-                      p.status && p.status !== 'normal' ? c.accent : c.foreground,
-                  },
-                ]}
-              >
-                {p.value}
-                {p.unit ? ` ${p.unit}` : ''}
-              </Text>
+            <View key={i} style={{ gap: 2 }}>
+              <View style={styles.doseRow}>
+                <Text style={[styles.doseName, { color: c.foreground, flex: 1 }]}>{p.name}</Text>
+                <Text
+                  style={[
+                    styles.doseValue,
+                    {
+                      color:
+                        p.status && p.status !== 'normal' ? c.accent : c.foreground,
+                    },
+                  ]}
+                >
+                  {p.value}
+                  {p.unit ? ` ${p.unit}` : ''}
+                </Text>
+              </View>
+              {history && history.length > 1 ? (
+                <Text style={[styles.stageSource, { color: c.mutedForeground }]} numberOfLines={2}>
+                  Histórico: {history.map((h) => `${formatDate(h.sampleDate)}: ${h.parameters.find((hp) => hp.name === p.name)?.value ?? '—'}`).join('  ·  ')}
+                </Text>
+              ) : null}
             </View>
           ))}
+          {onEdit || onDelete ? (
+            <View style={[styles.recActions, { marginTop: 6 }]}>
+              {onEdit ? (
+                <ActionBtn label="Editar" icon="edit-2" tone="primary" onPress={onEdit} />
+              ) : null}
+              {onDelete ? (
+                <ActionBtn label="Borrar" icon="trash-2" tone="destructive" onPress={onDelete} />
+              ) : null}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </Card>
@@ -457,9 +659,29 @@ export default function FarmDetailScreen() {
 
   const [segment, setSegment] = useState<Segment>('resumen');
   const [expandedRec, setExpandedRec] = useState<number | null>(null);
+  const [sectorFilter, setSectorFilter] = useState<number | null>(null);
 
   const summaryQuery = useGetFarmSummary(farmId, {
     query: { queryKey: getGetFarmSummaryQueryKey(farmId), enabled: !Number.isNaN(farmId) },
+  });
+  const sectorsQuery = useListSectors(farmId, {
+    query: { queryKey: getListSectorsQueryKey(farmId), enabled: !Number.isNaN(farmId) },
+  });
+  const deleteAnalysisMutation = useDeleteAnalysis({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+        const msg = 'Analítica eliminada.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Eliminada', msg);
+      },
+      onError: (err: unknown) => {
+        const anyErr = err as { data?: { error?: string } };
+        const msg = anyErr?.data?.error ?? 'No se pudo eliminar la analítica.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Error', msg);
+      },
+    },
   });
   const recsQuery = useListRecommendations(farmId, {
     query: {
@@ -593,6 +815,8 @@ export default function FarmDetailScreen() {
             { key: 'phyto', label: 'Fitosanitarios', icon: 'shield', route: `/farm/${farmId}/phyto` },
             { key: 'calculator', label: 'Calculadora', icon: 'sliders', route: `/farm/${farmId}/calculator` },
             { key: 'reports', label: 'Informes', icon: 'file-text', route: `/farm/${farmId}/reports` },
+            { key: 'sectors', label: 'Sectores', icon: 'map-pin', route: `/farm/${farmId}/sectors` },
+            { key: 'fertilizers', label: 'Fertilizantes', icon: 'droplet', route: `/farm/${farmId}/fertilizers` },
           ] as const
         ).map((a) => (
           <Pressable
@@ -726,6 +950,8 @@ export default function FarmDetailScreen() {
                     onToggle={() =>
                       setExpandedRec(expandedRec === active.id ? null : active.id)
                     }
+                    canEdit={canEdit}
+                    farmId={farmId}
                   />
                 ) : (
                   <Text style={[styles.mutedNote, { color: c.mutedForeground }]}>
@@ -788,6 +1014,8 @@ export default function FarmDetailScreen() {
                   rec={rec}
                   expanded={expandedRec === rec.id}
                   onToggle={() => setExpandedRec(expandedRec === rec.id ? null : rec.id)}
+                  canEdit={canEdit}
+                  farmId={farmId}
                 />
               ))}
             </View>
@@ -809,6 +1037,33 @@ export default function FarmDetailScreen() {
                 </Text>
               </Pressable>
             ) : null}
+            {(sectorsQuery.data ?? []).length > 0 ? (
+              <View style={styles.sectorChips}>
+                <Pressable
+                  testID="sector-filter-all"
+                  accessibilityRole="button"
+                  onPress={() => setSectorFilter(null)}
+                  style={[styles.sectorChip, { backgroundColor: sectorFilter == null ? c.primary : c.muted }]}
+                >
+                  <Text style={[styles.actionChipText, { color: sectorFilter == null ? c.primaryForeground : c.foreground }]}>
+                    Todos
+                  </Text>
+                </Pressable>
+                {(sectorsQuery.data ?? []).map((s) => (
+                  <Pressable
+                    key={s.id}
+                    testID={`sector-filter-${s.id}`}
+                    accessibilityRole="button"
+                    onPress={() => setSectorFilter(s.id)}
+                    style={[styles.sectorChip, { backgroundColor: sectorFilter === s.id ? c.primary : c.muted }]}
+                  >
+                    <Text style={[styles.actionChipText, { color: sectorFilter === s.id ? c.primaryForeground : c.foreground }]}>
+                      {s.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             {analysesQuery.isLoading ? (
               <LoadingView label="Cargando analíticas…" />
             ) : analysesQuery.isError ? (
@@ -820,13 +1075,39 @@ export default function FarmDetailScreen() {
                 subtitle="Esta finca aún no tiene analíticas registradas."
               />
             ) : (
-              (analysesQuery.data ?? []).map((a) => (
-                <AnalysisCard
-                  key={a.id}
-                  analysis={a}
-                  waterSourceName={a.type === 'water' ? waterSourceName(a.waterSourceId) : null}
-                />
-              ))
+              (analysesQuery.data ?? [])
+                .filter((a) => sectorFilter == null || a.sectorId === sectorFilter)
+                .map((a) => {
+                  const all = analysesQuery.data ?? [];
+                  const history = all
+                    .filter((h) => h.id !== a.id && h.type === a.type && (sectorFilter == null || h.sectorId === a.sectorId))
+                    .slice()
+                    .sort((x, y) => String(x.sampleDate).localeCompare(String(y.sampleDate)));
+                  return (
+                    <AnalysisCard
+                      key={a.id}
+                      analysis={a}
+                      waterSourceName={a.type === 'water' ? waterSourceName(a.waterSourceId) : null}
+                      history={sectorFilter == null || a.sectorId === sectorFilter ? history : null}
+                      onEdit={canEdit ? () => router.push(`/farm/${farmId}/analysis-form?id=${a.id}`) : undefined}
+                      onDelete={
+                        canEdit
+                          ? () => {
+                              const doDelete = () => deleteAnalysisMutation.mutate({ farmId, analysisId: a.id });
+                              if (Platform.OS === 'web') {
+                                if (window.confirm('¿Eliminar esta analítica?')) doDelete();
+                              } else {
+                                Alert.alert('¿Eliminar analítica?', 'Esta acción no se puede deshacer.', [
+                                  { text: 'Cancelar', style: 'cancel' },
+                                  { text: 'Eliminar', style: 'destructive', onPress: doDelete },
+                                ]);
+                              }
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })
             )}
           </View>
         )}
@@ -958,6 +1239,33 @@ const styles = StyleSheet.create({
   doseValue: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
+  },
+  recActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  actionChipText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  sectorChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  sectorChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   warningRow: {
     flexDirection: 'row',

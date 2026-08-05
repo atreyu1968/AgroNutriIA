@@ -31,11 +31,30 @@ import {
   useListPhytoTreatments,
   useListSectors,
   usePhytoConsult,
+  usePhytoPlanPdf,
+  useUpdatePhytoProduct,
 } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView, PrimaryButton } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
+import { downloadAuthedFile } from '@/lib/download';
 
 type Segment = 'asesor' | 'cuaderno' | 'catalogo';
+type PhytoProductItem = {
+  id: number;
+  productName: string;
+  registryNumber?: string | null;
+  activeIngredient?: string | null;
+  pests?: string | null;
+  doseInfo?: string | null;
+  maxApplicationsYear?: number | null;
+  safetyDays?: number | null;
+  expiryDate?: string | null;
+  notes?: string | null;
+  exceptional?: boolean | null;
+  sourceUrl?: string | null;
+  lastVerifiedAt?: string | null;
+};
+type ProductList = PhytoProductItem[];
 
 const PESTS = [
   'Cochinilla',
@@ -703,9 +722,10 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
   const productsQuery = useListPhytoProducts({
     query: { queryKey: getListPhytoProductsQueryKey() },
   });
-  const products = productsQuery.data;
+  const products = productsQuery.data as ProductList | undefined;
 
   const [adding, setAdding] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<PhytoProductItem | null>(null);
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT);
   const set = (key: keyof ProductForm) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -724,6 +744,18 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
     },
   });
 
+  const updateProduct = useUpdatePhytoProduct({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setEditingProduct(null);
+        setForm(EMPTY_PRODUCT);
+        setAdding(false);
+      },
+      onError: (err) => showError('No se pudo guardar', err),
+    },
+  });
+
   const deleteProduct = useDeletePhytoProduct({
     mutation: {
       onSuccess: () => invalidate(),
@@ -732,6 +764,7 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
   });
 
   const expiryValid = !form.expiry.trim() || /^\d{4}-\d{2}-\d{2}$/.test(form.expiry.trim());
+  const isEditing = editingProduct != null;
 
   if (productsQuery.isLoading) return <LoadingView label="Cargando catálogo…" />;
   if (productsQuery.isError) return <ErrorView onRetry={() => productsQuery.refetch()} />;
@@ -754,7 +787,7 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
       {canEdit && adding ? (
         <Card style={{ gap: 12 }}>
           <Text style={[styles.cardTitle, { color: c.foreground }]}>
-            Añadir producto al catálogo
+            {isEditing ? 'Editar producto del catálogo' : 'Añadir producto al catálogo'}
           </Text>
           <Field
             label="Producto (nombre comercial) *"
@@ -836,27 +869,27 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
             </View>
             <View style={{ flex: 2 }}>
               <PrimaryButton
-                title="Guardar producto"
-                loading={createProduct.isPending}
+                title={isEditing ? 'Guardar cambios' : 'Guardar producto'}
+                loading={createProduct.isPending || updateProduct.isPending}
                 disabled={!form.name.trim() || !expiryValid}
                 testID="button-save-product"
-                onPress={() =>
-                  createProduct.mutate({
-                    data: {
-                      productName: form.name.trim(),
-                      registryNumber: form.registry.trim() || null,
-                      activeIngredient: form.active.trim() || null,
-                      pests: form.pests.trim() || null,
-                      doseInfo: form.dose.trim() || null,
-                      maxApplicationsYear:
-                        parseNum(form.maxApps) == null ? null : Math.round(parseNum(form.maxApps)!),
-                      safetyDays:
-                        parseNum(form.safety) == null ? null : Math.round(parseNum(form.safety)!),
-                      expiryDate: form.expiry.trim() || null,
-                      notes: form.notes.trim() || null,
-                    },
-                  })
-                }
+                onPress={() => {
+                  const payload = {
+                    productName: form.name.trim(),
+                    registryNumber: form.registry.trim() || null,
+                    activeIngredient: form.active.trim() || null,
+                    pests: form.pests.trim() || null,
+                    doseInfo: form.dose.trim() || null,
+                    maxApplicationsYear:
+                      parseNum(form.maxApps) == null ? null : Math.round(parseNum(form.maxApps)!),
+                    safetyDays:
+                      parseNum(form.safety) == null ? null : Math.round(parseNum(form.safety)!),
+                    expiryDate: form.expiry.trim() || null,
+                    notes: form.notes.trim() || null,
+                  };
+                  if (isEditing && editingProduct) updateProduct.mutate({ productId: editingProduct.id, data: payload });
+                  else createProduct.mutate({ data: payload });
+                }}
               />
             </View>
           </View>
@@ -871,7 +904,7 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
         />
       ) : (
         (products ?? []).map((p) => {
-          const st = productStatus(p.expiryDate);
+          const st = productStatus(p.expiryDate ?? null);
           return (
             <Card key={p.id} style={{ gap: 6 }}>
               <View style={styles.itemHeader}>
@@ -882,21 +915,46 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
                   {p.productName}
                 </Text>
                 {canEdit ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    testID={`button-delete-product-${p.id}`}
-                    disabled={deleteProduct.isPending}
-                    onPress={() =>
-                      confirm(
-                        '¿Eliminar este producto del catálogo?',
-                        'El catálogo es compartido: dejará de estar disponible para todos. Solo el administrador o quien lo añadió puede eliminarlo.',
-                        () => deleteProduct.mutate({ productId: p.id }),
-                      )
-                    }
-                    style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
-                  >
-                    <Feather name="trash-2" size={16} color={c.destructive} />
-                  </Pressable>
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      testID={`button-edit-product-${p.id}`}
+                      disabled={updateProduct.isPending || createProduct.isPending}
+                      onPress={() => {
+                        setEditingProduct(p);
+                        setAdding(true);
+                        setForm({
+                          name: p.productName ?? '',
+                          registry: p.registryNumber ?? '',
+                          active: p.activeIngredient ?? '',
+                          pests: p.pests ?? '',
+                          dose: p.doseInfo ?? '',
+                          maxApps: p.maxApplicationsYear != null ? String(p.maxApplicationsYear) : '',
+                          safety: p.safetyDays != null ? String(p.safetyDays) : '',
+                          expiry: p.expiryDate ?? '',
+                          notes: p.notes ?? '',
+                        });
+                      }}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
+                    >
+                      <Feather name="edit-3" size={16} color={c.primary} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      testID={`button-delete-product-${p.id}`}
+                      disabled={deleteProduct.isPending}
+                      onPress={() =>
+                        confirm(
+                          '¿Eliminar este producto del catálogo?',
+                          'El catálogo es compartido: dejará de estar disponible para todos. Solo el administrador o quien lo añadió puede eliminarlo.',
+                          () => deleteProduct.mutate({ productId: p.id }),
+                        )
+                      }
+                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
+                    >
+                      <Feather name="trash-2" size={16} color={c.destructive} />
+                    </Pressable>
+                  </>
                 ) : null}
               </View>
               <View style={styles.chipRow}>
@@ -955,6 +1013,7 @@ export default function PhytoScreen() {
   const farmId = parseInt(id ?? '', 10);
 
   const [segment, setSegment] = useState<Segment>('asesor');
+  const [planDownloading, setPlanDownloading] = useState(false);
 
   const farmQuery = useGetFarm(farmId, {
     query: { queryKey: getGetFarmQueryKey(farmId), enabled: !Number.isNaN(farmId) },
@@ -973,6 +1032,31 @@ export default function PhytoScreen() {
     { key: 'catalogo', label: 'Catálogo' },
   ];
 
+  const phytoPlanPdf = usePhytoPlanPdf({
+    mutation: {
+      onError: (err) => showError('No se pudo generar el PDF', err),
+    },
+  });
+
+  const handlePlanPdf = async () => {
+    setPlanDownloading(true);
+    try {
+      const answer = (await phytoPlanPdf.mutateAsync({ farmId, data: {} as never })) as unknown;
+      const downloadUrl =
+        typeof answer === 'string'
+          ? answer
+          : answer && typeof answer === 'object' && 'downloadUrl' in answer
+            ? (answer as { downloadUrl?: string | null }).downloadUrl ?? null
+            : null;
+      if (!downloadUrl) throw new Error('La API no devolvió una URL de descarga.');
+      await downloadAuthedFile(downloadUrl, `plan-tratamiento-${farmId}.pdf`);
+    } catch (err) {
+      showError('No se pudo generar el PDF', err);
+    } finally {
+      setPlanDownloading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: c.background }]}
@@ -990,14 +1074,29 @@ export default function PhytoScreen() {
         >
           <Feather name="arrow-left" size={18} color={c.foreground} />
         </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: c.foreground }]} numberOfLines={1}>
-            Fitosanitarios
-          </Text>
-          <Text style={[styles.headerSub, { color: c.mutedForeground }]} numberOfLines={1}>
-            {farm?.name ?? ' '}
-          </Text>
-        </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.headerTitle, { color: c.foreground }]} numberOfLines={1}>
+          Fitosanitarios
+        </Text>
+        <Text style={[styles.headerSub, { color: c.mutedForeground }]} numberOfLines={1}>
+          {farm?.name ?? ' '}
+        </Text>
+      </View>
+      <Pressable
+        testID="button-phyto-plan-pdf"
+        accessibilityRole="button"
+        disabled={planDownloading || phytoPlanPdf.isPending || !canEdit}
+        onPress={handlePlanPdf}
+        style={({ pressed }) => [
+          styles.iconButton,
+          {
+            backgroundColor: c.primaryTint,
+            opacity: planDownloading || phytoPlanPdf.isPending || !canEdit ? 0.5 : pressed ? 0.7 : 1,
+          },
+        ]}
+      >
+        <Feather name="download" size={16} color={c.primary} />
+      </Pressable>
       </View>
 
       <View style={[styles.segments, { backgroundColor: c.muted }]}>

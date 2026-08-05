@@ -53,6 +53,8 @@ function RootLayoutNav() {
       <Stack.Screen name="farm/[id]/reports" />
       <Stack.Screen name="farm/[id]/calculator" />
       <Stack.Screen name="farm/[id]/analysis-form" />
+      <Stack.Screen name="farm/[id]/sectors" />
+      <Stack.Screen name="farm/[id]/fertilizers" />
     </Stack>
   );
 }

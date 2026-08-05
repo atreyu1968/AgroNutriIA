@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -15,13 +16,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   getGetFarmSummaryQueryKey,
   getListSectorsQueryKey,
+  getListRecommendationsQueryKey,
+  useCreateRecommendation,
   useGetFarmSummary,
   useListFertilizers,
   useListSectors,
   useRunCalculation,
   type CalculationResult,
   type Fertilizer,
+  type RecommendationInput,
 } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Badge, Card, PrimaryButton } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 
@@ -58,10 +63,16 @@ function unitFor(f: Fertilizer): 'kg' | 'L' {
   return f.formulaType === 'liquid' ? 'L' : 'kg';
 }
 
+function showMessage(title: string, message: string) {
+  if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
+  else Alert.alert(title, message);
+}
+
 export default function CalculatorScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const farmId = parseInt(id ?? '', 10);
 
@@ -104,8 +115,21 @@ export default function CalculatorScreen() {
         const msg =
           (err as { data?: { error?: string } })?.data?.error ??
           'No se pudo realizar el cálculo. Revisa los datos.';
-        if (Platform.OS === 'web') window.alert(msg);
-        else import('react-native').then(({ Alert }) => Alert.alert('Error', msg));
+        showMessage('Error', msg);
+      },
+    },
+  });
+  const createRecommendationMutation = useCreateRecommendation({
+    mutation: {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        showMessage('Programa guardado', 'El programa de abonado se ha guardado correctamente.');
+      },
+      onError: (err: unknown) => {
+        const msg =
+          (err as { data?: { error?: string } })?.data?.error ??
+          'No se pudo guardar el programa de abonado.';
+        showMessage('Error', msg);
       },
     },
   });
@@ -115,6 +139,41 @@ export default function CalculatorScreen() {
   const weeklyLitresNum = parseFloat(weeklyLitres.replace(',', '.'));
   const maxEcNum = parseFloat(maxEcUs.replace(',', '.'));
   const canCalculate = validItems.length > 0 && !calcMutation.isPending;
+  const canSaveRecommendation =
+    result != null &&
+    !createRecommendationMutation.isPending &&
+    (result.nutrients.n > 0 ||
+      result.nutrients.nNitric > 0 ||
+      result.nutrients.nAmmoniacal > 0 ||
+      result.nutrients.nUreic > 0 ||
+      result.nutrients.p2o5 > 0 ||
+      result.nutrients.k2o > 0 ||
+      result.nutrients.cao > 0 ||
+      result.nutrients.mgo > 0 ||
+      result.nutrients.so3 > 0 ||
+      result.nutrients.b > 0);
+
+  const buildRecommendationInput = (): RecommendationInput | null => {
+    if (!result || !sectorId || validItems.length === 0) return null;
+    const recommendationItems = validItems.map((it) => ({
+      fertilizerId: it.fertilizerId,
+      fertilizerName: it.fertilizerName,
+      weeklyDose: parseFloat(it.dose.replace(',', '.')),
+      unit: it.unit,
+      reason: `Ajuste basado en el cálculo de mezcla para ${farm?.name ?? 'la finca'}.`,
+    }));
+    return {
+      sectorId,
+      title: `Programa de abonado - ${farm?.name ?? 'finca'}${result.estimatedEcDsM != null ? ` (${formatNumber(ecToUs(result.estimatedEcDsM))} µS/cm)` : ''}`,
+      items: recommendationItems,
+      rationale: [
+        `Cálculo generado desde la calculadora móvil.`,
+        `Plantas: ${Number.isFinite(plantCountNum) ? plantCountNum : '—'}`,
+        `L/planta/sem: ${Number.isFinite(weeklyLitresNum) ? weeklyLitresNum : '—'}`,
+        `CE máxima: ${Number.isFinite(maxEcNum) ? `${maxEcNum} µS/cm` : '—'}`,
+      ].join(' '),
+    };
+  };
 
   const handleCalculate = () => {
     setResult(null);
@@ -135,6 +194,12 @@ export default function CalculatorScreen() {
         })),
       },
     });
+  };
+
+  const handleSaveRecommendation = () => {
+    const data = buildRecommendationInput();
+    if (!data) return;
+    createRecommendationMutation.mutate({ farmId, data });
   };
 
   const exceedsCe =
@@ -313,6 +378,15 @@ export default function CalculatorScreen() {
             disabled={!canCalculate}
             loading={calcMutation.isPending}
           />
+          {result ? (
+            <PrimaryButton
+              testID="button-save-recommendation"
+              title={createRecommendationMutation.isPending ? 'Guardando…' : 'Guardar como programa'}
+              onPress={handleSaveRecommendation}
+              disabled={!canSaveRecommendation}
+              loading={createRecommendationMutation.isPending}
+            />
+          ) : null}
         </Card>
 
         {result ? (

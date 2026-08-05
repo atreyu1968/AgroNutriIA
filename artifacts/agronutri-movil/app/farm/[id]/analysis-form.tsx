@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -19,8 +19,10 @@ import {
   getListSectorsQueryKey,
   getListWaterSourcesQueryKey,
   useCreateAnalysis,
+  useGetAnalysis,
   useListSectors,
   useListWaterSources,
+  useUpdateAnalysis,
 } from '@workspace/api-client-react';
 import { Card, PrimaryButton } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
@@ -33,7 +35,8 @@ const TYPE_OPTIONS: { key: AnalysisType; label: string }[] = [
   { key: 'water', label: 'Agua' },
 ];
 
-type ParamRow = { key: number; name: string; value: string; unit: string };
+type ParamRow = { key: number; name: string; value: string; unit: string; status: string };
+type AnalysisStatus = 'muy_bajo' | 'bajo' | 'normal' | 'alto' | 'muy_alto' | '';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(msg);
@@ -51,9 +54,16 @@ export default function AnalysisFormScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, analysisId } = useLocalSearchParams<{ id: string; analysisId?: string }>();
   const farmId = parseInt(id ?? '', 10);
   const queryClient = useQueryClient();
+  const parsedAnalysisId = useMemo(() => {
+    const raw = analysisId ?? null;
+    if (!raw) return null;
+    const parsed = parseInt(raw, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }, [analysisId]);
+  const isEditMode = parsedAnalysisId != null;
 
   const [type, setType] = useState<AnalysisType>('soil');
   const [sectorId, setSectorId] = useState<number | null>(null);
@@ -63,8 +73,15 @@ export default function AnalysisFormScreen() {
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [params, setParams] = useState<ParamRow[]>([
-    { key: Date.now(), name: '', value: '', unit: '' },
+    { key: Date.now(), name: '', value: '', unit: '', status: '' },
   ]);
+
+  const analysisQuery = useGetAnalysis(farmId, parsedAnalysisId ?? 0, {
+    query: {
+      queryKey: ['analysis-form-edit', farmId, parsedAnalysisId],
+      enabled: isEditMode && !Number.isNaN(farmId) && parsedAnalysisId != null,
+    },
+  });
 
   const sectorsQuery = useListSectors(farmId, {
     query: { queryKey: getListSectorsQueryKey(farmId), enabled: !Number.isNaN(farmId) },
@@ -77,6 +94,56 @@ export default function AnalysisFormScreen() {
   });
   const sectors = sectorsQuery.data ?? [];
   const waterSources = waterSourcesQuery.data ?? [];
+  const pendingEdit = isEditMode && analysisQuery.isLoading;
+
+  if (isEditMode && analysisQuery.isError) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.border }]}>
+          <Pressable
+            testID="button-back"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Feather name="arrow-left" size={18} color={c.foreground} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: c.foreground, flex: 1 }]}>Editar analítica</Text>
+        </View>
+        <View style={{ padding: 16, gap: 12 }}>
+          <Text style={{ color: c.foreground }}>No se pudo cargar la analítica.</Text>
+          <PrimaryButton title="Volver" onPress={() => router.back()} />
+        </View>
+      </View>
+    );
+  }
+
+  if (pendingEdit) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.border }]}>
+          <Pressable
+            testID="button-back"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Feather name="arrow-left" size={18} color={c.foreground} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: c.foreground, flex: 1 }]}>Editar analítica</Text>
+        </View>
+        <View style={{ padding: 16 }}>
+          <Text style={{ color: c.mutedForeground }}>Cargando analítica…</Text>
+        </View>
+      </View>
+    );
+  }
 
   const createMutation = useCreateAnalysis({
     mutation: {
@@ -93,17 +160,54 @@ export default function AnalysisFormScreen() {
       },
     },
   });
+  const updateMutation = useUpdateAnalysis({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAnalysesQueryKey(farmId) });
+        queryClient.invalidateQueries({ queryKey: getGetFarmSummaryQueryKey(farmId) });
+        router.back();
+      },
+      onError: (err: unknown) => {
+        const msg =
+          (err as { data?: { error?: string } })?.data?.error ??
+          'No se pudo guardar la analítica. Revisa los datos.';
+        notify('Error', msg);
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (!analysisQuery.data) return;
+    const a = analysisQuery.data;
+    setType(a.type);
+    setSectorId(a.sectorId ?? null);
+    setWaterSourceId(a.waterSourceId ?? null);
+    setSampleDate(String(a.sampleDate).slice(0, 10));
+    setLaboratory(a.laboratory ?? '');
+    setReference(a.reference ?? '');
+    setNotes(a.notes ?? '');
+    setParams(
+      (a.parameters ?? []).map((p, index) => ({
+        key: Date.now() + index,
+        name: p.name,
+        value: String(p.value),
+        unit: p.unit ?? '',
+        status: (p.status ?? '') as AnalysisStatus,
+      })),
+    );
+  }, [analysisQuery.data]);
 
   const validParams = params
     .map((p) => ({
       name: p.name.trim(),
       value: parseFloat(p.value.replace(',', '.')),
       unit: p.unit.trim(),
+      status: p.status.trim() as AnalysisStatus,
     }))
     .filter((p) => p.name && Number.isFinite(p.value));
 
   const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(sampleDate.trim());
-  const canSave = validParams.length > 0 && dateOk && !createMutation.isPending;
+  const canSave = validParams.length > 0 && dateOk && !(isEditMode ? updateMutation.isPending : createMutation.isPending);
 
   const handleSave = () => {
     if (!dateOk) {
@@ -114,13 +218,12 @@ export default function AnalysisFormScreen() {
       notify('Faltan parámetros', 'Añade al menos un parámetro con nombre y valor numérico.');
       return;
     }
-    createMutation.mutate({
-      farmId,
-      data: {
+    const data = {
         type,
         sampleDate: sampleDate.trim(),
         ...(sectorId != null ? { sectorId } : {}),
         ...(type === 'water' && waterSourceId != null ? { waterSourceId } : {}),
+        ...(type === 'water' ? {} : sectorId == null ? {} : {}),
         ...(laboratory.trim() ? { laboratory: laboratory.trim() } : {}),
         ...(reference.trim() ? { reference: reference.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -128,9 +231,11 @@ export default function AnalysisFormScreen() {
           name: p.name,
           value: p.value,
           ...(p.unit ? { unit: p.unit } : {}),
+          ...(p.status ? { status: p.status } : {}),
         })),
-      },
-    });
+      };
+    if (isEditMode && parsedAnalysisId != null) updateMutation.mutate({ farmId, analysisId: parsedAnalysisId, data });
+    else createMutation.mutate({ farmId, data });
   };
 
   const inputStyle = [
@@ -153,7 +258,7 @@ export default function AnalysisFormScreen() {
           <Feather name="arrow-left" size={18} color={c.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: c.foreground, flex: 1 }]}>
-          Registrar analítica
+          {isEditMode ? 'Editar analítica' : 'Registrar analítica'}
         </Text>
       </View>
 
@@ -301,7 +406,7 @@ export default function AnalysisFormScreen() {
                 style={[...inputStyle, { flex: 1 }]}
                 value={p.name}
                 onChangeText={(t) =>
-                  setParams((arr) => arr.map((x) => (x.key === p.key ? { ...x, name: t } : x)))
+              setParams((arr) => arr.map((x) => (x.key === p.key ? { ...x, name: t } : x)))
                 }
                 placeholder="pH, CE, Nitratos…"
                 placeholderTextColor={c.mutedForeground}
@@ -311,7 +416,7 @@ export default function AnalysisFormScreen() {
                 style={[...inputStyle, { width: 70, textAlign: 'right' }]}
                 value={p.value}
                 onChangeText={(t) =>
-                  setParams((arr) => arr.map((x) => (x.key === p.key ? { ...x, value: t } : x)))
+              setParams((arr) => arr.map((x) => (x.key === p.key ? { ...x, value: t } : x)))
                 }
                 keyboardType="decimal-pad"
                 placeholder="0"
@@ -322,7 +427,7 @@ export default function AnalysisFormScreen() {
                 style={[...inputStyle, { width: 64 }]}
                 value={p.unit}
                 onChangeText={(t) =>
-                  setParams((arr) => arr.map((x) => (x.key === p.key ? { ...x, unit: t } : x)))
+              setParams((arr) => arr.map((x) => (x.key === p.key ? { ...x, unit: t } : x)))
                 }
                 placeholder="mg/L"
                 placeholderTextColor={c.mutedForeground}
@@ -343,7 +448,7 @@ export default function AnalysisFormScreen() {
             testID="button-add-param"
             accessibilityRole="button"
             onPress={() =>
-              setParams((arr) => [...arr, { key: Date.now(), name: '', value: '', unit: '' }])
+              setParams((arr) => [...arr, { key: Date.now(), name: '', value: '', unit: '', status: '' }])
             }
             style={({ pressed }) => [
               styles.addRow,
@@ -370,10 +475,18 @@ export default function AnalysisFormScreen() {
 
         <PrimaryButton
           testID="button-save-analysis"
-          title={createMutation.isPending ? 'Guardando…' : 'Guardar analítica'}
+          title={
+            isEditMode
+              ? updateMutation.isPending
+                ? 'Guardando…'
+                : 'Guardar cambios'
+              : createMutation.isPending
+                ? 'Guardando…'
+                : 'Guardar analítica'
+          }
           onPress={handleSave}
           disabled={!canSave}
-          loading={createMutation.isPending}
+          loading={isEditMode ? updateMutation.isPending : createMutation.isPending}
         />
       </ScrollView>
     </View>
