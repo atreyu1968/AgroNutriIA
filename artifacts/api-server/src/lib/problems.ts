@@ -1,5 +1,5 @@
 import type { Analysis, AnalysisParameter, Farm } from "@workspace/db";
-import { normalizeMaxEc, param, waterEcDsMFrom } from "./engine";
+import { normalizeMaxEc, param, paramEntry, waterEcDsMFrom } from "./engine";
 import { cationBalanceReport } from "./cationBalance";
 
 /**
@@ -288,10 +288,130 @@ function detectSoilCationBalance(input: ProblemsInput): FertilityProblem[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Sodicidad del agua de riego: SAR (RAS) y carbonato sódico residual (CSR)
+// ---------------------------------------------------------------------------
+
+/** Equivalencias mg/L → meq/L (peso equivalente de cada ion). */
+const MG_PER_MEQ: Record<string, number> = {
+  ca: 20.04,
+  mg: 12.15,
+  na: 23.0,
+  hco3: 61.02,
+  co3: 30.0,
+};
+
+/**
+ * Concentración de un ion del agua en meq/L. Acepta meq/L directamente o
+ * convierte desde mg/L / ppm con el peso equivalente. Con otras unidades
+ * (mmol/L, %) devuelve null: nunca se calcula con unidades no normalizadas.
+ */
+function waterMeqPerL(
+  water: Analysis | null | undefined,
+  names: string[],
+  ion: keyof typeof MG_PER_MEQ,
+): number | null {
+  const e = paramEntry(water, names);
+  if (!e) return null;
+  const u = (e.unit ?? "").toLowerCase().replace(/\s/g, "");
+  if (u.includes("meq")) return e.value;
+  if (u === "" || u.includes("mg/l") || u.includes("ppm") || u.includes("mgl"))
+    return e.value / MG_PER_MEQ[ion];
+  return null;
+}
+
+/**
+ * Riesgo de sodio del agua de riego: SAR (RAS) y carbonato sódico residual.
+ * Son las métricas que avisan de la sodicidad a futuro (el sodio que el riego
+ * va dejando en el complejo de cambio del suelo).
+ */
+function detectWaterSodicity(input: ProblemsInput): FertilityProblem[] {
+  const w = input.water;
+  const ca = waterMeqPerL(w, ["calcio", "ca"], "ca");
+  const mg = waterMeqPerL(w, ["magnesio", "mg"], "mg");
+  const na = waterMeqPerL(w, ["sodio", "na"], "na");
+  if (ca == null || mg == null) return [];
+  const out: FertilityProblem[] = [];
+
+  // SAR = Na / sqrt((Ca+Mg)/2), todo en meq/L. Requiere también el sodio.
+  if (na != null && ca + mg > 0) {
+    const sar = na / Math.sqrt((ca + mg) / 2);
+    if (sar > 6) {
+      const critical = sar > 12;
+      out.push({
+        id: "water_sar_high",
+        severity: critical ? "critical" : "warning",
+        title: critical
+          ? "SAR (RAS) del agua de riego muy alto"
+          : "SAR (RAS) del agua de riego elevado",
+        message:
+          `El SAR (relación de adsorción de sodio) del agua es ${round(sar, 1)} ` +
+          `(Na ${round(na!, 2)}, Ca ${round(ca, 2)}, Mg ${round(mg, 2)} meq/L). ` +
+          (critical
+            ? "Con este nivel el riego va sodificando el suelo: degrada la estructura, reduce la infiltración y desplaza el calcio del complejo de cambio."
+            : "El riego continuado con esta agua irá acumulando sodio en el complejo de cambio del suelo (riesgo de sodicidad a futuro)."),
+        advice:
+          "Aporta enmiendas cálcicas (yeso agrícola o nitrato cálcico) para compensar el sodio del agua, y si el drenaje lo permite aplica riegos de lavado periódicos. Vigila la saturación de sodio en las próximas analíticas de suelo y evita fertilizantes con sodio o cloruros.",
+        sources: ["water"],
+      });
+    }
+  }
+
+  // Carbonato sódico residual (CSR/RSC) = (CO3 + HCO3) − (Ca + Mg), en meq/L.
+  const hco3 = waterMeqPerL(w, ["bicarbonato", "hco3"], "hco3");
+  // «carbonato» como substring matchearía también «bicarbonato»: se exige que
+  // el nombre empiece por «carbonato» o lleve el símbolo CO3 como token.
+  const co3Param = findParam(w, (toks) => toks.some((t) => t.startsWith("carbonato")) || sym(toks, "co3"));
+  let co3: number | null = null;
+  if (co3Param) {
+    const u = (co3Param.unit ?? "").toLowerCase().replace(/\s/g, "");
+    if (u.includes("meq")) co3 = co3Param.value;
+    else if (u === "" || u.includes("mg/l") || u.includes("ppm") || u.includes("mgl"))
+      co3 = co3Param.value / MG_PER_MEQ.co3;
+  }
+  // Sin HCO3/CO3 explícitos, la «alcalinidad total (CaCO3)» equivale a la suma
+  // de carbonatos+bicarbonatos: mg/L de CaCO3 ÷ 50 → meq/L.
+  let alk: number | null = null;
+  if (hco3 == null && co3 == null) {
+    const alkParam = findParam(w, (toks) => toks.some((t) => t.startsWith("alcalinidad")));
+    if (alkParam) {
+      const u = (alkParam.unit ?? "").toLowerCase().replace(/\s/g, "");
+      if (u.includes("meq")) alk = alkParam.value;
+      else if (u === "" || u.includes("mg/l") || u.includes("ppm") || u.includes("mgl"))
+        alk = alkParam.value / 50.04; // peso equivalente del CaCO3
+    }
+  }
+  if (hco3 != null || co3 != null || alk != null) {
+    const rsc = (hco3 ?? 0) + (co3 ?? 0) + (alk ?? 0) - (ca + mg);
+    if (rsc >= 1.25) {
+      const critical = rsc > 2.5;
+      out.push({
+        id: "water_rsc_high",
+        severity: critical ? "critical" : "warning",
+        title: critical
+          ? "Alcalinidad residual del agua peligrosa (CSR alto)"
+          : "Alcalinidad residual del agua a vigilar (CSR)",
+        message:
+          `El carbonato sódico residual del agua es ${round(rsc, 2)} meq/L ` +
+          `(carbonatos+bicarbonatos ${round((hco3 ?? 0) + (co3 ?? 0) + (alk ?? 0), 2)} frente a Ca+Mg ${round(ca + mg, 2)} meq/L). ` +
+          (critical
+            ? "El agua precipita el calcio y el magnesio como carbonatos y deja el sodio libre: sodifica el suelo y sube su pH con cada riego."
+            : "Parte del calcio y magnesio del agua precipita como carbonatos, dejando proporcionalmente más sodio activo (riesgo moderado de sodificación)."),
+        advice:
+          "Acidifica el agua de riego (p. ej. con ácido nítrico) para neutralizar los bicarbonatos, aporta enmiendas cálcicas (yeso) para mantener el calcio en solución y programa riegos de lavado si el drenaje lo permite.",
+        sources: ["water"],
+      });
+    }
+  }
+
+  return out;
+}
+
 const DETECTORS: ((input: ProblemsInput) => FertilityProblem[])[] = [
   detectCalciumAbsorption,
   detectSoilSodium,
   detectWaterSalinity,
+  detectWaterSodicity,
   detectSoilPh,
   detectLeafDeficiencies,
   detectSoilCationBalance,

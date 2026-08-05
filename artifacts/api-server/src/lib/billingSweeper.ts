@@ -50,10 +50,19 @@ export async function rollForwardCharges(now = new Date()): Promise<number> {
     .select({ id: installationsTable.id })
     .from(installationsTable)
     .where(and(eq(installationsTable.status, "active"), notInArray(installationsTable.id, withCharge)));
+  let created = 0;
   for (const { id } of missing) {
-    await upsertMonthlyCharge(id, now);
+    try {
+      await upsertMonthlyCharge(id, now);
+      created += 1;
+    } catch (err) {
+      // La instalación puede borrarse entre el SELECT y el INSERT (carrera):
+      // se ignora solo esa violación de clave foránea y se sigue con el resto.
+      const code = (err as { cause?: { code?: string } })?.cause?.code ?? (err as { code?: string })?.code;
+      if (code !== "23503") throw err;
+    }
   }
-  return missing.length;
+  return created;
 }
 
 /**
