@@ -14,6 +14,14 @@ import { cationBalanceReport } from "./cationBalance";
  * (suelo/foliar/agua/finca) y devuelve 0..n problemas. Añadir un problema nuevo
  * es escribir otro detector y registrarlo en DETECTORS; el resto (contexto IA,
  * endpoint, aviso web) lo genera el motor automáticamente.
+ *
+ * Alcance por sectores: el motor en sí es agnóstico (recibe analíticas ya
+ * resueltas). Quien lo invoca decide el alcance: el endpoint
+ * GET /farms/:farmId/analyses/problems acepta `?sectorId=` opcional y resuelve
+ * cada analítica con latestAnalysisScoped (las del sector primero, con
+ * fallback a las globales de la finca); sin sectorId opera a nivel finca con
+ * las analíticas globales y, si falta alguna, con UN único sector de respaldo.
+ * Nunca se mezclan analíticas de sectores distintos en un mismo diagnóstico.
  */
 
 export type ProblemSeverity = "info" | "warning" | "critical";

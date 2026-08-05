@@ -4,7 +4,7 @@ import { Router, type IRouter } from "express";
 import multer from "multer";
 import { PDFParse } from "pdf-parse";
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, isNotNull } from "drizzle-orm";
 import { db, analysesTable, sectorsTable, waterSourcesTable } from "@workspace/db";
 import { inArray, notInArray } from "drizzle-orm";
 import {
@@ -300,6 +300,12 @@ router.get("/farms/:farmId/analyses", async (req, res): Promise<void> => {
 // Problemas detectados al cruzar las analíticas de suelo, foliar y agua.
 // Ruta específica antes de /farms/:farmId/analyses/:analysisId para que el
 // segmento "problems" no se interprete como un id de analítica.
+// Acepta `?sectorId=` opcional: con él, cada analítica se resuelve con el
+// alcance del sector (las del sector primero, con fallback a las globales de
+// la finca), igual que el resto de la app. Sin él, opera a nivel finca: usa
+// solo analíticas globales y, si falta alguna, recurre a UN único sector (el
+// de la analítica más reciente entre los tipos que faltan). Nunca se combinan
+// analíticas de sectores distintos en un mismo diagnóstico.
 router.get("/farms/:farmId/analyses/problems", async (req, res): Promise<void> => {
   const farmId = parseIntParam(req.params.farmId);
   const access = await farmAccess(req.user!, farmId);
@@ -307,11 +313,81 @@ router.get("/farms/:farmId/analyses/problems", async (req, res): Promise<void> =
     res.status(404).json({ error: "Finca no encontrada" });
     return;
   }
-  const [soil, leaf, water] = await Promise.all([
-    latestAnalysisScoped(farmId, "soil", null),
-    latestAnalysisScoped(farmId, "leaf", null),
-    latestAnalysisScoped(farmId, "water", null),
-  ]);
+  let sectorId: number | null = null;
+  if (req.query.sectorId !== undefined) {
+    const parsed = Number(req.query.sectorId);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      res.status(400).json({ error: "sectorId no válido" });
+      return;
+    }
+    if (!(await sectorBelongsToFarm(parsed, farmId))) {
+      res.status(400).json({ error: "El sector indicado no existe en esta finca" });
+      return;
+    }
+    sectorId = parsed;
+  }
+  const TYPES = ["soil", "leaf", "water"] as const;
+  const byType: Record<(typeof TYPES)[number], Awaited<ReturnType<typeof latestAnalysisScoped>>> = {
+    soil: null,
+    leaf: null,
+    water: null,
+  };
+  if (sectorId != null) {
+    const scoped = await Promise.all(TYPES.map((t) => latestAnalysisScoped(farmId, t, sectorId)));
+    TYPES.forEach((t, i) => (byType[t] = scoped[i]));
+  } else {
+    // Nivel finca: solo analíticas globales (sectorId null).
+    const globalOf = async (type: string) => {
+      const [a] = await db
+        .select()
+        .from(analysesTable)
+        .where(and(eq(analysesTable.farmId, farmId), eq(analysesTable.type, type), isNull(analysesTable.sectorId)))
+        .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
+        .limit(1);
+      return a ?? null;
+    };
+    const globals = await Promise.all(TYPES.map(globalOf));
+    TYPES.forEach((t, i) => (byType[t] = globals[i]));
+    // Si falta alguna global, la finca puede etiquetar todo por sectores: se
+    // elige UN único sector de respaldo (el de la analítica más reciente entre
+    // los tipos que faltan) para no mezclar sectores distintos.
+    const missing = TYPES.filter((t) => byType[t] == null);
+    if (missing.length > 0) {
+      const [newest] = await db
+        .select({ sectorId: analysesTable.sectorId })
+        .from(analysesTable)
+        .where(
+          and(
+            eq(analysesTable.farmId, farmId),
+            inArray(analysesTable.type, [...missing]),
+            isNotNull(analysesTable.sectorId),
+          ),
+        )
+        .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
+        .limit(1);
+      if (newest?.sectorId != null) {
+        const fallbackSector = newest.sectorId;
+        await Promise.all(
+          missing.map(async (t) => {
+            const [a] = await db
+              .select()
+              .from(analysesTable)
+              .where(
+                and(
+                  eq(analysesTable.farmId, farmId),
+                  eq(analysesTable.type, t),
+                  eq(analysesTable.sectorId, fallbackSector),
+                ),
+              )
+              .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id))
+              .limit(1);
+            byType[t] = a ?? null;
+          }),
+        );
+      }
+    }
+  }
+  const { soil, leaf, water } = byType;
   const report = runProblems({ soil, leaf, water, farm: access.farm });
   res.json(GetFarmProblemsResponse.parse({ problems: report.problems, warnings: report.warnings }));
 });
