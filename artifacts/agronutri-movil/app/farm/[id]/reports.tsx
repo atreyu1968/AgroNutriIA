@@ -16,11 +16,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetFarmSummaryQueryKey,
+  getListConversationsQueryKey,
+  getListRecommendationsQueryKey,
   getListReportsQueryKey,
   useCreateReport,
   useDeleteReport,
   useGetFarmSummary,
+  useListConversations,
+  useListRecommendations,
   useListReports,
+  usePreviewReportNotes,
   type Report,
 } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView, PrimaryButton } from '@/components/ui';
@@ -28,6 +33,7 @@ import { useColors } from '@/hooks/useColors';
 import { downloadAuthedFile } from '@/lib/download';
 
 type ReportKind = 'fertirrigacion' | 'enmiendas_arranque' | 'enmiendas_lluvias';
+type ReportFormat = 'pdf' | 'docx';
 
 const KIND_OPTIONS: { key: ReportKind; label: string }[] = [
   { key: 'fertirrigacion', label: 'Fertirrigación' },
@@ -51,6 +57,13 @@ function formatDate(iso?: string | null): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatDateTime(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function ReportRow({ report, farmId }: { report: Report; farmId: number }) {
@@ -190,6 +203,11 @@ export default function ReportsScreen() {
 
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<ReportKind>('fertirrigacion');
+  const [format, setFormat] = useState<ReportFormat>('pdf');
+  const [selectedRecId, setSelectedRecId] = useState<'none' | number>('none');
+  const [selectedConvId, setSelectedConvId] = useState<'new' | number>('new');
+  const [chatConversationId, setChatConversationId] = useState<number | null>(null);
+  const [previewNotes, setPreviewNotes] = useState<string | null>(null);
 
   const summaryQuery = useGetFarmSummary(farmId, {
     query: { queryKey: getGetFarmSummaryQueryKey(farmId), enabled: !Number.isNaN(farmId) },
@@ -207,10 +225,35 @@ export default function ReportsScreen() {
     },
   });
   const anyGenerating = reportsQuery.data?.some((r) => r.status === 'generating') ?? false;
+  const recommendationsQuery = useListRecommendations(farmId, {
+    query: { queryKey: getListRecommendationsQueryKey(farmId), enabled: !Number.isNaN(farmId) && kind === 'fertirrigacion' },
+  });
+  const conversationsQuery = useListConversations(farmId, {
+    query: { queryKey: getListConversationsQueryKey(farmId), enabled: !Number.isNaN(farmId) && kind === 'fertirrigacion' },
+  });
+  const previewMutation = usePreviewReportNotes({
+    mutation: {
+      onSuccess: (data) => setPreviewNotes(data.notes),
+      onError: (err: unknown) => {
+        const msg =
+          (err as { data?: { error?: string } })?.data?.error ?? 'No se pudo generar la previsualización.';
+        notify('Error', msg);
+      },
+    },
+  });
+  const handlePreview = () => {
+    if (chatConversationId == null) return;
+    previewMutation.mutate({ farmId, data: { conversationId: chatConversationId } });
+  };
   const createMutation = useCreateReport({
     mutation: {
       onSuccess: () => {
         setTitle('');
+        setFormat('pdf');
+        setSelectedRecId('none');
+        setSelectedConvId('new');
+        setChatConversationId(null);
+        setPreviewNotes(null);
         queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(farmId) });
       },
       onError: (err: unknown) => {
@@ -223,18 +266,24 @@ export default function ReportsScreen() {
   });
 
   const handleCreate = () => {
+    const payload =
+      kind === 'fertirrigacion'
+        ? {
+            format,
+            ...(title.trim() ? { title: title.trim() } : {}),
+            reportType: 'fertirrigacion' as const,
+            ...(selectedRecId !== 'none' ? { recommendationId: selectedRecId } : {}),
+            ...(chatConversationId != null ? { conversationId: chatConversationId } : {}),
+          }
+        : {
+            format,
+            ...(title.trim() ? { title: title.trim() } : {}),
+            reportType: 'enmiendas' as const,
+            scenario: kind === 'enmiendas_arranque' ? ('arranque_siembra' as const) : ('lluvias' as const),
+          };
     createMutation.mutate({
       farmId,
-      data: {
-        format: 'pdf',
-        ...(title.trim() ? { title: title.trim() } : {}),
-        ...(kind === 'fertirrigacion'
-          ? { reportType: 'fertirrigacion' as const }
-          : {
-              reportType: 'enmiendas' as const,
-              scenario: kind === 'enmiendas_arranque' ? ('arranque_siembra' as const) : ('lluvias' as const),
-            }),
-      },
+      data: payload,
     });
   };
 
@@ -278,6 +327,11 @@ export default function ReportsScreen() {
             <Text style={[styles.metaText, { color: c.mutedForeground }]}>
               Tipos admitidos por el backend: fertirrigación y enmiendas.
             </Text>
+            {kind !== 'fertirrigacion' ? (
+              <Text style={[styles.helperText, { color: c.mutedForeground }]}>
+                La IA elabora el plan de enmiendas a partir de las analíticas más recientes de la finca.
+              </Text>
+            ) : null}
             <TextInput
               testID="input-report-title"
               style={[styles.input, { borderColor: c.border, color: c.foreground, backgroundColor: c.card }]}
@@ -312,6 +366,149 @@ export default function ReportsScreen() {
                 </Pressable>
               ))}
             </View>
+            {kind === 'fertirrigacion' ? (
+              <>
+                <View style={{ gap: 6 }}>
+                  <Text style={[styles.fieldLabel, { color: c.foreground }]}>Programa de abonado</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setSelectedRecId('none')}
+                    style={({ pressed }) => [
+                      styles.selectorRow,
+                      {
+                        borderColor: selectedRecId === 'none' ? c.primary : c.border,
+                        backgroundColor: selectedRecId === 'none' ? c.primaryTint : c.card,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.selectorText, { color: c.foreground }]}>Programa vigente (automático)</Text>
+                  </Pressable>
+                  {(recommendationsQuery.data ?? []).map((r) => (
+                    <Pressable
+                      key={r.id}
+                      accessibilityRole="button"
+                      onPress={() => setSelectedRecId(r.id)}
+                      style={({ pressed }) => [
+                        styles.selectorRow,
+                        {
+                          borderColor: selectedRecId === r.id ? c.primary : c.border,
+                          backgroundColor: selectedRecId === r.id ? c.primaryTint : c.card,
+                          opacity: pressed ? 0.8 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.selectorText, { color: c.foreground }]}>
+                        {r.source === 'ai' ? '[IA] ' : '[Tecnico] '}
+                        {r.title} · {formatDateTime(r.createdAt)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={{ gap: 6 }}>
+                  <Text style={[styles.fieldLabel, { color: c.foreground }]}>Conversación del técnico IA</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setSelectedConvId('new');
+                      setChatConversationId(null);
+                      setPreviewNotes(null);
+                    }}
+                    style={({ pressed }) => [
+                      styles.selectorRow,
+                      {
+                        borderColor: selectedConvId === 'new' ? c.primary : c.border,
+                        backgroundColor: selectedConvId === 'new' ? c.primaryTint : c.card,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.selectorText, { color: c.foreground }]}>Nueva conversación</Text>
+                  </Pressable>
+                  {(conversationsQuery.data ?? []).map((conv) => (
+                    <Pressable
+                      key={conv.id}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setSelectedConvId(conv.id);
+                        setChatConversationId(conv.id);
+                        setPreviewNotes(null);
+                      }}
+                      style={({ pressed }) => [
+                        styles.selectorRow,
+                        {
+                          borderColor: selectedConvId === conv.id ? c.primary : c.border,
+                          backgroundColor: selectedConvId === conv.id ? c.primaryTint : c.card,
+                          opacity: pressed ? 0.8 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.selectorText, { color: c.foreground }]}>
+                        {conv.title} · {formatDateTime(conv.updatedAt ?? conv.createdAt)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={{ gap: 8 }}>
+                  <Text style={[styles.fieldLabel, { color: c.foreground }]}>Formato</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {(['pdf', 'docx'] as const).map((f) => (
+                      <Pressable
+                        key={f}
+                        accessibilityRole="button"
+                        onPress={() => setFormat(f)}
+                        style={({ pressed }) => [
+                          styles.chip,
+                          {
+                            backgroundColor: format === f ? c.primaryTint : c.muted,
+                            borderColor: format === f ? c.primary : 'transparent',
+                            opacity: pressed ? 0.8 : 1,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: format === f ? c.primary : c.mutedForeground }]}>
+                          {f === 'pdf' ? 'PDF' : 'Word'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                {chatConversationId != null ? (
+                  <View style={{ gap: 10 }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={previewMutation.isPending}
+                      onPress={handlePreview}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        { backgroundColor: c.muted, opacity: previewMutation.isPending ? 0.5 : pressed ? 0.7 : 1 },
+                      ]}
+                    >
+                      <Feather name="eye" size={15} color={c.foreground} />
+                      <Text style={[styles.actionBtnText, { color: c.foreground }]}>
+                        {previewMutation.isPending
+                          ? 'Generando previsualización…'
+                          : previewNotes
+                            ? 'Refrescar previsualización'
+                            : 'Previsualizar observaciones'}
+                      </Text>
+                    </Pressable>
+                    {previewNotes ? (
+                      <Card style={{ gap: 6 }}>
+                        <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+                          Observaciones del técnico (previsualización)
+                        </Text>
+                        <Text style={[styles.previewText, { color: c.foreground }]}>{previewNotes}</Text>
+                      </Card>
+                    ) : null}
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <Text style={[styles.helperText, { color: c.mutedForeground }]}>
+                La IA elabora el plan de enmiendas a partir de las analíticas más recientes de la finca.
+              </Text>
+            )}
             <PrimaryButton
               testID="button-generate-report"
               title={createMutation.isPending ? 'Iniciando…' : 'Generar informe'}
@@ -373,6 +570,8 @@ const styles = StyleSheet.create({
   },
   body: { padding: 16, gap: 16, flexGrow: 1 },
   cardTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  helperText: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 16 },
+  fieldLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 10,
@@ -381,6 +580,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
   },
+  selectorRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+  },
+  selectorText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -402,4 +608,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   actionBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  previewText: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
 });

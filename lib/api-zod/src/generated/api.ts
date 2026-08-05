@@ -1301,6 +1301,43 @@ export const DeleteProductSheetResponse = zod.void()
 
 
 /**
+ * @summary Photograph a product (fertilizer or phytosanitary) and have the AI extract its sheet, components and nutrient richness
+ */
+export const IdentifyProductSheetBody = zod.object({
+  "file": zod.instanceof(File),
+  "kind": zod.enum(['fertilizer', 'phyto'])
+})
+
+export const IdentifyProductSheetResponse = zod.object({
+  "kind": zod.enum(['fertilizer', 'phyto']),
+  "warnings": zod.array(zod.string()).optional(),
+  "name": zod.string().nullish(),
+  "manufacturer": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "formulaType": zod.string().nullish().describe('solid | liquid'),
+  "usage": zod.string().nullish().describe('fertirrigacion | enmienda'),
+  "description": zod.string().nullish(),
+  "dosage": zod.string().nullish(),
+  "nPct": zod.number().nullish(),
+  "p2o5Pct": zod.number().nullish(),
+  "k2oPct": zod.number().nullish(),
+  "caoPct": zod.number().nullish(),
+  "mgoPct": zod.number().nullish(),
+  "so3Pct": zod.number().nullish(),
+  "boronPct": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "registryNumber": zod.string().nullish(),
+  "activeIngredient": zod.string().nullish(),
+  "pests": zod.string().nullish(),
+  "doseInfo": zod.string().nullish(),
+  "maxApplicationsYear": zod.number().int().nullish(),
+  "safetyDays": zod.number().int().nullish(),
+  "expiryDate": zod.string().nullish().describe('AAAA-MM-DD fin de autorización'),
+  "notes": zod.string().nullish()
+})
+
+
+/**
  * @summary Generate an AI draft fertigation program from the latest analyses
  */
 export const GenerateAiDraftRecommendationParams = zod.object({

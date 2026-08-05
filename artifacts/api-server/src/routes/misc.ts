@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import multer from "multer";
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import {
   db,
@@ -20,9 +21,25 @@ import {
   GetDashboardResponse,
   GetMobileAppUrlResponse,
   ListProductSheetsResponse,
+  IdentifyProductSheetResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
-import { farmAlerts, latestAnalysis, activeRecommendation } from "../lib/farmContext";
+import {
+  farmAlerts,
+  latestAnalysis,
+  activeRecommendation,
+  resolveUserCredential,
+} from "../lib/farmContext";
+import {
+  generateText,
+  parseJsonLoose,
+  supportsVision,
+  modelFor,
+  estimateCostEur,
+  recordUsage,
+  checkMonthlyLimit,
+} from "../lib/openai";
+import { audit } from "../lib/audit";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -195,6 +212,151 @@ router.get("/audit", async (req, res): Promise<void> => {
       })),
     ),
   );
+});
+
+const productImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+const productImageTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+router.post("/product-sheets/identify", productImageUpload.single("file"), async (req, res): Promise<void> => {
+  const kind = req.body?.kind === "phyto" ? "phyto" : "fertilizer";
+  if (!req.file || !productImageTypes.has(req.file.mimetype)) {
+    res.status(400).json({
+      error: "Adjunta una foto del producto (PNG, JPG, WebP o GIF) para identificarlo.",
+    });
+    return;
+  }
+  const credential = await resolveUserCredential(req.user!);
+  if (!credential) {
+    res.status(409).json({
+      error: "Para identificar un producto con IA hace falta una clave de OpenAI o Mistral en Ajustes.",
+    });
+    return;
+  }
+  const limitMsg = await checkMonthlyLimit(req.user!, credential);
+  if (limitMsg) {
+    res.status(429).json({ error: limitMsg });
+    return;
+  }
+  if (!supportsVision(credential)) {
+    res.status(409).json({
+      error: "El proveedor de IA configurado no admite análisis de imágenes. Usa una clave de OpenAI o Mistral en Ajustes.",
+    });
+    return;
+  }
+
+  const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+  const model = modelFor(credential);
+  const start = Date.now();
+  try {
+    const { text: raw, inputTokens, outputTokens } = await generateText({
+      credential,
+      instructions:
+        "Eres un técnico agrónomo. Lee la etiqueta o ficha técnica del producto de la fotografía y extrae sus datos en JSON. No inventes datos: si un valor no se ve claramente, devuélvelo como null (números) o cadena vacía (textos). Responde únicamente con el JSON." +
+        (kind === "phyto"
+          ? " Es un producto fitosanitario. Campos: productName (nombre comercial), registryNumber (nº de registro MAPA), activeIngredient (materia activa y concentración), pests (plagas autorizadas), doseInfo (dosis y condiciones), maxApplicationsYear (número entero), safetyDays (plazo de seguridad en días, entero), expiryDate (fin de autorización AAAA-MM-DD), notes."
+          : " Es un abono/fertilizante. Campos: name (nombre comercial), manufacturer, category (abono soluble|abono líquido|quelato|bioestimulante|enmienda|otro), formulaType (solid|liquid), usage (fertirrigacion|enmienda), nPct, p2o5Pct, k2oPct, caoPct, mgoPct, so3Pct, boronPct (porcentajes numéricos, sin %), dosage, notes."),
+      input:
+        kind === "phyto"
+          ? "Devuelve un objeto JSON con productName, registryNumber, activeIngredient, pests, doseInfo, maxApplicationsYear, safetyDays, expiryDate, notes."
+          : "Devuelve un objeto JSON con name, manufacturer, category, formulaType, usage, nPct, p2o5Pct, k2oPct, caoPct, mgoPct, so3Pct, boronPct, dosage, notes.",
+      images: [dataUrl],
+      maxOutputTokens: 1200,
+    });
+    if (!raw) throw new Error("Respuesta vacía");
+    const parsed = parseJsonLoose<Record<string, unknown>>(raw) ?? {};
+    const num = (v: unknown): number | null => {
+      const n = typeof v === "number" ? v : typeof v === "string" ? Number(String(v).replace(",", ".")) : NaN;
+      return Number.isFinite(n) && n >= 0 && n <= 100 ? Math.round(n * 100) / 100 : null;
+    };
+    const int = (v: unknown): number | null => {
+      const n = typeof v === "number" ? v : typeof v === "string" ? Number(String(v).replace(",", ".")) : NaN;
+      return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+    };
+    const str = (v: unknown): string | null => {
+      const s = typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
+      return s ? s.slice(0, 500) : null;
+    };
+    const warnings: string[] = [];
+    if (kind === "phyto") {
+      if (!str(parsed.productName)) warnings.push("No se ha leído bien el nombre comercial del producto.");
+      if (int(parsed.safetyDays) == null) warnings.push("Revisa el plazo de seguridad: no se ha podido leer.");
+    } else {
+      if (!str(parsed.name)) warnings.push("No se ha leído bien el nombre comercial del producto.");
+      const hasCleanComp =
+        ["nPct", "p2o5Pct", "k2oPct", "caoPct", "mgoPct", "so3Pct"].some(
+          (k) => num(parsed[k]) != null,
+        );
+      if (!hasCleanComp)
+        warnings.push("Revisa la riqueza (N-P-K): no se han podido leer porcentajes fiables.");
+    }
+    await recordUsage({
+      userId: req.user!.id,
+      farmId: null,
+      model,
+      operation: "chat",
+      inputTokens,
+      outputTokens,
+      estimatedCostEur: estimateCostEur(model, inputTokens, outputTokens),
+      durationMs: Date.now() - start,
+      result: "ok",
+    });
+    res.json(
+      IdentifyProductSheetResponse.parse(
+        kind === "phyto"
+          ? {
+              kind,
+              warnings,
+              productName: str(parsed.productName),
+              registryNumber: str(parsed.registryNumber),
+              activeIngredient: str(parsed.activeIngredient),
+              pests: str(parsed.pests),
+              doseInfo: str(parsed.doseInfo),
+              maxApplicationsYear: int(parsed.maxApplicationsYear),
+              safetyDays: int(parsed.safetyDays),
+              expiryDate:
+                typeof parsed.expiryDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiryDate)
+                  ? parsed.expiryDate
+                  : null,
+              notes: str(parsed.notes),
+            }
+          : {
+              kind,
+              warnings,
+              name: str(parsed.name),
+              manufacturer: str(parsed.manufacturer),
+              category: str(parsed.category),
+              formulaType: parsed.formulaType === "liquid" ? "liquid" : str(parsed.formulaType) === "liquid" ? "liquid" : parsed.formulaType === "solid" ? "solid" : null,
+              usage: str(parsed.usage) === "enmienda" ? "enmienda" : str(parsed.usage) === "fertirrigacion" ? "fertirrigacion" : null,
+              nPct: num(parsed.nPct),
+              p2o5Pct: num(parsed.p2o5Pct),
+              k2oPct: num(parsed.k2oPct),
+              caoPct: num(parsed.caoPct),
+              mgoPct: num(parsed.mgoPct),
+              so3Pct: num(parsed.so3Pct),
+              boronPct: num(parsed.boronPct),
+              dosage: str(parsed.dosage),
+              notes: str(parsed.notes),
+            },
+      ),
+    );
+  } catch (err) {
+    req.log.error({ err: (err as Error).message }, "Product identification failed");
+    await recordUsage({
+      userId: req.user!.id,
+      farmId: null,
+      model,
+      operation: "chat",
+      durationMs: Date.now() - start,
+      result: "error",
+    });
+    res.status(502).json({
+      error: "No se ha podido identificar el producto. Comprueba tu clave de IA y su crédito en Ajustes e inténtalo de nuevo.",
+    });
+    return;
+  }
 });
 
 router.get("/dashboard", async (req, res): Promise<void> => {

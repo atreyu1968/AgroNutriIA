@@ -673,6 +673,40 @@ paths:
       responses:
         "204":
           description: Deleted
+  /product-sheets/identify:
+    post:
+      operationId: identifyProductSheet
+      tags: [misc]
+      summary: Photograph a product (fertilizer or phytosanitary) and have the AI extract its sheet, components and nutrient richness
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, kind]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                kind:
+                  type: string
+                  enum: [fertilizer, phyto]
+      responses:
+        "200":
+          description: Draft product data for review (not yet saved)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentifyProductSheetResponse"
+        "409":
+          description: Missing AI key or provider without vision
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
   /farms/{farmId}/recommendations/ai-draft:
     post:
       operationId: generateAiDraftRecommendation
@@ -3194,6 +3228,39 @@ components:
         fertilizerId: { type: ["integer", "null"] }
         createdBy: { type: ["integer", "null"] }
         createdAt: { type: string }
+    IdentifyProductSheetResponse:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [fertilizer, phyto] }
+        warnings:
+          type: array
+          items: { type: string }
+        # Campos comunes y de abono (kind=fertilizer)
+        name: { type: ["string", "null"] }
+        manufacturer: { type: ["string", "null"] }
+        category: { type: ["string", "null"] }
+        formulaType: { type: ["string", "null"], description: "solid | liquid" }
+        usage: { type: ["string", "null"], description: "fertirrigacion | enmienda" }
+        description: { type: ["string", "null"] }
+        dosage: { type: ["string", "null"] }
+        nPct: { type: ["number", "null"] }
+        p2o5Pct: { type: ["number", "null"] }
+        k2oPct: { type: ["number", "null"] }
+        caoPct: { type: ["number", "null"] }
+        mgoPct: { type: ["number", "null"] }
+        so3Pct: { type: ["number", "null"] }
+        boronPct: { type: ["number", "null"] }
+        # Campos de fitosanitario (kind=phyto)
+        productName: { type: ["string", "null"] }
+        registryNumber: { type: ["string", "null"] }
+        activeIngredient: { type: ["string", "null"] }
+        pests: { type: ["string", "null"] }
+        doseInfo: { type: ["string", "null"] }
+        maxApplicationsYear: { type: ["integer", "null"] }
+        safetyDays: { type: ["integer", "null"] }
+        expiryDate: { type: ["string", "null"], description: "AAAA-MM-DD fin de autorización" }
+        notes: { type: ["string", "null"] }
     ConversationDetail:
       type: object
       required: [conversation, messages]

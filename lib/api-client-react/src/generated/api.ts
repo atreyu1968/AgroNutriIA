@@ -76,6 +76,9 @@ import type {
   GetMobileAppUrl200,
   GetUsageParams,
   HealthStatus,
+  IdentifyProductSheet409,
+  IdentifyProductSheetBody,
+  IdentifyProductSheetResponse,
   ImportAnalysisPdfBody,
   ListAuditLogParams,
   LoginInput,
@@ -3059,6 +3062,80 @@ export const useDeleteProductSheet = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteProductSheetMutationOptions(options));
+    }
+
+export const getIdentifyProductSheetUrl = () => {
+
+
+
+
+  return `/api/product-sheets/identify`
+}
+
+/**
+ * @summary Photograph a product (fertilizer or phytosanitary) and have the AI extract its sheet, components and nutrient richness
+ */
+export const identifyProductSheet = async (identifyProductSheetBody: IdentifyProductSheetBody, options?: Parameters<typeof customFetch>[1]): Promise<IdentifyProductSheetResponse> => {
+    const formData = new FormData();
+formData.append(`file`, identifyProductSheetBody.file);
+formData.append(`kind`, identifyProductSheetBody.kind);
+
+  return customFetch<IdentifyProductSheetResponse>(getIdentifyProductSheetUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getIdentifyProductSheetMutationOptions = <TError = ErrorType<IdentifyProductSheet409>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof identifyProductSheet>>, TError,{data: BodyType<IdentifyProductSheetBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof identifyProductSheet>>, TError,{data: BodyType<IdentifyProductSheetBody>}, TContext> => {
+
+const mutationKey = ['identifyProductSheet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof identifyProductSheet>>, {data: BodyType<IdentifyProductSheetBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  identifyProductSheet(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IdentifyProductSheetMutationResult = NonNullable<Awaited<ReturnType<typeof identifyProductSheet>>>
+    export type IdentifyProductSheetMutationBody = BodyType<IdentifyProductSheetBody>
+    export type IdentifyProductSheetMutationError = ErrorType<IdentifyProductSheet409>
+
+    /**
+ * @summary Photograph a product (fertilizer or phytosanitary) and have the AI extract its sheet, components and nutrient richness
+ */
+export const useIdentifyProductSheet = <TError = ErrorType<IdentifyProductSheet409>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof identifyProductSheet>>, TError,{data: BodyType<IdentifyProductSheetBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof identifyProductSheet>>,
+        TError,
+        {data: BodyType<IdentifyProductSheetBody>},
+        TContext
+      > => {
+      return useMutation(getIdentifyProductSheetMutationOptions(options));
     }
 
 export const getGenerateAiDraftRecommendationUrl = (farmId: number,) => {

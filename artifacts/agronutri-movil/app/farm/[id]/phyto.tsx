@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -23,6 +24,7 @@ import {
   getListPhytoTreatmentsQueryKey,
   getListSectorsQueryKey,
   useCreatePhytoProduct,
+  useIdentifyProductSheet,
   useCreatePhytoTreatment,
   useDeletePhytoProduct,
   useDeletePhytoTreatment,
@@ -34,6 +36,7 @@ import {
   usePhytoPlanPdf,
   useUpdatePhytoProduct,
 } from '@workspace/api-client-react';
+import type { IdentifyProductSheetResponse } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView, PrimaryButton } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 import { downloadAuthedFile } from '@/lib/download';
@@ -727,11 +730,80 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
   const [adding, setAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<PhytoProductItem | null>(null);
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT);
+  const [scanning, setScanning] = useState(false);
   const set = (key: keyof ProductForm) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const identifyProduct = useIdentifyProductSheet({
+    mutation: {
+      onError: (err) => showError('No se pudo identificar el producto', err),
+    },
+  });
+
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListPhytoProductsQueryKey() });
+
+  const applyPhytoScan = (r: IdentifyProductSheetResponse) => {
+    setForm((f) => ({
+      ...f,
+      name: r.productName ?? f.name,
+      registry: r.registryNumber ?? f.registry,
+      active: r.activeIngredient ?? f.active,
+      pests: r.pests ?? f.pests,
+      dose: r.doseInfo ?? f.dose,
+      maxApps: r.maxApplicationsYear != null ? String(r.maxApplicationsYear) : f.maxApps,
+      safety: r.safetyDays != null ? String(r.safetyDays) : f.safety,
+      expiry: r.expiryDate ?? f.expiry,
+      notes: r.notes ?? f.notes,
+    }));
+    const warnings = r.warnings ?? [];
+    const msg = warnings.length
+      ? `Revisa estos datos:\n${warnings.join('\n')}\n\nCorrige los campos antes de guardar.`
+      : r.productName
+      ? `Producto identificado: ${r.productName}. Revisa los datos y guarda.`
+      : 'Revisa los datos identificados antes de guardar.';
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert('Producto identificado', msg);
+  };
+
+  const scanFromImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    setScanning(true);
+    try {
+      const mime = asset.mimeType ?? 'image/jpeg';
+      const ext = mime.split('/')[1] ?? 'jpg';
+      let file: Blob;
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(asset.uri)).blob();
+        file = new File([blob], asset.fileName ?? `producto.${ext}`, { type: mime });
+      } else {
+        file = {
+          uri: asset.uri,
+          name: asset.fileName ?? `producto.${ext}`,
+          type: mime,
+        } as unknown as Blob;
+      }
+      const result = await identifyProduct.mutateAsync({ data: { file, kind: 'phyto' } });
+      applyPhytoScan(result);
+    } catch (err) {
+      const anyErr = err as { data?: { error?: string } };
+      if (Platform.OS === 'web') window.alert(anyErr?.data?.error ?? 'No se pudo identificar el producto.');
+      else Alert.alert('No se pudo identificar el producto', anyErr?.data?.error ?? 'Inténtalo de nuevo.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const scanProduct = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      if (Platform.OS === 'web') window.alert('Se necesita permiso de cámara para fotografiar el producto.');
+      else Alert.alert('Permiso de cámara', 'Se necesita acceso a la cámara para fotografiar el producto.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (result.canceled || result.assets.length === 0) return;
+    await scanFromImage(result.assets[0]);
+  };
 
   const createProduct = useCreatePhytoProduct({
     mutation: {
@@ -789,6 +861,19 @@ function CatalogSegment({ canEdit }: { canEdit: boolean }) {
           <Text style={[styles.cardTitle, { color: c.foreground }]}>
             {isEditing ? 'Editar producto del catálogo' : 'Añadir producto al catálogo'}
           </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={scanProduct}
+            disabled={scanning}
+            style={[styles.scanBanner, { backgroundColor: c.muted }]}
+          >
+            <Feather name="camera" size={18} color={c.primary} />
+            <Text style={[styles.scanBannerText, { color: c.primary }]}>
+              {scanning
+                ? 'Identificando producto con IA…'
+                : 'Fotografiar la etiqueta para rellenar los datos'}
+            </Text>
+          </Pressable>
           <Field
             label="Producto (nombre comercial) *"
             value={form.name}
@@ -1207,6 +1292,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
   },
+  scanBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  scanBannerText: { fontWeight: '600', textAlign: 'center', flexShrink: 1 },
   label: {
     fontSize: 13,
     fontFamily: 'Inter_500Medium',

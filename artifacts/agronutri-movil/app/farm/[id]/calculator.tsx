@@ -18,13 +18,16 @@ import {
   getListSectorsQueryKey,
   getListRecommendationsQueryKey,
   useCreateRecommendation,
+  useGenerateAiDraftRecommendation,
   useGetFarmSummary,
   useListFertilizers,
   useListSectors,
+  useUpdateRecommendation,
   useRunCalculation,
   type CalculationResult,
   type Fertilizer,
   type RecommendationInput,
+  type Recommendation,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge, Card, PrimaryButton } from '@/components/ui';
@@ -54,6 +57,8 @@ type Item = {
   dose: string;
   unit: 'kg' | 'L';
 };
+
+type AiDraft = Pick<Recommendation, 'id' | 'title' | 'rationale' | 'sectorId'>;
 
 function formatNumber(v: number): string {
   return v.toLocaleString('es-ES', { maximumFractionDigits: 2 });
@@ -88,6 +93,12 @@ export default function CalculatorScreen() {
   const sectors = sectorsQuery.data ?? [];
 
   const [sectorId, setSectorId] = useState<number | null>(null);
+  const [stageChoice, setStageChoice] = useState<'auto' | 'pre-floración' | 'engorde' | 'parón invernal' | 'postcosecha'>('auto');
+  const [useAcid, setUseAcid] = useState(false);
+  const [acidType, setAcidType] = useState<'auto' | 'nitrico' | 'fosforico' | 'sulfurico'>('auto');
+  const [targetPh, setTargetPh] = useState('5.8');
+  const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
+  const [itemsEdited, setItemsEdited] = useState(false);
   const [plantCount, setPlantCount] = useState('');
   const [weeklyLitres, setWeeklyLitres] = useState('');
   const [maxEcUs, setMaxEcUs] = useState('');
@@ -129,6 +140,46 @@ export default function CalculatorScreen() {
         const msg =
           (err as { data?: { error?: string } })?.data?.error ??
           'No se pudo guardar el programa de abonado.';
+        showMessage('Error', msg);
+      },
+    },
+  });
+  const aiDraftMutation = useGenerateAiDraftRecommendation({
+    mutation: {
+      onSuccess: async (rec) => {
+        setAiDraft({ id: rec.id, title: rec.title, rationale: rec.rationale ?? null, sectorId: rec.sectorId ?? null });
+        setItemsEdited(false);
+        setItems(
+          (rec.items ?? []).map((it, index) => ({
+            key: Date.now() + index,
+            fertilizerId: it.fertilizerId ?? null,
+            fertilizerName: it.fertilizerName ?? '',
+            dose: String(it.weeklyDose ?? ''),
+            unit: (it.unit ?? 'kg') as 'kg' | 'L',
+          })) as Item[],
+        );
+        await queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        showMessage('Borrador IA generado', 'Se han cargado los items propuestos por la IA.');
+      },
+      onError: (err: unknown) => {
+        const msg =
+          (err as { data?: { error?: string } })?.data?.error ??
+          'No se pudo generar el borrador IA.';
+        showMessage('Error', msg);
+      },
+    },
+  });
+  const updateRecommendationMutation = useUpdateRecommendation({
+    mutation: {
+      onSuccess: async () => {
+        setItemsEdited(false);
+        await queryClient.invalidateQueries({ queryKey: getListRecommendationsQueryKey(farmId) });
+        showMessage('Borrador IA actualizado', 'Se han guardado tus ajustes sobre el borrador.');
+      },
+      onError: (err: unknown) => {
+        const msg =
+          (err as { data?: { error?: string } })?.data?.error ??
+          'No se pudo actualizar el borrador IA.';
         showMessage('Error', msg);
       },
     },
@@ -175,6 +226,13 @@ export default function CalculatorScreen() {
     };
   };
 
+  const buildAiPayload = () => ({
+    ...(sectorId != null ? { sectorId } : {}),
+    ...(useAcid ? { useAcid: true } : {}),
+    ...(useAcid && acidType !== 'auto' ? { acidType } : {}),
+    ...(useAcid && Number.isFinite(parseFloat(targetPh)) ? { targetPh: parseFloat(targetPh) } : {}),
+  });
+
   const handleCalculate = () => {
     setResult(null);
     calcMutation.mutate({
@@ -192,7 +250,26 @@ export default function CalculatorScreen() {
           weeklyDose: parseFloat(it.dose.replace(',', '.')),
           unit: it.unit,
         })),
+        ...(stageChoice !== 'auto' ? { phenologicalStage: stageChoice } : {}),
       },
+    });
+  };
+
+  const handleGenerateAiDraft = () => {
+    aiDraftMutation.mutate({ farmId, data: buildAiPayload() });
+  };
+
+  const handleUpdateAiDraft = () => {
+    if (!aiDraft) return;
+    updateRecommendationMutation.mutate({
+      farmId,
+      recommendationId: aiDraft.id,
+      data: { items: validItems.map((it) => ({
+        fertilizerId: it.fertilizerId,
+        fertilizerName: it.fertilizerName,
+        weeklyDose: parseFloat(it.dose.replace(',', '.')),
+        unit: it.unit,
+      })) },
     });
   };
 
@@ -308,6 +385,95 @@ export default function CalculatorScreen() {
         </Card>
 
         <Card style={{ gap: 10 }}>
+          <Text style={[styles.cardTitle, { color: c.foreground }]}>IA y fenología</Text>
+          <View style={{ gap: 6 }}>
+            <Text style={[styles.fieldLabel, { color: c.mutedForeground }]}>Fase fenológica del cálculo</Text>
+            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+              {(['auto', 'pre-floración', 'engorde', 'parón invernal', 'postcosecha'] as const).map((stage) => (
+                <Pressable
+                  key={stage}
+                  accessibilityRole="button"
+                  onPress={() => setStageChoice(stage)}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: stageChoice === stage ? c.primaryTint : c.muted,
+                      borderColor: stageChoice === stage ? c.primary : 'transparent',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.chipText, { color: stageChoice === stage ? c.primary : c.mutedForeground }]}>
+                    {stage === 'auto' ? 'Auto' : stage}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <Pressable
+              accessibilityRole="checkbox"
+              onPress={() => setUseAcid((v) => !v)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <View style={[styles.checkbox, { borderColor: c.border, backgroundColor: useAcid ? c.primary : c.card }]} />
+              <Text style={[styles.metaText, { color: c.foreground }]}>Uso de ácido para bajar el pH del agua</Text>
+            </Pressable>
+            {useAcid ? (
+              <>
+                <Pressable accessibilityRole="button" onPress={() => setAcidType('auto')} style={styles.inlinePill}>
+                  <Text style={styles.inlinePillText}>Ácido: auto</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setAcidType('nitrico')} style={styles.inlinePill}>
+                  <Text style={styles.inlinePillText}>Nítrico</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setAcidType('fosforico')} style={styles.inlinePill}>
+                  <Text style={styles.inlinePillText}>Fosfórico</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setAcidType('sulfurico')} style={styles.inlinePill}>
+                  <Text style={styles.inlinePillText}>Sulfúrico</Text>
+                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.metaText, { color: c.mutedForeground }]}>pH objetivo</Text>
+                  <TextInput
+                    value={targetPh}
+                    onChangeText={setTargetPh}
+                    keyboardType="decimal-pad"
+                    style={[styles.smallInput, { borderColor: c.border, color: c.foreground, backgroundColor: c.card }]}
+                  />
+                </View>
+              </>
+            ) : null}
+          </View>
+          <PrimaryButton
+            testID="button-generate-ai"
+            title={aiDraftMutation.isPending ? 'Generando…' : 'Generar con IA'}
+            onPress={handleGenerateAiDraft}
+            disabled={aiDraftMutation.isPending}
+            loading={aiDraftMutation.isPending}
+          />
+          {aiDraft ? (
+            <>
+              <View style={[styles.aiDraftBox, { borderColor: c.border, backgroundColor: c.muted }]}>
+                <Text style={[styles.metaText, { color: c.foreground, fontFamily: 'Inter_600SemiBold' }]}>
+                  {aiDraft.title}
+                </Text>
+                {aiDraft.rationale ? (
+                  <Text style={[styles.metaText, { color: c.mutedForeground }]}>{aiDraft.rationale}</Text>
+                ) : null}
+                {itemsEdited ? <Badge label="modificado" tone="accent" /> : null}
+              </View>
+              <PrimaryButton
+                testID="button-update-ai-draft"
+                title={updateRecommendationMutation.isPending ? 'Actualizando…' : 'Actualizar borrador con mis ajustes'}
+                onPress={handleUpdateAiDraft}
+                disabled={!itemsEdited || updateRecommendationMutation.isPending || validItems.length === 0}
+                loading={updateRecommendationMutation.isPending}
+              />
+            </>
+          ) : null}
+        </Card>
+
+        <Card style={{ gap: 10 }}>
           <Text style={[styles.cardTitle, { color: c.foreground }]}>Abonos semanales</Text>
           {items.map((it) => (
             <View key={it.key} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -336,7 +502,8 @@ export default function CalculatorScreen() {
                 style={[styles.doseInput, { borderColor: c.border, color: c.foreground, backgroundColor: c.card }]}
                 value={it.dose}
                 onChangeText={(t) =>
-                  setItems((arr) => arr.map((x) => (x.key === it.key ? { ...x, dose: t } : x)))
+                  (setItems((arr) => arr.map((x) => (x.key === it.key ? { ...x, dose: t } : x))),
+                  setItemsEdited(true))
                 }
                 keyboardType="decimal-pad"
                 placeholder="0"
@@ -410,6 +577,28 @@ export default function CalculatorScreen() {
               </View>
             </View>
             {exceedsCe ? <Badge label="Supera la CE máxima" tone="destructive" /> : null}
+            {result.stageComparison ? (
+              <View style={{ gap: 8 }}>
+                <View style={styles.stageRow}>
+                  <Text style={[styles.metaText, { color: c.foreground }]}>
+                    N: {formatNumber(result.stageComparison.nPerPlantG)} g/planta/sem ({result.stageComparison.nMinG}–{result.stageComparison.nMaxG})
+                  </Text>
+                    <Badge
+                    label={result.stageComparison.nStatus === 'ok' ? 'En rango' : result.stageComparison.nStatus === 'high' ? 'Por encima' : 'Por debajo'}
+                    tone={result.stageComparison.nStatus === 'ok' ? 'accent' : 'destructive'}
+                  />
+                </View>
+                <View style={styles.stageRow}>
+                  <Text style={[styles.metaText, { color: c.foreground }]}>
+                    K₂O: {formatNumber(result.stageComparison.k2oPerPlantG)} g/planta/sem ({result.stageComparison.k2oMinG}–{result.stageComparison.k2oMaxG})
+                  </Text>
+                    <Badge
+                    label={result.stageComparison.k2oStatus === 'ok' ? 'En rango' : result.stageComparison.k2oStatus === 'high' ? 'Por encima' : 'Por debajo'}
+                    tone={result.stageComparison.k2oStatus === 'ok' ? 'accent' : 'destructive'}
+                  />
+                </View>
+              </View>
+            ) : null}
             {result.waterEcDsM != null ? (
               <Text style={[styles.metaText, { color: c.mutedForeground }]}>
                 CE del agua de riego: {formatNumber(ecToUs(result.waterEcDsM))} µS/cm
@@ -546,6 +735,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  checkbox: { width: 16, height: 16, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
+  inlinePill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#eee' },
+  inlinePillText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  smallInput: { width: 70, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6 },
+  aiDraftBox: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 10, gap: 6 },
+  stageRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   fertPicker: {
     flex: 1,
     flexDirection: 'row',

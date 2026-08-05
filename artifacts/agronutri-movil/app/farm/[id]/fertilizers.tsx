@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -15,12 +16,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListFertilizersQueryKey,
   useCreateFertilizer,
   useDeleteFertilizer,
+  useIdentifyProductSheet,
   useListFertilizers,
   useUpdateFertilizer,
 } from '@workspace/api-client-react';
@@ -189,6 +192,13 @@ function FertilizerFormModal({
   onSubmit: (data: FertilizerFormState) => Promise<void> | void;
 }) {
   const [form, setForm] = useState<FertilizerFormState>(EMPTY_FORM);
+  const [scanning, setScanning] = useState(false);
+
+  const identifyMutation = useIdentifyProductSheet({
+    mutation: {
+      onError: (err) => showError('No se pudo identificar el producto', err),
+    },
+  });
 
   React.useEffect(() => {
     if (!visible) return;
@@ -209,6 +219,76 @@ function FertilizerFormModal({
     });
   }, [visible, initialValue]);
 
+  const scanFromImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    setScanning(true);
+    try {
+      const mime = asset.mimeType ?? 'image/jpeg';
+      const ext = mime.split('/')[1] ?? 'jpg';
+      let file: Blob;
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(asset.uri)).blob();
+        file = new File([blob], asset.fileName ?? `producto.${ext}`, { type: mime });
+      } else {
+        file = {
+          uri: asset.uri,
+          name: asset.fileName ?? `producto.${ext}`,
+          type: mime,
+        } as unknown as Blob;
+      }
+      const result = await identifyMutation.mutateAsync({ data: { file, kind: 'fertilizer' } });
+      setForm((p) => ({
+        ...p,
+        name: result.name ?? p.name,
+        formulaType:
+          result.formulaType === 'liquid' ? 'liquid' : result.formulaType === 'solid' ? 'solid' : p.formulaType,
+        usage:
+          result.usage === 'enmienda'
+            ? 'enmienda'
+            : result.usage === 'fertirrigacion'
+            ? 'fertirrigacion'
+            : p.usage,
+        nPct: result.nPct != null ? String(result.nPct) : p.nPct,
+        p2o5Pct: result.p2o5Pct != null ? String(result.p2o5Pct) : p.p2o5Pct,
+        k2oPct: result.k2oPct != null ? String(result.k2oPct) : p.k2oPct,
+        caoPct: result.caoPct != null ? String(result.caoPct) : p.caoPct,
+        mgoPct: result.mgoPct != null ? String(result.mgoPct) : p.mgoPct,
+        so3Pct: result.so3Pct != null ? String(result.so3Pct) : p.so3Pct,
+      }));
+      const notes = result.notes;
+      const warnings = result.warnings ?? [];
+      if (warnings.length && Platform.OS !== 'web') {
+        Alert.alert(
+          'Revisa los datos',
+          `${warnings.join('\n')}\n\nCorrige los campos antes de guardar.`,
+        );
+      } else if (warnings.length) {
+        window.alert(`Revisa los datos:\n${warnings.join('\n')}\n\nCorrige los campos antes de guardar.`);
+      } else if (result.name) {
+        if (Platform.OS === 'web') window.alert(`Producto identificado: ${result.name}`);
+        else Alert.alert('Producto identificado', `${result.name}. Revisa los datos y guarda.`);
+      }
+      void notes;
+    } catch (err) {
+      const anyErr = err as { data?: { error?: string } };
+      if (Platform.OS === 'web') window.alert(anyErr?.data?.error ?? 'No se pudo identificar el producto.');
+      else Alert.alert('No se pudo identificar el producto', anyErr?.data?.error ?? 'Inténtalo de nuevo.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const scanProduct = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      if (Platform.OS === 'web') window.alert('Se necesita permiso de cámara para fotografiar el producto.');
+      else Alert.alert('Permiso de cámara', 'Se necesita acceso a la cámara para fotografiar el producto.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (result.canceled || result.assets.length === 0) return;
+    await scanFromImage(result.assets[0]);
+  };
+
   const c = useColors();
 
   const submit = async () => {
@@ -226,10 +306,30 @@ function FertilizerFormModal({
             <Feather name="x" size={20} color={c.foreground} />
           </Pressable>
           <Text style={[styles.modalTitle, { color: c.foreground }]}>{title}</Text>
-          <View style={{ width: 40 }} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={scanProduct}
+            disabled={scanning}
+            style={[styles.iconButton, { backgroundColor: c.muted }]}
+          >
+            <ActivityIndicator size="small" color={c.primary} animating={scanning} />
+            {!scanning ? <Feather name="camera" size={18} color={c.foreground} /> : null}
+          </Pressable>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={scanProduct}
+            disabled={scanning}
+            style={[styles.scanBanner, { backgroundColor: c.muted }]}
+          >
+            <Feather name="camera" size={18} color={c.primary} />
+            <Text style={[styles.scanBannerText, { color: c.primary }]}>
+              {scanning ? 'Identificando producto con IA…' : 'Fotografiar etiqueta para rellenar la composición'}
+            </Text>
+          </Pressable>
+
           <Field label="Nombre" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} placeholder="Ej. Nitrato potásico" />
 
           <View style={{ gap: 6 }}>
@@ -556,4 +656,14 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridItem: { width: '48%' },
+  scanBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  scanBannerText: { fontWeight: '600', textAlign: 'center', flexShrink: 1 },
 });

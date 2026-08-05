@@ -1677,6 +1677,74 @@ export interface ProductSheet {
   createdAt: string;
 }
 
+export type IdentifyProductSheetResponseKind = typeof IdentifyProductSheetResponseKind[keyof typeof IdentifyProductSheetResponseKind];
+
+
+export const IdentifyProductSheetResponseKind = {
+  fertilizer: 'fertilizer',
+  phyto: 'phyto',
+} as const;
+
+export interface IdentifyProductSheetResponse {
+  kind: IdentifyProductSheetResponseKind;
+  warnings?: string[];
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  manufacturer?: string | null;
+  /** @nullable */
+  category?: string | null;
+  /**
+     * solid | liquid
+     * @nullable
+     */
+  formulaType?: string | null;
+  /**
+     * fertirrigacion | enmienda
+     * @nullable
+     */
+  usage?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  dosage?: string | null;
+  /** @nullable */
+  nPct?: number | null;
+  /** @nullable */
+  p2o5Pct?: number | null;
+  /** @nullable */
+  k2oPct?: number | null;
+  /** @nullable */
+  caoPct?: number | null;
+  /** @nullable */
+  mgoPct?: number | null;
+  /** @nullable */
+  so3Pct?: number | null;
+  /** @nullable */
+  boronPct?: number | null;
+  /** @nullable */
+  productName?: string | null;
+  /** @nullable */
+  registryNumber?: string | null;
+  /** @nullable */
+  activeIngredient?: string | null;
+  /** @nullable */
+  pests?: string | null;
+  /** @nullable */
+  doseInfo?: string | null;
+  /** @nullable */
+  maxApplicationsYear?: number | null;
+  /** @nullable */
+  safetyDays?: number | null;
+  /**
+     * AAAA-MM-DD fin de autorización
+     * @nullable
+     */
+  expiryDate?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
 export interface ConversationDetail {
   conversation: Conversation;
   messages: Message[];
@@ -1836,6 +1904,23 @@ export type UploadAnalysisPdfBody = {
 
 export type GetMobileAppUrl200 = {
   url: string | null;
+};
+
+export type IdentifyProductSheetBodyKind = typeof IdentifyProductSheetBodyKind[keyof typeof IdentifyProductSheetBodyKind];
+
+
+export const IdentifyProductSheetBodyKind = {
+  fertilizer: 'fertilizer',
+  phyto: 'phyto',
+} as const;
+
+export type IdentifyProductSheetBody = {
+  file: Blob;
+  kind: IdentifyProductSheetBodyKind;
+};
+
+export type IdentifyProductSheet409 = {
+  error?: string;
 };
 
 /**

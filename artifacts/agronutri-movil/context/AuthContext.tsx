@@ -25,6 +25,7 @@ interface AuthContextValue {
   isLoading: boolean;
   signIn: (user: UserProfile) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (user: UserProfile) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -80,9 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ]);
   }, [queryClient]);
 
+  const updateUser = useCallback(async (profile: UserProfile) => {
+    currentToken = profile.token ?? currentToken;
+    setUser(profile);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(profile));
+  }, []);
+
   const value = useMemo(
-    () => ({ token, user, isLoading, signIn, signOut }),
-    [token, user, isLoading, signIn, signOut],
+    () => ({ token, user, isLoading, signIn, signOut, updateUser }),
+    [token, user, isLoading, signIn, signOut, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

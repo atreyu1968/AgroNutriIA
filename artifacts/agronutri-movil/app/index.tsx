@@ -1,12 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   FlatList,
   Linking,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -14,25 +12,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Redirect, useRouter } from 'expo-router';
-import * as LocalAuthentication from 'expo-local-authentication';
 import {
   getGetAuthConfigQueryKey,
   getListFarmsQueryKey,
   useGetAuthConfig,
   useListFarms,
-  useLogout,
   type Farm,
 } from '@workspace/api-client-react';
 import { Badge, Card, EmptyState, ErrorView, LoadingView } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
-import { useBiometricPref } from '@/context/BiometricPrefContext';
 import { useColors } from '@/hooks/useColors';
 import { InstallAppCard } from '@/components/InstallAppCard';
-import {
-  clearWebBiometric,
-  enrollWebBiometric,
-  isWebBiometricAvailable,
-} from '@/lib/webBiometric';
+import { UserMenuModal } from '@/components/UserMenuModal';
 
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Propietario',
@@ -45,65 +36,8 @@ export default function FarmsScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { token, user, isLoading, signOut } = useAuth();
-  const { biometricLockEnabled, setBiometricLockEnabled } = useBiometricPref();
-  const biometricCheckInProgress = useRef(false);
-
-  const handleBiometricToggle = async (enabled: boolean) => {
-    if (!enabled) {
-      if (Platform.OS === 'web') clearWebBiometric();
-      setBiometricLockEnabled(false);
-      return;
-    }
-    if (biometricCheckInProgress.current) return;
-    biometricCheckInProgress.current = true;
-    try {
-      // Confirm the user's identity right away so we know biometrics work on
-      // this device. If it fails or is cancelled, the switch stays off.
-      // En web se registra una credencial WebAuthn (huella/Face ID/Windows Hello).
-      const success =
-        Platform.OS === 'web'
-          ? await enrollWebBiometric()
-          : (
-              await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Confirma tu identidad para activar el bloqueo',
-                cancelLabel: 'Cancelar',
-              })
-            ).success;
-      setBiometricLockEnabled(success);
-    } catch {
-      setBiometricLockEnabled(false);
-    } finally {
-      biometricCheckInProgress.current = false;
-    }
-  };
-
-  // null = still checking whether the device has biometrics configured
-  const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (Platform.OS === 'web') {
-          const available = await isWebBiometricAvailable();
-          if (!cancelled) setBiometricAvailable(available);
-          return;
-        }
-        const [hasHardware, enrolled] = await Promise.all([
-          LocalAuthentication.hasHardwareAsync(),
-          LocalAuthentication.isEnrolledAsync(),
-        ]);
-        if (!cancelled) setBiometricAvailable(hasHardware && enrolled);
-      } catch {
-        if (!cancelled) setBiometricAvailable(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  const { token, user, isLoading } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const farmsQuery = useListFarms({
     query: { queryKey: getListFarmsQueryKey(), enabled: !!token },
@@ -112,17 +46,12 @@ export default function FarmsScreen() {
     query: { queryKey: getGetAuthConfigQueryKey() },
   });
   const demoMode = authConfigQuery.data?.demoMode === true;
-  const logout = useLogout();
 
   if (isLoading) return <LoadingView />;
   if (!token) return <Redirect href="/login" />;
 
   const topInset = insets.top;
   const bottomInset = insets.bottom;
-
-  const handleLogout = () => {
-    logout.mutate(undefined, { onSettled: () => signOut() });
-  };
 
   const farms: Farm[] = farmsQuery.data ?? [];
 
@@ -153,15 +82,17 @@ export default function FarmsScreen() {
           <Feather name="plus" size={18} color={c.primaryForeground} />
         </Pressable>
         <Pressable
-          testID="button-logout"
+          testID="button-account"
           accessibilityRole="button"
-          onPress={handleLogout}
+          onPress={() => setAccountOpen(true)}
           style={({ pressed }) => [
-            styles.iconButton,
-            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
+            styles.avatarBtn,
+            { backgroundColor: c.primary, opacity: pressed ? 0.8 : 1 },
           ]}
         >
-          <Feather name="log-out" size={18} color={c.foreground} />
+          <Text style={[styles.avatarText, { color: c.primaryForeground }]}>
+            {(user?.name || '?').split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('')}
+          </Text>
         </Pressable>
       </View>
 
@@ -208,31 +139,6 @@ export default function FarmsScreen() {
           ListFooterComponent={
             <View style={{ gap: 12 }}>
               <InstallAppCard />
-              <Card style={styles.settingsCard}>
-                <View style={[styles.farmIcon, { backgroundColor: c.primaryTint }]}>
-                  <Feather name="lock" size={18} color={c.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.settingTitle, { color: c.foreground }]}>
-                    Bloqueo biométrico
-                  </Text>
-                  <Text
-                    testID="text-biometric-setting-subtitle"
-                    style={[styles.settingSubtitle, { color: c.mutedForeground }]}
-                  >
-                    {biometricAvailable === false
-                      ? 'Este dispositivo no tiene biometría configurada'
-                      : 'Pide huella, Face ID o el desbloqueo del dispositivo al abrir la app'}
-                  </Text>
-                </View>
-                <Switch
-                  testID="switch-biometric-lock"
-                  value={biometricAvailable !== false && biometricLockEnabled === true}
-                  onValueChange={handleBiometricToggle}
-                  disabled={biometricAvailable !== true}
-                  trackColor={{ true: c.primary }}
-                />
-              </Card>
             </View>
           }
           ListEmptyComponent={
@@ -276,6 +182,8 @@ export default function FarmsScreen() {
           )}
         />
       )}
+
+      <UserMenuModal visible={accountOpen} onClose={() => setAccountOpen(false)} />
     </View>
   );
 }
@@ -331,6 +239,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+  },
   list: {
     padding: 16,
     gap: 12,
@@ -338,21 +257,6 @@ const styles = StyleSheet.create({
   },
   farmCard: {
     gap: 12,
-  },
-  settingsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 4,
-  },
-  settingTitle: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  settingSubtitle: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 1,
   },
   farmHeader: {
     flexDirection: 'row',
