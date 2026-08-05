@@ -23,3 +23,4 @@
 - [PDF text extraction](pdf-text-extraction.md) — pdf-parse devuelve µ como μ griega; los tests sobre texto extraído deben aceptar ambas.
 - [App móvil web en /movil](mobile-web-selfhost.md) — en el servidor propio la app Expo se exporta como web (/movil, nginx); leer X-Forwarded-Proto para las URLs públicas.
 - [Push a GitHub](github-push.md) — git push directo falla; usar gitPush con remoto origin y upstream origin/main (crear ref con update-ref si no existe).
+- [Equilibrio catiónico](cation-balance.md) — diag. determinista compartido IA+web para calcio bloqueado por Na/Mg y pH alcalino; uncoupled de reglas frontend.
