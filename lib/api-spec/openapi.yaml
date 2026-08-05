@@ -415,6 +415,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Analysis"
+  /farms/{farmId}/analyses/cation-balance:
+    get:
+      operationId: getCationBalanceDiagnosis
+      tags: [analyses]
+      summary: Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+      parameters:
+        - $ref: "#/components/parameters/FarmId"
+      responses:
+        "200":
+          description: Cation balance diagnosis (warnings) for the farm's latest soil and leaf analyses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CationBalanceDiagnosis"
   /farms/{farmId}/analyses/import:
     post:
       operationId: importAnalysisPdf
@@ -2768,6 +2782,14 @@ components:
         refLow: { type: ["number", "null"] }
         refHigh: { type: ["number", "null"] }
         status: { type: ["string", "null"], description: "muy_bajo | bajo | normal | alto | muy_alto" }
+    CationBalanceDiagnosis:
+      type: object
+      required: [warnings]
+      properties:
+        warnings:
+          type: array
+          items: { type: string }
+          description: "Avisos del equilibrio catiónico del suelo cruzado con la foliar (calcio bloqueado por Na/Mg y pH alcalino). Vacío si no hay desequilibrio."
     AnalysisInput:
       type: object
       required: [type, sampleDate, parameters]

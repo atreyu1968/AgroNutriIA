@@ -1247,6 +1247,11 @@ export interface WaterSourceInput {
   sharePct: number;
 }
 
+export interface CationBalanceDiagnosis {
+  /** Avisos del equilibrio catiónico del suelo cruzado con la foliar (calcio bloqueado por Na/Mg y pH alcalino). Vacío si no hay desequilibrio. */
+  warnings: string[];
+}
+
 export type AnalysisInputType = typeof AnalysisInputType[keyof typeof AnalysisInputType];
 
 

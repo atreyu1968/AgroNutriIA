@@ -19,10 +19,12 @@ import {
   UpdateAnalysisResponse,
   ImportAnalysisPdfResponse,
   UploadAnalysisPdfResponse,
+  GetCationBalanceDiagnosisResponse,
 } from "@workspace/api-zod";
 import { requireAuth, farmAccess, canEdit, parseIntParam } from "../middlewares/auth";
 import { serializeAnalysis } from "../lib/serializers";
-import { resolveCredential } from "../lib/farmContext";
+import { resolveCredential, latestAnalysisScoped } from "../lib/farmContext";
+import { cationBalanceReport } from "../lib/cationBalance";
 import {
   clientFor,
   estimateCostEur,
@@ -293,6 +295,24 @@ router.get("/farms/:farmId/analyses", async (req, res): Promise<void> => {
     .where(eq(analysesTable.farmId, farmId))
     .orderBy(desc(analysesTable.sampleDate), desc(analysesTable.id));
   res.json(ListAnalysesResponse.parse(rows.map(serializeAnalysis)));
+});
+
+// Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar.
+// Ruta específica antes de /farms/:farmId/analyses/:analysisId para que el
+// segmento "cation-balance" no se interprete como un id de analítica.
+router.get("/farms/:farmId/analyses/cation-balance", async (req, res): Promise<void> => {
+  const farmId = parseIntParam(req.params.farmId);
+  const access = await farmAccess(req.user!, farmId);
+  if (!access) {
+    res.status(404).json({ error: "Finca no encontrada" });
+    return;
+  }
+  const [soil, leaf] = await Promise.all([
+    latestAnalysisScoped(farmId, "soil", null),
+    latestAnalysisScoped(farmId, "leaf", null),
+  ]);
+  const report = cationBalanceReport(soil, leaf);
+  res.json(GetCationBalanceDiagnosisResponse.parse({ warnings: report.warnings }));
 });
 
 async function waterSourceBelongsToFarm(waterSourceId: number | null | undefined, farmId: number) {

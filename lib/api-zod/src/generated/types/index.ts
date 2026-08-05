@@ -56,6 +56,7 @@ export * from './calculationRequestWaterMixItem';
 export * from './calculationResult';
 export * from './calculationResultNutrients';
 export * from './calculationResultWaterContribution';
+export * from './cationBalanceDiagnosis';
 export * from './checkSubdomain';
 export * from './checkSubdomainParams';
 export * from './conversation';

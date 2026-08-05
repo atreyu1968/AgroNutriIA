@@ -841,6 +841,18 @@ export const CreateAnalysisResponse = zod.object({
 
 
 /**
+ * @summary Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+ */
+export const GetCationBalanceDiagnosisParams = zod.object({
+  "farmId": zod.coerce.number().int()
+})
+
+export const GetCationBalanceDiagnosisResponse = zod.object({
+  "warnings": zod.array(zod.string()).describe('Avisos del equilibrio catiónico del suelo cruzado con la foliar (calcio bloqueado por Na\/Mg y pH alcalino). Vacío si no hay desequilibrio.')
+})
+
+
+/**
  * @summary Upload a lab analysis PDF and extract its data with AI
  */
 export const ImportAnalysisPdfParams = zod.object({

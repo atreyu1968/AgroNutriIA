@@ -7,6 +7,7 @@ import {
   useListSectors, useCreateSector, useUpdateSector, useDeleteSector,
   useListAnalyses, useCreateAnalysis, useImportAnalysisPdf, useDeleteAnalysis, useUpdateAnalysis,
   useUploadAnalysisPdf, getGetAnalysisPdfUrl,
+  useGetCationBalanceDiagnosis,
   useListRecommendations, useChangeRecommendationStatus, useListConversations, getListConversationsQueryKey,
   useListReports, useCreateReport, usePreviewReportNotes, useDeleteReport, useDeleteRecommendation,
   useListWaterSources, useSetWaterSources, getListWaterSourcesQueryKey,
@@ -884,6 +885,7 @@ function WaterSourcesCard({ farmId, canEdit }: { farmId: number; canEdit: boolea
 
 export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEdit?: boolean }) {
   const { data: analyses, isLoading } = useListAnalyses(farmId);
+  const { data: cationDiagnosis } = useGetCationBalanceDiagnosis(farmId);
   const { data: sectorsForNames } = useListSectors(farmId);
   const sectorName = (id: number | null | undefined) =>
     id == null ? null : sectorsForNames?.find((s) => s.id === id)?.name ?? `Sector ${id}`;
@@ -942,6 +944,22 @@ export function AnalysesTab({ farmId, canEdit = false }: { farmId: number; canEd
       <p className="text-sm text-muted-foreground -mt-2">
         Sube el PDF del laboratorio y el técnico virtual extraerá los parámetros automáticamente (requiere clave de OpenAI en Ajustes).
       </p>
+      {cationDiagnosis?.warnings?.length ? (
+        <div className="rounded-md border border-amber-300 bg-amber-500/10 p-3 space-y-1.5" data-testid="cation-balance-warning">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Desequilibrio en el intercambio catiónico del suelo</p>
+              <p className="text-sm text-amber-800/90">El diagnóstico cruzado entre la analítica de suelo y la foliar ha detectado que el calcio puede estar bloqueado. El programa de abonado lo tiene en cuenta.</p>
+            </div>
+          </div>
+          <ul className="mt-1 ml-6 list-disc space-y-1 text-sm text-amber-800/90">
+            {cationDiagnosis.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <WaterSourcesCard farmId={farmId} canEdit={canEdit} />
       {!isLoading && analyses && analyses.length > 0 && <ParameterTrendCard analyses={analyses} />}
       <Card>

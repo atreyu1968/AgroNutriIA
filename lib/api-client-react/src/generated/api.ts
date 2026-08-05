@@ -48,6 +48,7 @@ import type {
   AuthConfig,
   CalculationRequest,
   CalculationResult,
+  CationBalanceDiagnosis,
   CheckSubdomain,
   CheckSubdomainParams,
   Conversation,
@@ -1909,6 +1910,83 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getCreateAnalysisMutationOptions(options));
     }
+
+export const getGetCationBalanceDiagnosisUrl = (farmId: number,) => {
+
+
+
+
+  return `/api/farms/${farmId}/analyses/cation-balance`
+}
+
+/**
+ * @summary Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+ */
+export const getCationBalanceDiagnosis = async (farmId: number, options?: Parameters<typeof customFetch>[1]): Promise<CationBalanceDiagnosis> => {
+
+  return customFetch<CationBalanceDiagnosis>(getGetCationBalanceDiagnosisUrl(farmId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCationBalanceDiagnosisQueryKey = (farmId: number,) => {
+    return [
+    `/api/farms/${farmId}/analyses/cation-balance`
+    ] as const;
+    }
+
+
+export const getGetCationBalanceDiagnosisQueryOptions = <TData = Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError = ErrorType<unknown>>(farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCationBalanceDiagnosisQueryKey(farmId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>> = ({ signal }) => getCationBalanceDiagnosis(farmId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: farmId !== null && farmId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCationBalanceDiagnosisQueryResult = NonNullable<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>>
+export type GetCationBalanceDiagnosisQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Diagnóstico del equilibrio catiónico del suelo cruzado con la foliar
+ */
+
+export function useGetCationBalanceDiagnosis<TData = Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError = ErrorType<unknown>>(
+ farmId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCationBalanceDiagnosis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCationBalanceDiagnosisQueryOptions(farmId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getImportAnalysisPdfUrl = (farmId: number,) => {
 
