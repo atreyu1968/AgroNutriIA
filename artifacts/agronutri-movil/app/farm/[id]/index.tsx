@@ -579,29 +579,51 @@ export default function FarmDetailScreen() {
             <Feather name="trash-2" size={17} color={c.destructive} />
           </Pressable>
         ) : null}
-        <Pressable
-          testID="button-phyto"
-          accessibilityRole="button"
-          onPress={() => router.push(`/farm/${farmId}/phyto`)}
-          style={({ pressed }) => [
-            styles.iconButton,
-            { backgroundColor: c.muted, opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Feather name="shield" size={17} color={c.foreground} />
-        </Pressable>
-        <Pressable
-          testID="button-chat"
-          accessibilityRole="button"
-          onPress={() => router.push(`/farm/${farmId}/chat`)}
-          style={({ pressed }) => [
-            styles.iconButton,
-            { backgroundColor: c.primary, opacity: pressed ? 0.8 : 1 },
-          ]}
-        >
-          <Feather name="message-circle" size={18} color={c.primaryForeground} />
-        </Pressable>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickActions}
+        style={{ flexGrow: 0 }}
+      >
+        {(
+          [
+            { key: 'chat', label: 'Chat técnico', icon: 'message-circle', route: `/farm/${farmId}/chat`, primary: true },
+            { key: 'phyto', label: 'Fitosanitarios', icon: 'shield', route: `/farm/${farmId}/phyto` },
+            { key: 'calculator', label: 'Calculadora', icon: 'sliders', route: `/farm/${farmId}/calculator` },
+            { key: 'reports', label: 'Informes', icon: 'file-text', route: `/farm/${farmId}/reports` },
+          ] as const
+        ).map((a) => (
+          <Pressable
+            key={a.key}
+            testID={`quick-action-${a.key}`}
+            accessibilityRole="button"
+            onPress={() => router.push(a.route)}
+            style={({ pressed }) => [
+              styles.quickAction,
+              {
+                backgroundColor: 'primary' in a && a.primary ? c.primary : c.muted,
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          >
+            <Feather
+              name={a.icon}
+              size={15}
+              color={'primary' in a && a.primary ? c.primaryForeground : c.foreground}
+            />
+            <Text
+              style={[
+                styles.quickActionText,
+                { color: 'primary' in a && a.primary ? c.primaryForeground : c.foreground },
+              ]}
+            >
+              {a.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       <View style={[styles.segments, { backgroundColor: c.muted }]}>
         {segments.map((s) => (
@@ -770,25 +792,42 @@ export default function FarmDetailScreen() {
               ))}
             </View>
           )
-        ) : analysesQuery.isLoading ? (
-          <LoadingView label="Cargando analíticas…" />
-        ) : analysesQuery.isError ? (
-          <ErrorView onRetry={() => analysesQuery.refetch()} />
-        ) : (analysesQuery.data ?? []).length === 0 ? (
-          <EmptyState
-            icon="droplet"
-            title="Sin analíticas"
-            subtitle="Esta finca aún no tiene analíticas registradas."
-          />
         ) : (
           <View style={{ gap: 12 }}>
-            {(analysesQuery.data ?? []).map((a) => (
-              <AnalysisCard
-                key={a.id}
-                analysis={a}
-                waterSourceName={a.type === 'water' ? waterSourceName(a.waterSourceId) : null}
+            {canEdit ? (
+              <Pressable
+                testID="button-new-analysis"
+                accessibilityRole="button"
+                onPress={() => router.push(`/farm/${farmId}/analysis-form`)}
+                style={({ pressed }) => [
+                  styles.saveBtn,
+                  { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Text style={[styles.saveBtnText, { color: c.primaryForeground }]}>
+                  Registrar analítica
+                </Text>
+              </Pressable>
+            ) : null}
+            {analysesQuery.isLoading ? (
+              <LoadingView label="Cargando analíticas…" />
+            ) : analysesQuery.isError ? (
+              <ErrorView onRetry={() => analysesQuery.refetch()} />
+            ) : (analysesQuery.data ?? []).length === 0 ? (
+              <EmptyState
+                icon="droplet"
+                title="Sin analíticas"
+                subtitle="Esta finca aún no tiene analíticas registradas."
               />
-            ))}
+            ) : (
+              (analysesQuery.data ?? []).map((a) => (
+                <AnalysisCard
+                  key={a.id}
+                  analysis={a}
+                  waterSourceName={a.type === 'water' ? waterSourceName(a.waterSourceId) : null}
+                />
+              ))
+            )}
           </View>
         )}
       </ScrollView>
@@ -820,6 +859,24 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  quickAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+  },
+  quickActionText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
   },
   segments: {
     flexDirection: 'row',
