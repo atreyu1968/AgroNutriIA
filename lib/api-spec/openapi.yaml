@@ -3096,7 +3096,7 @@ components:
           description: "Measured pH of the irrigation water from the latest water analysis (unitless param); null when missing"
         estimatedWaterPh:
           type: ["number", "null"]
-          description: "Deterministic ORIENTATIVE estimate of the fertigation-solution pH with this program, from the program's net acid/base balance against the water's buffer capacity (alkalinity/bicarbonates). Only computed when the water analysis supplies pH AND alkalinity/bicarbonates in mg/L; otherwise null."
+          description: "Deterministic ORIENTATIVE estimate of the fertigation-solution pH with this program, from the program's net acid/base balance against the water's buffer capacity (alkalinity/bicarbonates). Computed when the water analysis supplies pH AND alkalinity/bicarbonates in mg/L. When the buffer is missing but an acid correction with a target pH is set, it orients toward that target (still ORIENTATIVE). Otherwise null."
         acid:
           type: ["object", "null"]
           description: "Independent acidification (separate injection). null when no acid is used."

@@ -479,9 +479,19 @@ export function runEngine(input: CalculationInput): CalculationOutput {
       }
       estimatedWaterPh = round(Math.min(9.5, Math.max(4.0, ph)), 1);
     } else if (wa) {
-      warnings.push(
-        "Sin alcalinidad (bicarbonatos) en la analítica de agua: no se puede estimar el pH final de la solución con esta abonada; solo se muestra el pH del agua sin ajustar.",
-      );
+      if (acidOut && acidOut.targetPh != null) {
+        // Sin tampón no se puede modelar el desplazamiento exacto de la abonada,
+        // pero la corrección de ácido con objetivo permite orientar el pH final
+        // de la solución hacia ese objetivo (acotado a un rango realista).
+        estimatedWaterPh = round(Math.min(waterPh, Math.max(4.5, acidOut.targetPh)), 1);
+        warnings.push(
+          "Sin alcalinidad (bicarbonatos) en la analítica de agua: el pH final se orienta al objetivo del ácido, sin poder estimar el desplazamiento exacto de la abonada ni el litrado exacto de acidificación.",
+        );
+      } else {
+        warnings.push(
+          "Sin alcalinidad (bicarbonatos) en la analítica de agua: no se puede estimar el pH final de la solución con esta abonada; solo se muestra el pH del agua sin ajustar.",
+        );
+      }
     }
   } else if (wa) {
     warnings.push(
@@ -508,15 +518,21 @@ export function runEngine(input: CalculationInput): CalculationOutput {
   // - Ácido: inyección independiente del tanque de abonado.
   // Si un producto tuviera calcio Y fósforo/sulfato se manda a "calcio" y se
   // avisa, porque no debe mezclarse con el resto que lleve P/S.
+  // El ácido nítrico como PRODUCTO del programa (aporte de nitrógeno) va
+  // siempre junto al calcio: es la práctica del técnico (el N nítrico se aplica
+  // con la línea de calcio). La inyección de acidificación independiente queda
+  // en su propio bloque "acido", fuera del tanque.
   const blocks: FertilizerBlock[] = [];
   const npkItems: { name: string; weeklyDose: number; unit: string }[] = [];
   const calcioItems: { name: string; weeklyDose: number; unit: string }[] = [];
   for (const r of resolved) {
     if (!r.fert) continue;
     const isCalcio = (r.fert.caoPct ?? 0) > 0;
+    const normalizedName = r.fert.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isNitricAcidProduct = normalizedName.includes("acido") && normalizedName.includes("nitrico");
     const isPOrS = (r.fert.p2o5Pct ?? 0) > 0 || (r.fert.so3Pct ?? 0) > 0;
     const item = { name: r.item.fertilizerName, weeklyDose: round(r.kg, 2), unit: r.item.unit };
-    if (isCalcio) {
+    if (isCalcio || isNitricAcidProduct) {
       calcioItems.push(item);
       if (isPOrS) {
         compatibilityIssues.push(

@@ -157,6 +157,24 @@ test("independent acid (nítrico) lowers the estimated pH and adds its CE", () =
   assert.ok(out.estimatedWaterPh < 8.2);
 });
 
+test("with acid target but no buffer data, orients the estimated pH toward the target", () => {
+  const out = runEngine({
+    farm: { ...farm, plantCount: 1000, weeklyLitresPerPlant: 150 },
+    fertilizers: [nitratoPotasico],
+    items,
+    waterAnalysis: waterAnalysis([
+      { name: "pH", value: 8.2 },
+      { name: "Cloro", value: 1, unit: "mg/L" },
+    ]),
+    acid: { type: "nitrico", targetPh: 6.0 },
+  });
+  assert.equal(out.waterPh, 8.2);
+  assert.ok(out.estimatedWaterPh != null);
+  assert.ok(out.estimatedWaterPh <= 6.5);
+  assert.ok(out.estimatedWaterPh >= 4.5);
+  assert.ok(out.warnings.some((w) => w.includes("orienta al objetivo")));
+});
+
 test("acid requested above the water pH is ignored with a warning", () => {
   const out = runEngine({
     farm: { ...farm, plantCount: 1000, weeklyLitresPerPlant: 100 },
@@ -198,6 +216,30 @@ test("groups fertilizers into NPK and Calcio blocks by compatibility", () => {
   assert.ok(npk.items.some((i) => i.name === "Nitrato potásico"));
   // El calcio nunca comparte tanque con el NPK (bloques separados).
   assert.ok(!keys.includes("npk") || calcio.items.every((i) => i.name !== "Nitrato potásico"));
+});
+
+test("nitric acid as a program product is grouped with the Calcio block", () => {
+  const acidoNitrico = {
+    id: 4,
+    name: "Ácido nítrico 54%",
+    nPct: 11,
+    nNitricPct: 11,
+    densityKgL: 1.3,
+  } as Fertilizer;
+  const out = runEngine({
+    farm,
+    fertilizers: [nitratoPotasico, acidoNitrico],
+    items: [
+      { fertilizerId: 1, fertilizerName: "Nitrato potásico", weeklyDose: 50, unit: "kg" } as RecommendationItem,
+      { fertilizerId: 4, fertilizerName: "Ácido nítrico 54%", weeklyDose: 20, unit: "L" } as RecommendationItem,
+    ],
+    waterAnalysis: waterAnalysis([]),
+  });
+  const calcio = out.blocks.find((b) => b.key === "calcio");
+  assert.ok(calcio != null, "debe existir un bloque calcio");
+  assert.ok(calcio.items.some((i) => i.name === "Ácido nítrico 54%"), "el ácido nítrico producto va con el calcio");
+  const npk = out.blocks.find((b) => b.key === "npk");
+  assert.ok(!npk?.items.some((i) => i.name === "Ácido nítrico 54%"), "el ácido nítrico producto no debe ir al bloque NPK");
 });
 
 test("independent acid appears as its own separado block", () => {
