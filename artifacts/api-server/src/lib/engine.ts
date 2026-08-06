@@ -1,5 +1,28 @@
 import type { Fertilizer, Analysis, Farm, Sector, RecommendationItem } from "@workspace/db";
 
+export type AcidType = "nitrico" | "sulfurico";
+
+/**
+ * Ácido para acidificar el agua de riego, en inyección INDEPENDIENTE del tanque
+ * de abonado (nunca se mezcla en el mismo bidón que la abonada). Se aporta a
+ * parte y su efecto sobre el pH final y la CE se computa por separado.
+ * - nitrico: aporta nitrógeno (N nítrico) y acidifica con fuerza.
+ * - sulfurico: acidificación fuerte sin aporte de N.
+ * No se usa cítrico en ningún concepto (preferencia del técnico).
+ */
+export type AcidInput = {
+  type: AcidType;
+  /** pH objetivo orientativo (debe ser < pH del agua). Null → sin meta. */
+  targetPh?: number | null;
+};
+
+export type FertilizerBlock = {
+  key: "npk" | "calcio" | "acido";
+  label: string;
+  note?: string;
+  items: { name: string; weeklyDose: number; unit: string }[];
+};
+
 export type CalculationInput = {
   farm: Farm;
   sector?: Sector | null;
@@ -11,6 +34,11 @@ export type CalculationInput = {
   maxEcOverride?: number | null;
   /** Overrides the farm/sector phenological stage (e.g. from the calculator). */
   stageOverride?: string | null;
+  /**
+   * Acidificación independiente del agua (inyección separada del tanque de
+   * abonado). Se tiene en cuenta para el pH final y para la CE de la solución.
+   */
+  acid?: AcidInput | null;
 };
 
 export type CalculationOutput = {
@@ -20,6 +48,30 @@ export type CalculationOutput = {
   estimatedEcDsM: number | null;
   waterEcDsM: number | null;
   fertilizersEcDsM: number | null;
+  /** pH medido del agua de riego (analítica; parámetro sin unidad). Null si no hay. */
+  waterPh: number | null;
+  /**
+   * pH estimado del agua de riego tras aplicar esta abonada, estimado de forma
+   * determinista a partir del balance ácido/base neto del programa frente a la
+   * capacidad tampón del agua (alcalinidad/bicarbonatos). Solo se devuelve
+   * cuando hay pH de agua Y alcalinidad/bicarbonatos en mg/L; en otro caso es
+   * null (dato incompleto) y se avisa en `warnings`.
+   */
+  estimatedWaterPh: number | null;
+  /**
+   * Acidificación independiente del agua (inyección separada del tanque de
+   * abonado). null cuando no se usa ácido.
+   */
+  acid: {
+    type: AcidType;
+    targetPh: number | null;
+    /** Litros de producto por semana de riego. null si no se puede estimar. */
+    litersPerWeek: number | null;
+    /** Aporte a la CE de la solución (dS/m) del ácido añadido. */
+    ecDsM: number;
+  } | null;
+  /** Bloques de mezcla por compatibilidad (nunca se mezclan NPK y calcio). */
+  blocks: FertilizerBlock[];
   waterContribution: Record<string, number>;
   sar: number | null;
   warnings: string[];
@@ -193,6 +245,11 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     mgo: 0,
     so3: 0,
     b: 0,
+    fe: 0,
+    mn: 0,
+    zn: 0,
+    cu: 0,
+    mo: 0,
   };
 
   let totalSaltGrams = 0;
@@ -223,6 +280,12 @@ export function runEngine(input: CalculationInput): CalculationOutput {
       nutrients.mgo += (kg * (fert.mgoPct ?? 0)) / 100;
       nutrients.so3 += (kg * (fert.so3Pct ?? 0)) / 100;
       nutrients.b += (kg * (fert.boronPct ?? 0)) / 100;
+      // Microelementos: hierro, manganeso, zinc, cobre y molibdeno (% del abono).
+      nutrients.fe += (kg * (fert.ironPct ?? 0)) / 100;
+      nutrients.mn += (kg * (fert.manganesePct ?? 0)) / 100;
+      nutrients.zn += (kg * (fert.zincPct ?? 0)) / 100;
+      nutrients.cu += (kg * (fert.copperPct ?? 0)) / 100;
+      nutrients.mo += (kg * (fert.molybdenumPct ?? 0)) / 100;
       totalSaltGrams += kg * 1000;
     }
     resolved.push({ fert, item, kg });
@@ -264,10 +327,15 @@ export function runEngine(input: CalculationInput): CalculationOutput {
       no3: ["nitrato", "no3"],
       so4: ["sulfato", "so4"],
       alkalinity: ["alcalinidad", "bicarbonato", "hco3"],
+      fe: ["hierro", "fe"],
+      mn: ["manganeso", "mn"],
+      zn: ["zinc", "zn"],
+      cu: ["cobre", "cu"],
+      mo: ["molibdeno", "mo"],
     };
     for (const [key, names] of Object.entries(map)) {
       const v = mgPerLParam(wa, names);
-      if (v != null) waterContribution[key] = round((v * weeklyWaterLitres) / 1e6, 2);
+      if (v != null) waterContribution[key] = round((v * weeklyWaterLitres) / 1e6, 3);
       else if (paramEntry(wa, names)) {
         warnings.push(
           `El parámetro del agua «${names[0]}» viene en una unidad distinta de mg/L: no se computa su aporte con el riego (revisar la analítica).`,
@@ -325,6 +393,167 @@ export function runEngine(input: CalculationInput): CalculationOutput {
       );
     }
   }
+
+  // pH del agua de riego y pH estimado de la solución con esta abonada.
+  // - waterPh: el pH medido de la analítica de agua (parámetro sin unidad).
+  // - estimatedWaterPh: estimación determinista y ORIENTATIVA del pH de la
+  //   solución tras añadir el programa, a partir del balance ácido/base de los
+  //   fertilizantes frente a la capacidad tampón del agua (alcalinidad /
+  //   bicarbonatos). Solo se calcula cuando hay pH de agua Y alcalinidad en
+  //   mg/L; si falta algún dato se devuelve null y se avisa (nunca se inventa
+  //   un número sin soporte de datos).
+  const waterPh = param(wa, ["ph"]);
+  let estimatedWaterPh: number | null = null;
+
+  // Ácido en inyección independiente (nunca se mezcla con el tanque de abonado).
+  // - nitrico: fuerte, aporta N (N nítrico) y acidifica.
+  // - sulfurico: acidificación fuerte sin aporte de N.
+  // No se usa ácido cítrico (preferencia del técnico).
+  // Fuerza ácida orientativa en meq H+/L de producto comercial (±50%): nítrico
+  // 60% ≈ 13 N, sulfúrico 96% ≈ 36 N. Se usan valores orientativos.
+  const ACID_STRENGTH_MEQ_PER_L: Record<AcidType, number> = { nitrico: 13000, sulfurico: 36000 };
+  // Aporte orientativo a la CE por meq H+/L en la solución (dS/m): el ácido
+  // aporta iones (H+ y anión) que suben la conductividad.
+  const ACID_EC_PER_MEQ = 0.1;
+  let acidOut: CalculationOutput["acid"] = null;
+  if (input.acid) {
+    const targetPh =
+      input.acid.targetPh != null && Number.isFinite(input.acid.targetPh)
+        ? Math.max(4.0, Math.min(9.5, input.acid.targetPh))
+        : null;
+    acidOut = { type: input.acid.type, targetPh, litersPerWeek: null, ecDsM: 0 };
+    if (waterPh != null && targetPh != null) {
+      if (targetPh >= waterPh) {
+        acidOut.targetPh = null;
+        warnings.push(
+          "El pH objetivo del ácido no es inferior al pH del agua: no tiene sentido acidificar hacia un pH más alto; se ignora la acidificación.",
+        );
+      }
+    }
+  }
+
+  if (waterPh != null && weeklyWaterLitres > 0) {
+    // Capacidad tampón del agua en meq/L (alcalinidad o bicarbonatos).
+    let bufferMeqPerL: number | null = null;
+    const bicarb = mgPerLParam(wa, ["bicarbonato", "hco3"]);
+    const alkalinity = mgPerLParam(wa, ["alcalinidad", "alkalinity"]);
+    if (bicarb != null) bufferMeqPerL = bicarb / 61.0; // HCO3- (g/mol) → meq/L
+    else if (alkalinity != null) bufferMeqPerL = alkalinity / 50.0; // CaCO3 → meq/L
+    if (bufferMeqPerL != null && bufferMeqPerL > 0) {
+      // Ácido neto aportado por la abonada, en meq H+/L: el N amoniacal y el
+      // uréico acidifican (nitrificación: 1 mol N-NH4 → ~2 mol H+). Se usa un
+      // factor orientativo reducido para una ventana corta de fertirrigación
+      // (0,5 meq H+ por meq de N amoniacal+uréico) y se neutraliza con el
+      // tampón del agua. Es una heurística documentada, no una medida.
+      const ammoniacalNkg = nutrients.nAmmoniacal + nutrients.nUreic;
+      const fertAcidMeqPerL =
+        (ammoniacalNkg * (1000 / 14) * 0.5) / weeklyWaterLitres;
+      // La acidificación independiente suma H+ a parte (inyección separada).
+      let acidOutMeqPerL = 0;
+      if (acidOut && acidOut.targetPh != null) {
+        // H+ necesarios (meq/L) para bajar de waterPh a targetPh frente al
+        // tampón: desplazamiento ΔpH ≈ 0.9·log10(1 + meqH+/buffer) salvo que no
+        // haya tampón (entonces cada meq baja ~0.9 unidades de pH de golpe).
+        const delta = waterPh - acidOut.targetPh;
+        const needed = Math.max(0, Math.pow(10, delta / 0.9) - 1) * bufferMeqPerL;
+        const strengthMeqPerL = ACID_STRENGTH_MEQ_PER_L[acidOut.type]; // meq H+/L de producto
+        if (needed > 0 && strengthMeqPerL > 0) {
+          acidOutMeqPerL = needed;
+          acidOut.litersPerWeek = round((needed * weeklyWaterLitres) / strengthMeqPerL, 1);
+        }
+      }
+      // Aporte del ácido a la CE de la solución (dS/m) = H+ en meq/L × factor por meq.
+      if (acidOut) acidOut.ecDsM = round(acidOutMeqPerL * ACID_EC_PER_MEQ, 2);
+      const coverage = (fertAcidMeqPerL + acidOutMeqPerL) / bufferMeqPerL;
+      // Desplazamiento logarítmico orientativo, acotado para no sobrepasar nunca
+      // un rango sensato de pH (4,5–9).
+      let shift = coverage > 0 ? Math.min(1.3, Math.log10(1 + coverage) * 0.9) : 0;
+      let ph = waterPh - shift;
+      // El tampón se agota del todo: abajo no puede bajar más el agua sin ácido
+      // mineral añadido explícitamente (los fertilizantes tamponan).
+      if (coverage > 2) ph = Math.max(ph, 4.0);
+      if (acidOutMeqPerL > 0 && acidOut!.targetPh != null) {
+        // Con acidificación explícita se persigue el objetivo, acotado a un rango
+        // realista (el ácido débil/gran tampón limita la bajada).
+        ph = Math.max(acidOut!.targetPh, Math.min(ph, waterPh - 0.2));
+      }
+      estimatedWaterPh = round(Math.min(9.5, Math.max(4.0, ph)), 1);
+    } else if (wa) {
+      warnings.push(
+        "Sin alcalinidad (bicarbonatos) en la analítica de agua: no se puede estimar el pH final de la solución con esta abonada; solo se muestra el pH del agua sin ajustar.",
+      );
+    }
+  } else if (wa) {
+    warnings.push(
+      "Sin pH en la analítica de agua: no se muestra el pH del agua de riego ni se puede estimar el efecto de esta abonada sobre él.",
+    );
+  }
+
+  // La acidificación independiente suma su CE a la estimada (inyección separada,
+  // fuera del tanque de abonado). Se recalcula el aviso de CE máxima incluyéndola.
+  if (acidOut && acidOut.ecDsM > 0 && estimatedEcDsM != null) {
+    estimatedEcDsM = round(estimatedEcDsM + acidOut.ecDsM, 2);
+    const maxEc = normalizeMaxEc(input.maxEcOverride ?? input.farm.maxEcDsM) ?? 2.5;
+    if (estimatedEcDsM > maxEc) {
+      warnings.push(
+        `La CE estimada con la acidificación (${Math.round(estimatedEcDsM * 1000)} µS/cm) supera el máximo configurado (${Math.round(maxEc * 1000)} µS/cm) ${acidOut.ecDsM > 0 ? `(el ácido aporta ${Math.round(acidOut.ecDsM * 1000)} µS/cm) ` : ""}Prever un riego pre-acidificación para diluir o revisar dosis.`,
+      );
+    }
+  }
+
+  // Bloques de mezcla por compatibilidad de tanques:
+  // - NPK (tanque principal): abonos sin calcio (N, P, K, Mg, S, B, quelatos…).
+  // - Calcio (tanque separado): abonos con calcio, nunca en el mismo bidón que
+  //   fosfatos/sulfatos para evitar precipitados.
+  // - Ácido: inyección independiente del tanque de abonado.
+  // Si un producto tuviera calcio Y fósforo/sulfato se manda a "calcio" y se
+  // avisa, porque no debe mezclarse con el resto que lleve P/S.
+  const blocks: FertilizerBlock[] = [];
+  const npkItems: { name: string; weeklyDose: number; unit: string }[] = [];
+  const calcioItems: { name: string; weeklyDose: number; unit: string }[] = [];
+  for (const r of resolved) {
+    if (!r.fert) continue;
+    const isCalcio = (r.fert.caoPct ?? 0) > 0;
+    const isPOrS = (r.fert.p2o5Pct ?? 0) > 0 || (r.fert.so3Pct ?? 0) > 0;
+    const item = { name: r.item.fertilizerName, weeklyDose: round(r.kg, 2), unit: r.item.unit };
+    if (isCalcio) {
+      calcioItems.push(item);
+      if (isPOrS) {
+        compatibilityIssues.push(
+          `«${r.item.fertilizerName}» aporta calcio y también fósforo/sulfato: no mezclarlo con otros fosfatos/sulfatos en el mismo tanque (riesgo de precipitados).`,
+        );
+      }
+    } else {
+      npkItems.push(item);
+    }
+  }
+  if (npkItems.length > 0)
+    blocks.push({
+      key: "npk",
+      label: "NPK",
+      note: "Tanque principal. No mezclar con el calcio.",
+      items: npkItems,
+    });
+  if (calcioItems.length > 0)
+    blocks.push({
+      key: "calcio",
+      label: "Calcio",
+      note: "Tanque separado: nunca en el mismo bidón que fosfatos/sulfatos (precipitados).",
+      items: calcioItems,
+    });
+  if (acidOut && (acidOut.litersPerWeek ?? 0) > 0)
+    blocks.push({
+      key: "acido",
+      label: acidOut.type === "nitrico" ? "Ácido nítrico" : "Ácido sulfúrico",
+      note: "Inyección independiente, fuera del tanque de abonado.",
+      items: [
+        {
+          name: acidOut.type === "nitrico" ? "Ácido nítrico" : "Ácido sulfúrico",
+          weeklyDose: acidOut.litersPerWeek!,
+          unit: "L",
+        },
+      ],
+    });
 
   // Phenological stage comparison (orientative platanera targets).
   let stageComparison: StageComparison | null = null;
@@ -388,6 +617,10 @@ export function runEngine(input: CalculationInput): CalculationOutput {
     estimatedEcDsM,
     waterEcDsM,
     fertilizersEcDsM,
+    waterPh,
+    estimatedWaterPh,
+    acid: acidOut,
+    blocks,
     waterContribution,
     sar,
     warnings,

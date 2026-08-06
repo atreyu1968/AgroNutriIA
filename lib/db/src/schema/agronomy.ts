@@ -74,6 +74,11 @@ export const fertilizersTable = pgTable("fertilizers", {
   mgoPct: real("mgo_pct").default(0),
   so3Pct: real("so3_pct").default(0),
   boronPct: real("boron_pct").default(0),
+  ironPct: real("iron_pct").default(0),
+  manganesePct: real("manganese_pct").default(0),
+  zincPct: real("zinc_pct").default(0),
+  copperPct: real("copper_pct").default(0),
+  molybdenumPct: real("molybdenum_pct").default(0),
   densityKgL: real("density_kg_l"),
   ecContribution: real("ec_contribution"), // dS/m per g/L approx
   incompatibleWith: text("incompatible_with").array(),
@@ -132,6 +137,8 @@ export type RecommendationItem = {
   unit: string; // kg | L
   previousDose?: number | null;
   reason?: string | null;
+  /** Block de mezcla por compatibilidad de tanques: npk | calcio | acido. */
+  block?: string | null;
 };
 
 export const recommendationsTable = pgTable("recommendations", {

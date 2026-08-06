@@ -139,7 +139,7 @@ export default function Fertilizantes() {
 }
 
 export function hasNoDeclaredRichness(f: Fertilizer): boolean {
-  return [f.nPct, f.p2o5Pct, f.k2oPct, f.caoPct, f.mgoPct, f.so3Pct, f.boronPct].every(v => !v);
+  return [f.nPct, f.p2o5Pct, f.k2oPct, f.caoPct, f.mgoPct, f.so3Pct, f.boronPct, f.ironPct, f.manganesePct, f.zincPct, f.copperPct, f.molybdenumPct].every(v => !v);
 }
 
 const fertilizerSchema = z.object({
@@ -151,6 +151,13 @@ const fertilizerSchema = z.object({
   k2oPct: z.coerce.number().optional(),
   caoPct: z.coerce.number().optional(),
   mgoPct: z.coerce.number().optional(),
+  so3Pct: z.coerce.number().optional(),
+  boronPct: z.coerce.number().optional(),
+  ironPct: z.coerce.number().optional(),
+  manganesePct: z.coerce.number().optional(),
+  zincPct: z.coerce.number().optional(),
+  copperPct: z.coerce.number().optional(),
+  molybdenumPct: z.coerce.number().optional(),
   densityKgL: z.coerce.number().optional(),
 });
 
@@ -245,6 +252,30 @@ function CreateFertilizerDialog({ open, onOpenChange }: { open: boolean, onOpenC
               <FormField control={form.control} name="mgoPct" render={({ field }) => (
                 <FormItem><FormLabel className="text-green-600">MgO %</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
               )}/>
+              <FormField control={form.control} name="so3Pct" render={({ field }) => (
+                <FormItem><FormLabel className="text-purple-600">SO₃ %</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
+              )}/>
+              <FormField control={form.control} name="boronPct" render={({ field }) => (
+                <FormItem><FormLabel className="text-teal-600">B %</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
+              )}/>
+            </div>
+
+            <div className="grid grid-cols-5 gap-3">
+              <FormField control={form.control} name="ironPct" render={({ field }) => (
+                <FormItem><FormLabel className="text-orange-600">Fe %</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+              )}/>
+              <FormField control={form.control} name="manganesePct" render={({ field }) => (
+                <FormItem><FormLabel className="text-teal-600">Mn %</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+              )}/>
+              <FormField control={form.control} name="zincPct" render={({ field }) => (
+                <FormItem><FormLabel className="text-cyan-600">Zn %</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+              )}/>
+              <FormField control={form.control} name="copperPct" render={({ field }) => (
+                <FormItem><FormLabel className="text-lime-600">Cu %</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+              )}/>
+              <FormField control={form.control} name="molybdenumPct" render={({ field }) => (
+                <FormItem><FormLabel className="text-fuchsia-600">Mo %</FormLabel><FormControl><Input type="number" step="0.001" {...field} /></FormControl></FormItem>
+              )}/>
             </div>
 
             <div className="flex justify-end pt-4">
@@ -266,6 +297,11 @@ const compositionSchema = z.object({
   mgoPct: z.coerce.number().min(0).max(100),
   so3Pct: z.coerce.number().min(0).max(100),
   boronPct: z.coerce.number().min(0).max(100),
+  ironPct: z.coerce.number().min(0).max(100),
+  manganesePct: z.coerce.number().min(0).max(100),
+  zincPct: z.coerce.number().min(0).max(100),
+  copperPct: z.coerce.number().min(0).max(100),
+  molybdenumPct: z.coerce.number().min(0).max(100),
 });
 
 const NUTRIENT_FIELDS = [
@@ -276,6 +312,15 @@ const NUTRIENT_FIELDS = [
   { name: "mgoPct", label: "MgO %", className: "text-green-600" },
   { name: "so3Pct", label: "SO₃ %", className: "text-purple-600" },
   { name: "boronPct", label: "B %", className: "text-teal-600" },
+] as const;
+
+// Microelementos: se guardan igual que los macro (porcentaje del abono).
+const MICRO_FIELDS = [
+  { name: "ironPct", label: "Fe %", className: "text-orange-600", step: "0.01" },
+  { name: "manganesePct", label: "Mn %", className: "text-teal-600", step: "0.01" },
+  { name: "zincPct", label: "Zn %", className: "text-cyan-600", step: "0.01" },
+  { name: "copperPct", label: "Cu %", className: "text-lime-600", step: "0.01" },
+  { name: "molybdenumPct", label: "Mo %", className: "text-fuchsia-600", step: "0.001" },
 ] as const;
 
 function EditFertilizerButton({ fertilizer }: { fertilizer: Fertilizer }) {
@@ -294,6 +339,11 @@ function EditFertilizerButton({ fertilizer }: { fertilizer: Fertilizer }) {
       mgoPct: fertilizer.mgoPct ?? 0,
       so3Pct: fertilizer.so3Pct ?? 0,
       boronPct: fertilizer.boronPct ?? 0,
+      ironPct: fertilizer.ironPct ?? 0,
+      manganesePct: fertilizer.manganesePct ?? 0,
+      zincPct: fertilizer.zincPct ?? 0,
+      copperPct: fertilizer.copperPct ?? 0,
+      molybdenumPct: fertilizer.molybdenumPct ?? 0,
     },
   });
 
@@ -326,6 +376,11 @@ function EditFertilizerButton({ fertilizer }: { fertilizer: Fertilizer }) {
             mgoPct: fertilizer.mgoPct ?? 0,
             so3Pct: fertilizer.so3Pct ?? 0,
             boronPct: fertilizer.boronPct ?? 0,
+            ironPct: fertilizer.ironPct ?? 0,
+            manganesePct: fertilizer.manganesePct ?? 0,
+            zincPct: fertilizer.zincPct ?? 0,
+            copperPct: fertilizer.copperPct ?? 0,
+            molybdenumPct: fertilizer.molybdenumPct ?? 0,
           });
         }
       }}
@@ -368,6 +423,17 @@ function EditFertilizerButton({ fertilizer }: { fertilizer: Fertilizer }) {
                   <FormItem>
                     <FormLabel className={className}>{label}</FormLabel>
                     <FormControl><Input type="number" step="0.1" min="0" max="100" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+              ))}
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {MICRO_FIELDS.map(({ name, label, className, step }) => (
+                <FormField key={name} control={form.control} name={name} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className={className}>{label}</FormLabel>
+                    <FormControl><Input type="number" step={step} min="0" max="100" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}/>

@@ -549,7 +549,8 @@ export const GetFarmSummaryResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1039,6 +1040,11 @@ export const ListFertilizersResponseItem = zod.object({
   "mgoPct": zod.number().nullish(),
   "so3Pct": zod.number().nullish(),
   "boronPct": zod.number().nullish(),
+  "ironPct": zod.number().nullish(),
+  "manganesePct": zod.number().nullish(),
+  "zincPct": zod.number().nullish(),
+  "copperPct": zod.number().nullish(),
+  "molybdenumPct": zod.number().nullish(),
   "densityKgL": zod.number().nullish(),
   "ecContribution": zod.number().nullish().describe('dS\/m per g\/L approx'),
   "incompatibleWith": zod.array(zod.string()).optional(),
@@ -1065,6 +1071,11 @@ export const CreateFertilizerBody = zod.object({
   "mgoPct": zod.number().optional(),
   "so3Pct": zod.number().optional(),
   "boronPct": zod.number().optional(),
+  "ironPct": zod.number().optional(),
+  "manganesePct": zod.number().optional(),
+  "zincPct": zod.number().optional(),
+  "copperPct": zod.number().optional(),
+  "molybdenumPct": zod.number().optional(),
   "densityKgL": zod.number().optional(),
   "ecContribution": zod.number().optional(),
   "incompatibleWith": zod.array(zod.string()).optional(),
@@ -1087,6 +1098,11 @@ export const CreateFertilizerResponse = zod.object({
   "mgoPct": zod.number().nullish(),
   "so3Pct": zod.number().nullish(),
   "boronPct": zod.number().nullish(),
+  "ironPct": zod.number().nullish(),
+  "manganesePct": zod.number().nullish(),
+  "zincPct": zod.number().nullish(),
+  "copperPct": zod.number().nullish(),
+  "molybdenumPct": zod.number().nullish(),
   "densityKgL": zod.number().nullish(),
   "ecContribution": zod.number().nullish().describe('dS\/m per g\/L approx'),
   "incompatibleWith": zod.array(zod.string()).optional(),
@@ -1116,6 +1132,11 @@ export const UpdateFertilizerBody = zod.object({
   "mgoPct": zod.number().optional(),
   "so3Pct": zod.number().optional(),
   "boronPct": zod.number().optional(),
+  "ironPct": zod.number().optional(),
+  "manganesePct": zod.number().optional(),
+  "zincPct": zod.number().optional(),
+  "copperPct": zod.number().optional(),
+  "molybdenumPct": zod.number().optional(),
   "densityKgL": zod.number().optional(),
   "ecContribution": zod.number().optional(),
   "incompatibleWith": zod.array(zod.string()).optional(),
@@ -1138,6 +1159,11 @@ export const UpdateFertilizerResponse = zod.object({
   "mgoPct": zod.number().nullish(),
   "so3Pct": zod.number().nullish(),
   "boronPct": zod.number().nullish(),
+  "ironPct": zod.number().nullish(),
+  "manganesePct": zod.number().nullish(),
+  "zincPct": zod.number().nullish(),
+  "copperPct": zod.number().nullish(),
+  "molybdenumPct": zod.number().nullish(),
   "densityKgL": zod.number().nullish(),
   "ecContribution": zod.number().nullish().describe('dS\/m per g\/L approx'),
   "incompatibleWith": zod.array(zod.string()).optional(),
@@ -1170,7 +1196,8 @@ export const ListRecommendationsResponseItem = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1210,7 +1237,8 @@ export const CreateRecommendationBody = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().optional()
 })
@@ -1228,7 +1256,8 @@ export const CreateRecommendationResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1279,7 +1308,12 @@ export const ListProductSheetsResponseItem = zod.object({
   "caoPct": zod.number().nullish(),
   "mgoPct": zod.number().nullish(),
   "so3Pct": zod.number().nullish(),
-  "boronPct": zod.number().nullish()
+  "boronPct": zod.number().nullish(),
+  "ironPct": zod.number().nullish(),
+  "manganesePct": zod.number().nullish(),
+  "zincPct": zod.number().nullish(),
+  "copperPct": zod.number().nullish(),
+  "molybdenumPct": zod.number().nullish()
 }).nullish(),
   "dosage": zod.string().nullish(),
   "sourceUrl": zod.string().nullish(),
@@ -1325,6 +1359,11 @@ export const IdentifyProductSheetResponse = zod.object({
   "mgoPct": zod.number().nullish(),
   "so3Pct": zod.number().nullish(),
   "boronPct": zod.number().nullish(),
+  "ironPct": zod.number().nullish(),
+  "manganesePct": zod.number().nullish(),
+  "zincPct": zod.number().nullish(),
+  "copperPct": zod.number().nullish(),
+  "molybdenumPct": zod.number().nullish(),
   "productName": zod.string().nullish(),
   "registryNumber": zod.string().nullish(),
   "activeIngredient": zod.string().nullish(),
@@ -1369,7 +1408,8 @@ export const GenerateAiDraftRecommendationResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1413,7 +1453,8 @@ export const GetRecommendationResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1452,7 +1493,8 @@ export const UpdateRecommendationBody = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })).optional(),
   "rationale": zod.string().optional()
 })
@@ -1470,7 +1512,8 @@ export const UpdateRecommendationResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1530,7 +1573,8 @@ export const ChangeRecommendationStatusResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),
@@ -1577,6 +1621,10 @@ export const RunCalculationBody = zod.object({
   "plantCount": zod.number().int().optional(),
   "phenologicalStage": zod.string().optional().describe('Overrides the farm\/sector phenological stage for this calculation'),
   "maxEcDsM": zod.number().min(runCalculationBodyMaxEcDsMMin).max(runCalculationBodyMaxEcDsMMax).optional().describe('Overrides the farm\'s maximum EC (dS\/m) for this calculation'),
+  "acid": zod.object({
+  "type": zod.enum(['nitrico', 'sulfurico']),
+  "targetPh": zod.number().nullish().describe('Orientative target pH (must be below the water pH). If absent or invalid, acidification is ignored.')
+}).nullish().describe('Independent acidification (separate injection, never mixed in the fertigation tank). Only nítrico or sulfúrico (no citric). Its contribution to the final pH and CE is computed separately.'),
   "waterMix": zod.array(zod.object({
   "waterSourceId": zod.number().int(),
   "sharePct": zod.number().min(runCalculationBodyWaterMixItemSharePctMin).max(runCalculationBodyWaterMixItemSharePctMax)
@@ -1587,19 +1635,50 @@ export const RunCalculationBody = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 }))
 })
 
 export const RunCalculationResponse = zod.object({
   "weeklyWaterLitres": zod.number(),
   "weeklyWaterM3": zod.number(),
-  "nutrients": zod.record(zod.string(), zod.number()).describe('Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b'),
+  "nutrients": zod.record(zod.string(), zod.number()).describe('Weekly kg per nutrient from fertilizers: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b, fe, mn, zn, cu, mo'),
   "estimatedEcDsM": zod.number().nullish(),
   "waterEcDsM": zod.number().nullish().describe('EC of the source irrigation water (dS\/m), from the latest water analysis'),
   "fertilizersEcDsM": zod.number().nullish().describe('EC added by the fertilizers alone (dS\/m)'),
-  "waterContribution": zod.record(zod.string(), zod.number()).optional().describe('Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity'),
+  "waterPh": zod.number().nullish().describe('Measured pH of the irrigation water from the latest water analysis (unitless param); null when missing'),
+  "estimatedWaterPh": zod.number().nullish().describe('Deterministic ORIENTATIVE estimate of the fertigation-solution pH with this program, from the program\'s net acid\/base balance against the water\'s buffer capacity (alkalinity\/bicarbonates). Only computed when the water analysis supplies pH AND alkalinity\/bicarbonates in mg\/L; otherwise null.'),
+  "acid": zod.object({
+  "type": zod.enum(['nitrico', 'sulfurico']),
+  "targetPh": zod.number().nullish(),
+  "litersPerWeek": zod.number().nullish().describe('Litres of acid product per week of irrigation; null when not estimable (missing water pH\/alkalinity).'),
+  "ecDsM": zod.number().describe('Contribution of the acid to the solution EC (dS\/m), already included in estimatedEcDsM.')
+}).nullish().describe('Independent acidification (separate injection). null when no acid is used.'),
+  "blocks": zod.array(zod.object({
+  "key": zod.enum(['npk', 'calcio', 'acido']),
+  "label": zod.string(),
+  "note": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "weeklyDose": zod.number(),
+  "unit": zod.string()
+}))
+})).optional().describe('Mixing blocks by tank compatibility: NPK (main tank), Calcio (separate tank, never with phosphates\/sulfates), Ácido (independent injection). Never mix NPK and calcium in the same tank.'),
+  "waterContribution": zod.record(zod.string(), zod.number()).optional().describe('Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity, fe, mn, zn, cu, mo'),
   "sar": zod.number().nullish(),
+  "waterMix": zod.array(zod.object({
+  "name": zod.string(),
+  "sharePct": zod.number()
+})).nullish().describe('Theoretical mix of the water sources actually used for this fertigation calculation (name + weighted %); null when a single water analysis was used (no blend)'),
+  "blendedWaterParameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.number(),
+  "unit": zod.string().nullish(),
+  "refLow": zod.number().nullish(),
+  "refHigh": zod.number().nullish(),
+  "status": zod.string().nullish().describe('muy_bajo | bajo | normal | alto | muy_alto')
+})).nullish().describe('Theoretical blended water parameters (weighted mix of each source\'s latest water analysis) used to compute the fertigation; null when there is a single source or none'),
   "warnings": zod.array(zod.string()),
   "compatibilityIssues": zod.array(zod.string()),
   "stageComparison": zod.union([zod.object({
@@ -1889,7 +1968,8 @@ export const CreateDraftFromMessageResponse = zod.object({
   "weeklyDose": zod.number(),
   "unit": zod.string().describe('kg | L'),
   "previousDose": zod.number().nullish(),
-  "reason": zod.string().nullish()
+  "reason": zod.string().nullish(),
+  "block": zod.string().nullish().describe('Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).')
 })),
   "rationale": zod.string().nullish(),
   "estimatedEcDsM": zod.number().nullish(),

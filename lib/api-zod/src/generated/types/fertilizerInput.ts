@@ -22,6 +22,11 @@ export interface FertilizerInput {
   mgoPct?: number;
   so3Pct?: number;
   boronPct?: number;
+  ironPct?: number;
+  manganesePct?: number;
+  zincPct?: number;
+  copperPct?: number;
+  molybdenumPct?: number;
   densityKgL?: number;
   ecContribution?: number;
   incompatibleWith?: string[];

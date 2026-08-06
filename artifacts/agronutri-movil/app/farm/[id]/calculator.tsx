@@ -48,7 +48,22 @@ const NUTRIENT_LABELS: [string, string][] = [
   ['mgo', 'MgO'],
   ['so3', 'SO₃'],
   ['b', 'B'],
+  ['fe', 'Fe'],
+  ['mn', 'Mn'],
+  ['zn', 'Zn'],
+  ['cu', 'Cu'],
+  ['mo', 'Mo'],
 ];
+
+const MICRO_KEYS = new Set(['fe', 'mn', 'zn', 'cu', 'mo']);
+
+// Aporte semanal de un nutriente (kg). Los microelementos suman el aporte de
+// los abonos (nutrients) y el del agua de riego (waterContribution).
+function nutrientTotalValue(result: CalculationResult, key: string): number {
+  const fert = result.nutrients?.[key] ?? 0;
+  if (!MICRO_KEYS.has(key)) return fert;
+  return fert + (result.waterContribution?.[key] ?? 0);
+}
 
 type Item = {
   key: number;
@@ -202,7 +217,12 @@ export default function CalculatorScreen() {
       result.nutrients.cao > 0 ||
       result.nutrients.mgo > 0 ||
       result.nutrients.so3 > 0 ||
-      result.nutrients.b > 0);
+      result.nutrients.b > 0 ||
+      result.nutrients.fe > 0 ||
+      result.nutrients.mn > 0 ||
+      result.nutrients.zn > 0 ||
+      result.nutrients.cu > 0 ||
+      result.nutrients.mo > 0);
 
   const buildRecommendationInput = (): RecommendationInput | null => {
     if (!result || !sectorId || validItems.length === 0) return null;
@@ -212,6 +232,7 @@ export default function CalculatorScreen() {
       weeklyDose: parseFloat(it.dose.replace(',', '.')),
       unit: it.unit,
       reason: `Ajuste basado en el cálculo de mezcla para ${farm?.name ?? 'la finca'}.`,
+      block: blockOf[it.fertilizerName] ?? null,
     }));
     return {
       sectorId,
@@ -233,6 +254,62 @@ export default function CalculatorScreen() {
     ...(useAcid && Number.isFinite(parseFloat(targetPh)) ? { targetPh: parseFloat(targetPh) } : {}),
   });
 
+  // Acidificación independiente del agua (inyección separada del tanque de
+  // abonado). El motor solo admite nítrico y sulfúrico (no cítrico); un tipo
+  // "auto"/"fosforico" queda reservado a la IA y no se envía al motor.
+  const calcAcid =
+    useAcid && (acidType === 'nitrico' || acidType === 'sulfurico')
+      ? {
+          type: acidType as 'nitrico' | 'sulfurico',
+          targetPh: Number.isFinite(parseFloat(targetPh)) ? parseFloat(targetPh) : null,
+        }
+      : null;
+
+  // Mapa del bloque (tanque) asignado a cada fertilizante por el motor, para
+  // guardarlo en la recomendación (bloques NPK / Calcio por separado).
+  const blockOf = Object.fromEntries(
+    (result?.blocks ?? []).flatMap((b) => b.items.map((i) => [i.name, b.key] as const)),
+  );
+
+  // Recalculo automático: si cambia la abonada (producto o dosis) o un parámetro
+  // del cálculo, se refrescan los aportes nutricionales con un debounce ligero.
+  // Sigue existiendo el botón "Calcular" para forzar el cálculo a mano.
+  useEffect(() => {
+    if (!farmId) return;
+    if (validItems.length === 0) return;
+    const t = setTimeout(() => {
+      calcMutation.mutate({
+        farmId,
+        data: {
+          ...(sectorId != null ? { sectorId } : {}),
+          ...(Number.isFinite(plantCountNum) && plantCountNum > 0 ? { plantCount: plantCountNum } : {}),
+          ...(Number.isFinite(weeklyLitresNum) && weeklyLitresNum > 0
+            ? { weeklyLitresPerPlant: weeklyLitresNum }
+            : {}),
+          ...(Number.isFinite(maxEcNum) && maxEcNum > 0 ? { maxEcDsM: ecToDs(maxEcNum) } : {}),
+          ...(calcAcid ? { acid: calcAcid } : {}),
+          items: validItems.map((it) => ({
+            fertilizerId: it.fertilizerId,
+            fertilizerName: it.fertilizerName,
+            weeklyDose: parseFloat(it.dose.replace(',', '.')),
+            unit: it.unit,
+          })),
+          ...(stageChoice !== 'auto' ? { phenologicalStage: stageChoice } : {}),
+        },
+      });
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    farmId,
+    sectorId,
+    plantCount,
+    weeklyLitres,
+    maxEcUs,
+    stageChoice,
+    items.map((it) => `${it.fertilizerId}:${it.fertilizerName}:${it.dose}:${it.unit}`).join('|'),
+  ]);
+
   const handleCalculate = () => {
     setResult(null);
     calcMutation.mutate({
@@ -244,6 +321,7 @@ export default function CalculatorScreen() {
           ? { weeklyLitresPerPlant: weeklyLitresNum }
           : {}),
         ...(Number.isFinite(maxEcNum) && maxEcNum > 0 ? { maxEcDsM: ecToDs(maxEcNum) } : {}),
+        ...(calcAcid ? { acid: calcAcid } : {}),
         items: validItems.map((it) => ({
           fertilizerId: it.fertilizerId,
           fertilizerName: it.fertilizerName,
@@ -269,6 +347,7 @@ export default function CalculatorScreen() {
         fertilizerName: it.fertilizerName,
         weeklyDose: parseFloat(it.dose.replace(',', '.')),
         unit: it.unit,
+        block: blockOf[it.fertilizerName] ?? null,
       })) },
     });
   };
@@ -577,6 +656,22 @@ export default function CalculatorScreen() {
               </View>
             </View>
             {exceedsCe ? <Badge label="Supera la CE máxima" tone="destructive" /> : null}
+            {result.waterPh != null ? (
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.resultValue, { color: c.primary }]}>
+                    {result.estimatedWaterPh != null
+                      ? `${Math.round(result.estimatedWaterPh * 10) / 10}`
+                      : `${result.waterPh}`}
+                  </Text>
+                  <Text style={[styles.resultLabel, { color: c.mutedForeground }]}>
+                    {result.estimatedWaterPh != null
+                      ? `pH estimado con esta abonada (agua ${result.waterPh})`
+                      : 'pH del agua de riego (sin ajustar)'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             {result.stageComparison ? (
               <View style={{ gap: 8 }}>
                 <View style={styles.stageRow}>
@@ -604,16 +699,141 @@ export default function CalculatorScreen() {
                 CE del agua de riego: {formatNumber(ecToUs(result.waterEcDsM))} µS/cm
               </Text>
             ) : null}
+            {result.waterMix != null && result.waterMix.length > 1 && (
+              <View style={{ gap: 8 }}>
+                <Text style={[styles.subTitle, { color: c.foreground }]}>
+                  Datos teóricos de la mezcla de agua
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {result.waterMix.map((m) => (
+                    <View
+                      key={m.name}
+                      style={[
+                        {
+                          backgroundColor: c.primary + '1a',
+                          borderRadius: 999,
+                          paddingHorizontal: 10,
+                          paddingVertical: 3,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: c.primary, fontSize: 12 }}>
+                        {m.name} · {m.sharePct}%
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                {result.blendedWaterParameters != null &&
+                result.blendedWaterParameters.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {result.blendedWaterParameters.map((p, i) => (
+                      <View
+                        key={`${p.name}-${i}`}
+                        style={[
+                          styles.blendParam,
+                          { borderColor: c.border, backgroundColor: c.background },
+                        ]}
+                      >
+                        <Text style={[styles.metaText, { color: c.mutedForeground }]} numberOfLines={1}>
+                          {p.name}
+                        </Text>
+                        <Text style={[styles.blendParamValue, { color: c.foreground }]}>
+                          {formatNumber(p.value)} {p.unit ?? ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[styles.metaText, { color: '#8a6a08' }]}>
+                    Faltan datos de analítica de agua para calcular los valores teóricos de la mezcla.
+                  </Text>
+                )}
+              </View>
+            )}
             <View style={[styles.divider, { backgroundColor: c.border }]} />
             <Text style={[styles.subTitle, { color: c.foreground }]}>Aporte semanal (kg)</Text>
-            {NUTRIENT_LABELS.filter(([k]) => (result.nutrients[k] ?? 0) > 0).map(([k, label]) => (
-              <View key={k} style={styles.nutrientRow}>
-                <Text style={[styles.nutrientName, { color: c.foreground }]}>{label}</Text>
-                <Text style={[styles.nutrientValue, { color: c.foreground }]}>
-                  {formatNumber(result.nutrients[k])}
+            {NUTRIENT_LABELS
+              .map(([k, label]) => [k, label, nutrientTotalValue(result, k)] as const)
+              .filter(([, , v]) => (v ?? 0) > 0)
+              .map(([k, label, v]) => (
+                <View key={k} style={styles.nutrientRow}>
+                  <Text style={[styles.nutrientName, { color: c.foreground }]}>{label}</Text>
+                  <Text style={[styles.nutrientValue, { color: c.foreground }]}>
+                    {formatNumber(v!)}
+                  </Text>
+                </View>
+              ))}
+            <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+              Los microelementos (Fe, Mn, Zn, Cu, Mo) incluyen el aporte de los abonos y el del agua de riego
+              (solo si la analítica del agua trae el parámetro en mg/L).
+            </Text>
+            {(result.blocks ?? []).length > 0 ? (
+              <View style={{ gap: 8 }}>
+                <Text style={[styles.subTitle, { color: c.foreground }]}>Bloques de mezcla por tanque</Text>
+                <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+                  Qué productos pueden ir juntos en el mismo tanque. El calcio va siempre aparte del NPK; el
+                  ácido se inyecta por separado.
                 </Text>
+                {(result.blocks ?? []).map((b) => (
+                  <View key={b.key} style={[styles.blockBox, { borderColor: c.border, backgroundColor: c.muted }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.nutrientName, { color: c.foreground }]}>{b.label}</Text>
+                      <Badge
+                        label={
+                          b.key === 'npk'
+                            ? 'tanque principal'
+                            : b.key === 'calcio'
+                            ? 'tanque aparte'
+                            : 'inyección aparte'
+                        }
+                        tone={b.key === 'calcio' ? 'accent' : b.key === 'acido' ? 'destructive' : 'muted'}
+                      />
+                    </View>
+                    {b.note ? (
+                      <Text style={[styles.metaText, { color: c.mutedForeground }]}>{b.note}</Text>
+                    ) : null}
+                    {b.items.map((i, idx) => (
+                      <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={[styles.metaText, { color: c.foreground }]}>{i.name}</Text>
+                        <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+                          {formatNumber(i.weeklyDose)} {i.unit}/sem
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
               </View>
-            ))}
+            ) : null}
+            {result.acid != null &&
+            (result.acid.litersPerWeek != null || result.acid.ecDsM > 0) ? (
+              <View style={{ gap: 6 }}>
+                <Text style={[styles.subTitle, { color: c.foreground }]}>
+                  {result.acid.type === 'nitrico' ? 'Ácido nítrico' : 'Ácido sulfúrico'}{' '}
+                  <Badge label="inyección aparte" tone="destructive" />
+                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={[styles.metaText, { color: c.mutedForeground }]}>Dosis</Text>
+                  <Text style={[styles.metaText, { color: c.foreground }]}>
+                    {result.acid.litersPerWeek != null
+                      ? `${formatNumber(result.acid.litersPerWeek)} L/sem`
+                      : 'No estimable'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={[styles.metaText, { color: c.mutedForeground }]}>Aporte a la CE</Text>
+                  <Text style={[styles.metaText, { color: c.foreground }]}>
+                    {result.acid.ecDsM > 0 ? `+${formatNumber(ecToUs(result.acid.ecDsM))} µS/cm` : '—'}
+                  </Text>
+                </View>
+                {result.acid.targetPh != null ? (
+                  <Text style={[styles.metaText, { color: c.mutedForeground }]}>
+                    {result.estimatedWaterPh != null
+                      ? `Efecto orientativo ≈ pH ${Math.round(result.estimatedWaterPh * 10) / 10} (agua ${result.waterPh})`
+                      : `Objetivo pH ${result.acid.targetPh}`}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
             {(result.compatibilityIssues ?? []).map((w, i) => (
               <View key={`ci-${i}`} style={styles.warningRow}>
                 <Feather name="alert-octagon" size={14} color={c.destructive} />
@@ -780,8 +1000,11 @@ const styles = StyleSheet.create({
   nutrientRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   nutrientName: { fontSize: 14, fontFamily: 'Inter_400Regular' },
   nutrientValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  blockBox: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 10, gap: 6 },
   warningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   warningText: { fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 },
+  blendParam: { flexBasis: '46%', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, gap: 2 },
+  blendParamValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
   modalSheet: {
     borderTopLeftRadius: 18,

@@ -45,6 +45,16 @@ export interface IdentifyProductSheetResponse {
   /** @nullable */
   boronPct?: number | null;
   /** @nullable */
+  ironPct?: number | null;
+  /** @nullable */
+  manganesePct?: number | null;
+  /** @nullable */
+  zincPct?: number | null;
+  /** @nullable */
+  copperPct?: number | null;
+  /** @nullable */
+  molybdenumPct?: number | null;
+  /** @nullable */
   productName?: string | null;
   /** @nullable */
   registryNumber?: string | null;

@@ -24,4 +24,14 @@ export type ProductSheetComposition = {
   so3Pct?: number | null;
   /** @nullable */
   boronPct?: number | null;
+  /** @nullable */
+  ironPct?: number | null;
+  /** @nullable */
+  manganesePct?: number | null;
+  /** @nullable */
+  zincPct?: number | null;
+  /** @nullable */
+  copperPct?: number | null;
+  /** @nullable */
+  molybdenumPct?: number | null;
 } | null;

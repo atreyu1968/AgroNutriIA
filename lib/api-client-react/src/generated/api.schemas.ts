@@ -1046,6 +1046,11 @@ export interface RecommendationItem {
   previousDose?: number | null;
   /** @nullable */
   reason?: string | null;
+  /**
+     * Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).
+     * @nullable
+     */
+  block?: string | null;
 }
 
 export type StageComparisonRangeSource = typeof StageComparisonRangeSource[keyof typeof StageComparisonRangeSource];
@@ -1341,6 +1346,16 @@ export interface Fertilizer {
   /** @nullable */
   boronPct?: number | null;
   /** @nullable */
+  ironPct?: number | null;
+  /** @nullable */
+  manganesePct?: number | null;
+  /** @nullable */
+  zincPct?: number | null;
+  /** @nullable */
+  copperPct?: number | null;
+  /** @nullable */
+  molybdenumPct?: number | null;
+  /** @nullable */
   densityKgL?: number | null;
   /**
      * dS/m per g/L approx
@@ -1377,6 +1392,11 @@ export interface FertilizerInput {
   mgoPct?: number;
   so3Pct?: number;
   boronPct?: number;
+  ironPct?: number;
+  manganesePct?: number;
+  zincPct?: number;
+  copperPct?: number;
+  molybdenumPct?: number;
   densityKgL?: number;
   ecContribution?: number;
   incompatibleWith?: string[];
@@ -1407,6 +1427,11 @@ export interface FertilizerUpdate {
   mgoPct?: number;
   so3Pct?: number;
   boronPct?: number;
+  ironPct?: number;
+  manganesePct?: number;
+  zincPct?: number;
+  copperPct?: number;
+  molybdenumPct?: number;
   densityKgL?: number;
   ecContribution?: number;
   incompatibleWith?: string[];
@@ -1443,6 +1468,27 @@ export interface RecommendationStatusChange {
   comment?: string;
 }
 
+export type CalculationRequestAcidType = typeof CalculationRequestAcidType[keyof typeof CalculationRequestAcidType];
+
+
+export const CalculationRequestAcidType = {
+  nitrico: 'nitrico',
+  sulfurico: 'sulfurico',
+} as const;
+
+/**
+ * Independent acidification (separate injection, never mixed in the fertigation tank). Only nítrico or sulfúrico (no citric). Its contribution to the final pH and CE is computed separately.
+ * @nullable
+ */
+export type CalculationRequestAcid = {
+  type: CalculationRequestAcidType;
+  /**
+     * Orientative target pH (must be below the water pH). If absent or invalid, acidification is ignored.
+     * @nullable
+     */
+  targetPh?: number | null;
+} | null;
+
 export type CalculationRequestWaterMixItem = {
   waterSourceId: number;
   /**
@@ -1464,25 +1510,83 @@ export interface CalculationRequest {
      * @maximum 10
      */
   maxEcDsM?: number;
+  /**
+     * Independent acidification (separate injection, never mixed in the fertigation tank). Only nítrico or sulfúrico (no citric). Its contribution to the final pH and CE is computed separately.
+     * @nullable
+     */
+  acid?: CalculationRequestAcid;
   /** Overrides the stored share of each water source for this calculation */
   waterMix?: CalculationRequestWaterMixItem[];
   items: RecommendationItem[];
 }
 
 /**
- * Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b
+ * Weekly kg per nutrient from fertilizers: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b, fe, mn, zn, cu, mo
  */
 export type CalculationResultNutrients = {[key: string]: number};
 
+export type CalculationResultAcidType = typeof CalculationResultAcidType[keyof typeof CalculationResultAcidType];
+
+
+export const CalculationResultAcidType = {
+  nitrico: 'nitrico',
+  sulfurico: 'sulfurico',
+} as const;
+
 /**
- * Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity
+ * Independent acidification (separate injection). null when no acid is used.
+ * @nullable
+ */
+export type CalculationResultAcid = {
+  type: CalculationResultAcidType;
+  /** @nullable */
+  targetPh?: number | null;
+  /**
+     * Litres of acid product per week of irrigation; null when not estimable (missing water pH/alkalinity).
+     * @nullable
+     */
+  litersPerWeek?: number | null;
+  /** Contribution of the acid to the solution EC (dS/m), already included in estimatedEcDsM. */
+  ecDsM: number;
+} | null;
+
+export type CalculationResultBlocksItemKey = typeof CalculationResultBlocksItemKey[keyof typeof CalculationResultBlocksItemKey];
+
+
+export const CalculationResultBlocksItemKey = {
+  npk: 'npk',
+  calcio: 'calcio',
+  acido: 'acido',
+} as const;
+
+export type CalculationResultBlocksItemItemsItem = {
+  name: string;
+  weeklyDose: number;
+  unit: string;
+};
+
+export type CalculationResultBlocksItem = {
+  key: CalculationResultBlocksItemKey;
+  label: string;
+  /** @nullable */
+  note?: string | null;
+  items: CalculationResultBlocksItemItemsItem[];
+};
+
+/**
+ * Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity, fe, mn, zn, cu, mo
  */
 export type CalculationResultWaterContribution = {[key: string]: number};
+
+export type CalculationResultWaterMixItem = {
+  name: string;
+  sharePct: number;
+};
 
 export interface CalculationResult {
   weeklyWaterLitres: number;
   weeklyWaterM3: number;
-  /** Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b */
+  /** Weekly kg per nutrient from fertilizers: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b, fe, mn, zn, cu, mo */
   nutrients: CalculationResultNutrients;
   /** @nullable */
   estimatedEcDsM?: number | null;
@@ -1496,10 +1600,37 @@ export interface CalculationResult {
      * @nullable
      */
   fertilizersEcDsM?: number | null;
-  /** Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity */
+  /**
+     * Measured pH of the irrigation water from the latest water analysis (unitless param); null when missing
+     * @nullable
+     */
+  waterPh?: number | null;
+  /**
+     * Deterministic ORIENTATIVE estimate of the fertigation-solution pH with this program, from the program's net acid/base balance against the water's buffer capacity (alkalinity/bicarbonates). Only computed when the water analysis supplies pH AND alkalinity/bicarbonates in mg/L; otherwise null.
+     * @nullable
+     */
+  estimatedWaterPh?: number | null;
+  /**
+     * Independent acidification (separate injection). null when no acid is used.
+     * @nullable
+     */
+  acid?: CalculationResultAcid;
+  /** Mixing blocks by tank compatibility: NPK (main tank), Calcio (separate tank, never with phosphates/sulfates), Ácido (independent injection). Never mix NPK and calcium in the same tank. */
+  blocks?: CalculationResultBlocksItem[];
+  /** Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity, fe, mn, zn, cu, mo */
   waterContribution?: CalculationResultWaterContribution;
   /** @nullable */
   sar?: number | null;
+  /**
+     * Theoretical mix of the water sources actually used for this fertigation calculation (name + weighted %); null when a single water analysis was used (no blend)
+     * @nullable
+     */
+  waterMix?: CalculationResultWaterMixItem[] | null;
+  /**
+     * Theoretical blended water parameters (weighted mix of each source's latest water analysis) used to compute the fertigation; null when there is a single source or none
+     * @nullable
+     */
+  blendedWaterParameters?: AnalysisParameter[] | null;
   warnings: string[];
   compatibilityIssues: string[];
   stageComparison?: StageComparison | null;
@@ -1651,6 +1782,16 @@ export type ProductSheetComposition = {
   so3Pct?: number | null;
   /** @nullable */
   boronPct?: number | null;
+  /** @nullable */
+  ironPct?: number | null;
+  /** @nullable */
+  manganesePct?: number | null;
+  /** @nullable */
+  zincPct?: number | null;
+  /** @nullable */
+  copperPct?: number | null;
+  /** @nullable */
+  molybdenumPct?: number | null;
 } | null;
 
 export interface ProductSheet {
@@ -1722,6 +1863,16 @@ export interface IdentifyProductSheetResponse {
   so3Pct?: number | null;
   /** @nullable */
   boronPct?: number | null;
+  /** @nullable */
+  ironPct?: number | null;
+  /** @nullable */
+  manganesePct?: number | null;
+  /** @nullable */
+  zincPct?: number | null;
+  /** @nullable */
+  copperPct?: number | null;
+  /** @nullable */
+  molybdenumPct?: number | null;
   /** @nullable */
   productName?: string | null;
   /** @nullable */

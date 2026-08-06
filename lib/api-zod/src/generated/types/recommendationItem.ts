@@ -17,4 +17,9 @@ export interface RecommendationItem {
   previousDose?: number | null;
   /** @nullable */
   reason?: string | null;
+  /**
+     * Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium).
+     * @nullable
+     */
+  block?: string | null;
 }

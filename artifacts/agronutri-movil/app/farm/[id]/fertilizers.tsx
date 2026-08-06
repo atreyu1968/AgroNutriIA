@@ -41,6 +41,12 @@ type FertilizerFormState = {
   caoPct: string;
   mgoPct: string;
   so3Pct: string;
+  boronPct: string;
+  ironPct: string;
+  manganesePct: string;
+  zincPct: string;
+  copperPct: string;
+  molybdenumPct: string;
 };
 
 const EMPTY_FORM: FertilizerFormState = {
@@ -53,6 +59,12 @@ const EMPTY_FORM: FertilizerFormState = {
   caoPct: '',
   mgoPct: '',
   so3Pct: '',
+  boronPct: '',
+  ironPct: '',
+  manganesePct: '',
+  zincPct: '',
+  copperPct: '',
+  molybdenumPct: '',
 };
 
 function toNumber(v: string): number | null {
@@ -86,7 +98,13 @@ function nutrientRows(f: Fertilizer) {
     ['CaO', f.caoPct],
     ['MgO', f.mgoPct],
     ['SO₃', f.so3Pct],
-  ] as const;
+    ['B', f.boronPct],
+    ['Fe', f.ironPct],
+    ['Mn', f.manganesePct],
+    ['Zn', f.zincPct],
+    ['Cu', f.copperPct],
+    ['Mo', f.molybdenumPct],
+  ].filter(([, v]) => typeof v === 'number' && v > 0) as [string, number | null | undefined][];
 }
 
 function errorMessage(err: unknown): string {
@@ -216,6 +234,12 @@ function FertilizerFormModal({
       caoPct: String(initialValue.caoPct ?? ''),
       mgoPct: String(initialValue.mgoPct ?? ''),
       so3Pct: String(initialValue.so3Pct ?? ''),
+      boronPct: String(initialValue.boronPct ?? ''),
+      ironPct: String(initialValue.ironPct ?? ''),
+      manganesePct: String(initialValue.manganesePct ?? ''),
+      zincPct: String(initialValue.zincPct ?? ''),
+      copperPct: String(initialValue.copperPct ?? ''),
+      molybdenumPct: String(initialValue.molybdenumPct ?? ''),
     });
   }, [visible, initialValue]);
 
@@ -253,6 +277,12 @@ function FertilizerFormModal({
         caoPct: result.caoPct != null ? String(result.caoPct) : p.caoPct,
         mgoPct: result.mgoPct != null ? String(result.mgoPct) : p.mgoPct,
         so3Pct: result.so3Pct != null ? String(result.so3Pct) : p.so3Pct,
+        boronPct: result.boronPct != null ? String(result.boronPct) : p.boronPct,
+        ironPct: result.ironPct != null ? String(result.ironPct) : p.ironPct,
+        manganesePct: result.manganesePct != null ? String(result.manganesePct) : p.manganesePct,
+        zincPct: result.zincPct != null ? String(result.zincPct) : p.zincPct,
+        copperPct: result.copperPct != null ? String(result.copperPct) : p.copperPct,
+        molybdenumPct: result.molybdenumPct != null ? String(result.molybdenumPct) : p.molybdenumPct,
       }));
       const notes = result.notes;
       const warnings = result.warnings ?? [];
@@ -357,6 +387,12 @@ function FertilizerFormModal({
               <View style={styles.gridItem}><Field label="CaO %" value={form.caoPct} onChange={(v) => setForm((p) => ({ ...p, caoPct: v }))} keyboardType="decimal-pad" /></View>
               <View style={styles.gridItem}><Field label="MgO %" value={form.mgoPct} onChange={(v) => setForm((p) => ({ ...p, mgoPct: v }))} keyboardType="decimal-pad" /></View>
               <View style={styles.gridItem}><Field label="SO₃ %" value={form.so3Pct} onChange={(v) => setForm((p) => ({ ...p, so3Pct: v }))} keyboardType="decimal-pad" /></View>
+              <View style={styles.gridItem}><Field label="B %" value={form.boronPct} onChange={(v) => setForm((p) => ({ ...p, boronPct: v }))} keyboardType="decimal-pad" /></View>
+              <View style={styles.gridItem}><Field label="Fe %" value={form.ironPct} onChange={(v) => setForm((p) => ({ ...p, ironPct: v }))} keyboardType="decimal-pad" /></View>
+              <View style={styles.gridItem}><Field label="Mn %" value={form.manganesePct} onChange={(v) => setForm((p) => ({ ...p, manganesePct: v }))} keyboardType="decimal-pad" /></View>
+              <View style={styles.gridItem}><Field label="Zn %" value={form.zincPct} onChange={(v) => setForm((p) => ({ ...p, zincPct: v }))} keyboardType="decimal-pad" /></View>
+              <View style={styles.gridItem}><Field label="Cu %" value={form.copperPct} onChange={(v) => setForm((p) => ({ ...p, copperPct: v }))} keyboardType="decimal-pad" /></View>
+              <View style={styles.gridItem}><Field label="Mo %" value={form.molybdenumPct} onChange={(v) => setForm((p) => ({ ...p, molybdenumPct: v }))} keyboardType="decimal-pad" /></View>
             </View>
           </Card>
 
@@ -477,6 +513,12 @@ export default function FertilizersScreen() {
       caoPct: toNumber(data.caoPct),
       mgoPct: toNumber(data.mgoPct),
       so3Pct: toNumber(data.so3Pct),
+      boronPct: toNumber(data.boronPct),
+      ironPct: toNumber(data.ironPct),
+      manganesePct: toNumber(data.manganesePct),
+      zincPct: toNumber(data.zincPct),
+      copperPct: toNumber(data.copperPct),
+      molybdenumPct: toNumber(data.molybdenumPct),
     };
     if (!payload.name) {
       showError('Nombre obligatorio', 'Indica un nombre para el fertilizante.');
@@ -497,6 +539,12 @@ export default function FertilizersScreen() {
       caoPct: toNumber(data.caoPct),
       mgoPct: toNumber(data.mgoPct),
       so3Pct: toNumber(data.so3Pct),
+      boronPct: toNumber(data.boronPct),
+      ironPct: toNumber(data.ironPct),
+      manganesePct: toNumber(data.manganesePct),
+      zincPct: toNumber(data.zincPct),
+      copperPct: toNumber(data.copperPct),
+      molybdenumPct: toNumber(data.molybdenumPct),
     };
     await updateMutation.mutateAsync({ fertilizerId: editing.id, data: payload as any });
   };

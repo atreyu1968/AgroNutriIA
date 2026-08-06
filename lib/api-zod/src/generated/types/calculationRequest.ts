@@ -5,6 +5,7 @@
  * AgroNutri AI API
  * OpenAPI spec version: 0.1.0
  */
+import type { CalculationRequestAcid } from './calculationRequestAcid';
 import type { CalculationRequestWaterMixItem } from './calculationRequestWaterMixItem';
 import type { RecommendationItem } from './recommendationItem';
 
@@ -20,6 +21,11 @@ export interface CalculationRequest {
      * @maximum 10
      */
   maxEcDsM?: number;
+  /**
+     * Independent acidification (separate injection, never mixed in the fertigation tank). Only nítrico or sulfúrico (no citric). Its contribution to the final pH and CE is computed separately.
+     * @nullable
+     */
+  acid?: CalculationRequestAcid;
   /** Overrides the stored share of each water source for this calculation */
   waterMix?: CalculationRequestWaterMixItem[];
   items: RecommendationItem[];

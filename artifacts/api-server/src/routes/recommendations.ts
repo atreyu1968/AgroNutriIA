@@ -631,6 +631,65 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
     }
   }
 
+  // Determinación del tipo de ácido de un producto (p. ej. "Ácido nítrico 54%" →
+  // "nitrico"). Se usa para RESPETAR el ácido solicitado por el agricultor: si el
+  // usuario eligió un ácido concreto, ningún otro ácido debe aparecer como
+  // corrección de pH en su lugar (antes la IA tendía a usar siempre nítrico).
+  const acidTypeOf = (name: string): string | null => {
+    const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/\bnitric/.test(n)) return "nitrico";
+    if (/\bfosforic/.test(n)) return "fosforico";
+    if (/\bsulfuric/.test(n)) return "sulfurico";
+    return null;
+  };
+
+  // Cuando el agricultor pidió un ácido concreto (acidType), fuerza que el ácido
+  // del programa usado para corregir el pH sea ESE ácido: sustituye cualquier otro
+  // ácido por el solicitado si está en el catálogo, o lo retira con aviso si no.
+  let acidWarnings: string[] = [];
+  let requestedAcidChanged = false;
+  if (useAcid && acidType) {
+    const requestedFert = fertilizers.find(
+      (f) => f.isActive !== false && acidTypeOf(f.name) === acidType,
+    );
+    const enforced: RecommendationItem[] = [];
+    for (const it of items) {
+      const fert = byName.get(it.fertilizerName.toLowerCase());
+      const isPhAcid = fert && isAcidProduct(fert.name) && isPhCorrectionReason(it.reason);
+      if (!isPhAcid) {
+        enforced.push(it);
+        continue;
+      }
+      const t = acidTypeOf(fert.name);
+      if (t === acidType || !requestedFert) {
+        if (t === acidType) enforced.push(it);
+        else if (!requestedFert) {
+          requestedAcidChanged = true;
+          acidWarnings.push(
+            `El ácido solicitado (${ACID_LABEL[acidType]}) no está en el catálogo: se retira el ácido propuesto («${fert.name}») de la corrección de pH y solo se justifica en el texto.`,
+          );
+        }
+        continue;
+      }
+      requestedAcidChanged = true;
+      acidWarnings.push(
+        `Se sustituye «${fert.name}» por el ácido solicitado «${requestedFert.name}» para la corrección de pH del agua.`,
+      );
+      enforced.push({ ...it, fertilizerId: requestedFert.id, fertilizerName: requestedFert.name });
+    }
+    if (requestedAcidChanged) {
+      items = enforced;
+      // La sustitución cambia el aporte salino/nutricional: recalcular la CE.
+      out = runEngine({
+        farm: access.farm,
+        sector,
+        waterAnalysis: blendedWater.analysis,
+        fertilizers,
+        items,
+      });
+    }
+  }
+
   // Coherencia con las analíticas: si un nutriente está ALTO en suelo y NO está
   // bajo en foliar, recetar un producto cuyo aporte principal sea ese nutriente
   // es un contrasentido — se avisa expresamente (decisión final del técnico).
@@ -698,6 +757,7 @@ Regenera el programa REDUCIENDO las dosis (o cambiando productos por otros de me
       warnings: [
         ...(capNote ? [capNote] : []),
         ...blendedWater.notes,
+        ...acidWarnings,
         ...(discarded.length > 0
           ? [`Productos descartados por no estar en el catálogo o dosis inválidas: ${discarded.join(", ")}.`]
           : []),
@@ -989,8 +1049,16 @@ router.post("/farms/:farmId/calculations", async (req, res): Promise<void> => {
     plantCount: parsed.data.plantCount,
     stageOverride: parsed.data.phenologicalStage ?? null,
     maxEcOverride: parsed.data.maxEcDsM ?? null,
+    acid: parsed.data.acid ?? null,
   });
-  res.json(RunCalculationResponse.parse({ ...out, warnings: [...blended.notes, ...out.warnings] }));
+  res.json(
+    RunCalculationResponse.parse({
+      ...out,
+      waterMix: blended.mix,
+      blendedWaterParameters: blended.analysis?.parameters ?? null,
+      warnings: [...blended.notes, ...out.warnings],
+    }),
+  );
 });
 
 export default router;

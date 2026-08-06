@@ -2891,6 +2891,11 @@ components:
         mgoPct: { type: ["number", "null"] }
         so3Pct: { type: ["number", "null"] }
         boronPct: { type: ["number", "null"] }
+        ironPct: { type: ["number", "null"] }
+        manganesePct: { type: ["number", "null"] }
+        zincPct: { type: ["number", "null"] }
+        copperPct: { type: ["number", "null"] }
+        molybdenumPct: { type: ["number", "null"] }
         densityKgL: { type: ["number", "null"] }
         ecContribution: { type: ["number", "null"], description: "dS/m per g/L approx" }
         incompatibleWith:
@@ -2916,6 +2921,11 @@ components:
         mgoPct: { type: number }
         so3Pct: { type: number }
         boronPct: { type: number }
+        ironPct: { type: number }
+        manganesePct: { type: number }
+        zincPct: { type: number }
+        copperPct: { type: number }
+        molybdenumPct: { type: number }
         densityKgL: { type: number }
         ecContribution: { type: number }
         incompatibleWith:
@@ -2940,6 +2950,11 @@ components:
         mgoPct: { type: number }
         so3Pct: { type: number }
         boronPct: { type: number }
+        ironPct: { type: number }
+        manganesePct: { type: number }
+        zincPct: { type: number }
+        copperPct: { type: number }
+        molybdenumPct: { type: number }
         densityKgL: { type: number }
         ecContribution: { type: number }
         incompatibleWith:
@@ -2959,6 +2974,9 @@ components:
         unit: { type: string, description: "kg | L" }
         previousDose: { type: ["number", "null"] }
         reason: { type: ["string", "null"] }
+        block:
+          type: ["string", "null"]
+          description: "Mixing block by tank compatibility: npk | calcio | acido. Saved so the recommendation preserves which products go together in the same tank (never mix NPK and calcium)."
     Recommendation:
       type: object
       required: [id, farmId, status, items, createdAt]
@@ -3031,6 +3049,17 @@ components:
           minimum: 0.1
           maximum: 10
           description: Overrides the farm's maximum EC (dS/m) for this calculation
+        acid:
+          type: ["object", "null"]
+          description: "Independent acidification (separate injection, never mixed in the fertigation tank). Only nítrico or sulfúrico (no citric). Its contribution to the final pH and CE is computed separately."
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [nitrico, sulfurico]
+            targetPh:
+              type: ["number", "null"]
+              description: "Orientative target pH (must be below the water pH). If absent or invalid, acidification is ignored."
         waterMix:
           type: array
           description: Overrides the stored share of each water source for this calculation
@@ -3052,7 +3081,7 @@ components:
         weeklyWaterM3: { type: number }
         nutrients:
           type: object
-          description: "Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b"
+          description: "Weekly kg per nutrient from fertilizers: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b, fe, mn, zn, cu, mo"
           additionalProperties:
             type: number
         estimatedEcDsM: { type: ["number", "null"] }
@@ -3062,12 +3091,71 @@ components:
         fertilizersEcDsM:
           type: ["number", "null"]
           description: "EC added by the fertilizers alone (dS/m)"
+        waterPh:
+          type: ["number", "null"]
+          description: "Measured pH of the irrigation water from the latest water analysis (unitless param); null when missing"
+        estimatedWaterPh:
+          type: ["number", "null"]
+          description: "Deterministic ORIENTATIVE estimate of the fertigation-solution pH with this program, from the program's net acid/base balance against the water's buffer capacity (alkalinity/bicarbonates). Only computed when the water analysis supplies pH AND alkalinity/bicarbonates in mg/L; otherwise null."
+        acid:
+          type: ["object", "null"]
+          description: "Independent acidification (separate injection). null when no acid is used."
+          required: [type, ecDsM]
+          properties:
+            type:
+              type: string
+              enum: [nitrico, sulfurico]
+            targetPh:
+              type: ["number", "null"]
+            litersPerWeek:
+              type: ["number", "null"]
+              description: "Litres of acid product per week of irrigation; null when not estimable (missing water pH/alkalinity)."
+            ecDsM:
+              type: number
+              description: "Contribution of the acid to the solution EC (dS/m), already included in estimatedEcDsM."
+        blocks:
+          type: array
+          description: "Mixing blocks by tank compatibility: NPK (main tank), Calcio (separate tank, never with phosphates/sulfates), Ácido (independent injection). Never mix NPK and calcium in the same tank."
+          items:
+            type: object
+            required: [key, label, items]
+            properties:
+              key:
+                type: string
+                enum: [npk, calcio, acido]
+              label:
+                type: string
+              note:
+                type: ["string", "null"]
+              items:
+                type: array
+                items:
+                  type: object
+                  required: [name, weeklyDose, unit]
+                  properties:
+                    name: { type: string }
+                    weeklyDose: { type: number }
+                    unit: { type: string }
         waterContribution:
           type: object
-          description: "Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity"
+          description: "Weekly kg from irrigation water: na, ca, mg, k, b, no3, so4, alkalinity, fe, mn, zn, cu, mo"
           additionalProperties:
             type: number
         sar: { type: ["number", "null"] }
+        waterMix:
+          type: ["array", "null"]
+          description: "Theoretical mix of the water sources actually used for this fertigation calculation (name + weighted %); null when a single water analysis was used (no blend)"
+          items:
+            type: object
+            required: [name, sharePct]
+            properties:
+              name: { type: string }
+              sharePct: { type: number }
+        blendedWaterParameters:
+          type: ["array", "null"]
+          description: "Theoretical blended water parameters (weighted mix of each source's latest water analysis) used to compute the fertigation; null when there is a single source or none"
+          items:
+            $ref: "#/components/schemas/AnalysisParameter"
         warnings:
           type: array
           items:
@@ -3223,6 +3311,11 @@ components:
             mgoPct: { type: ["number", "null"] }
             so3Pct: { type: ["number", "null"] }
             boronPct: { type: ["number", "null"] }
+            ironPct: { type: ["number", "null"] }
+            manganesePct: { type: ["number", "null"] }
+            zincPct: { type: ["number", "null"] }
+            copperPct: { type: ["number", "null"] }
+            molybdenumPct: { type: ["number", "null"] }
         dosage: { type: ["string", "null"] }
         sourceUrl: { type: ["string", "null"] }
         fertilizerId: { type: ["integer", "null"] }
@@ -3251,6 +3344,11 @@ components:
         mgoPct: { type: ["number", "null"] }
         so3Pct: { type: ["number", "null"] }
         boronPct: { type: ["number", "null"] }
+        ironPct: { type: ["number", "null"] }
+        manganesePct: { type: ["number", "null"] }
+        zincPct: { type: ["number", "null"] }
+        copperPct: { type: ["number", "null"] }
+        molybdenumPct: { type: ["number", "null"] }
         # Campos de fitosanitario (kind=phyto)
         productName: { type: ["string", "null"] }
         registryNumber: { type: ["string", "null"] }

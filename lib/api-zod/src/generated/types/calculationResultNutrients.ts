@@ -7,6 +7,6 @@
  */
 
 /**
- * Weekly kg per nutrient: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b
+ * Weekly kg per nutrient from fertilizers: n, nNitric, nAmmoniacal, nUreic, p2o5, k2o, cao, mgo, so3, b, fe, mn, zn, cu, mo
  */
 export type CalculationResultNutrients = {[key: string]: number};

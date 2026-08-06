@@ -212,8 +212,14 @@ export default function CalculadoraTab({
         };
       });
 
+  // Convierte los ítems calculados en el payload de guardado añadiendo el bloque
+  // (tanque) que asignó el motor, para que la recomendación conserve qué abonos
+  // van juntos (NPK / Calcio por separado).
+  const buildSaveItems = () =>
+    buildValidItems().map((i) => ({ ...i, block: blockOf[i.fertilizerName] ?? null }));
+
   const handleSaveAsTechnician = () => {
-    const validItems = buildValidItems();
+    const validItems = buildSaveItems();
     if (validItems.length === 0) return;
     const rationale = (saveRationale.trim() || aiDraft?.rationale || "").trim();
     if (rationale.length < 10) {
@@ -238,7 +244,7 @@ export default function CalculadoraTab({
 
   const handleUpdateAiDraft = () => {
     if (!aiDraft) return;
-    const validItems = buildValidItems();
+    const validItems = buildSaveItems();
     if (validItems.length === 0) return;
     updateMutation.mutate({
       farmId,
@@ -246,6 +252,56 @@ export default function CalculadoraTab({
       data: { items: validItems },
     });
   };
+
+  // Recalculo automático: si cambia la abonada (producto o dosis), o un
+  // parámetro del cálculo, se refrescan los aportes nutricionales con un debounce
+  // ligero. Sigue existiendo el botón "Calcular Aportes" para forzar el cálculo.
+  const autoCalcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!farmId) return;
+    if (!items.some((i) => i.fertId && i.dose > 0)) {
+      if (autoCalcTimer.current) clearTimeout(autoCalcTimer.current);
+      return;
+    }
+    if (autoCalcTimer.current) clearTimeout(autoCalcTimer.current);
+    autoCalcTimer.current = setTimeout(() => {
+      handleCalculate();
+    }, 450);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    farmId,
+    plantCount,
+    weeklyLitresPerPlant,
+    maxEc,
+    stageChoice,
+    items.map((i) => `${i.fertId}:${i.dose}`).join("|"),
+    mixTotal,
+    JSON.stringify(mixEdit),
+  ]);
+
+  // Acidificación independiente del agua (inyección separada del tanque de
+  // abonado). El motor solo admite nítrico y sulfúrico (no cítrico). Un tipo
+  // "auto"/"fosforico" queda reservado a la IA y no se envía al motor.
+  const calcAcid =
+    useAcid && (acidType === "nitrico" || acidType === "sulfurico")
+      ? {
+          type: acidType as "nitrico" | "sulfurico",
+          targetPh: Number.isFinite(parseFloat(targetPh)) ? parseFloat(targetPh) : null,
+        }
+      : null;
+
+  // Mapa del bloque (tanque) asignado a cada fertilizante por el motor, para
+  // guardarlo en la recomendación (bloques NPK / Calcio por separado).
+  const blockOf = Object.fromEntries(
+    (calcMutation.data?.blocks ?? []).flatMap((b) =>
+      b.items.map((i) => [i.name, b.key] as const),
+    ),
+  );
+
+  // Total semanal de un microelemento (kg): suma el aporte de los abonos
+  // (nutrients) y el del agua de riego (waterContribution), ambos en kg/sem.
+  const microTotal = (key: string) =>
+    (calcMutation.data?.nutrients?.[key] ?? 0) + (calcMutation.data?.waterContribution?.[key] ?? 0);
 
   const handleCalculate = () => {
     const validItems = buildValidItems();
@@ -259,6 +315,7 @@ export default function CalculadoraTab({
           weeklyLitresPerPlant,
           ...(maxEc > 0 ? { maxEcDsM: ecToDs(maxEc) } : {}),
           items: validItems,
+          ...(calcAcid ? { acid: calcAcid } : {}),
           ...(stageChoice !== "auto" ? { phenologicalStage: stageChoice } : {}),
           ...(waterSources && waterSources.length > 0
             ? {
@@ -705,6 +762,27 @@ export default function CalculadoraTab({
                     )}
                   </CardContent>
                 </Card>
+                {calcMutation.data.waterPh != null && (
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">pH del agua de riego</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {calcMutation.data.estimatedWaterPh != null
+                          ? Math.round(calcMutation.data.estimatedWaterPh * 10) / 10
+                          : calcMutation.data.waterPh}
+                      </p>
+                      {calcMutation.data.estimatedWaterPh != null ? (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          estimado con esta abonada (agua {calcMutation.data.waterPh})
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          pH del agua sin ajustar a esta abonada
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               <Card className="shadow-sm">
@@ -722,7 +800,16 @@ export default function CalculadoraTab({
                     <NutrientBox label="MgO" value={calcMutation.data.nutrients.mgo} color="text-green-600" />
                     <NutrientBox label="SO₃" value={calcMutation.data.nutrients.so3} color="text-yellow-600" />
                     <NutrientBox label="B" value={calcMutation.data.nutrients.b} color="text-purple-600" />
+                    <NutrientBox label="Fe" value={microTotal("fe")} color="text-orange-600" micro />
+                    <NutrientBox label="Mn" value={microTotal("mn")} color="text-teal-600" micro />
+                    <NutrientBox label="Zn" value={microTotal("zn")} color="text-cyan-600" micro />
+                    <NutrientBox label="Cu" value={microTotal("cu")} color="text-lime-600" micro />
+                    <NutrientBox label="Mo" value={microTotal("mo")} color="text-fuchsia-600" micro />
                   </div>
+                  <p className="px-4 py-2 text-xs text-muted-foreground border-t">
+                    Los microelementos (Fe, Mn, Zn, Cu, Mo) incluyen el aporte de los abonos y el del agua de
+                    riego (en kg/sem; el agua solo se computa cuando su analítica trae el parámetro en mg/L).
+                  </p>
                 </CardContent>
               </Card>
 
@@ -753,6 +840,128 @@ export default function CalculadoraTab({
                     <p className="text-xs text-muted-foreground">
                       Rangos orientativos de platanera por fase; la decisión final es del técnico.
                     </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {calcMutation.data.waterMix != null && calcMutation.data.waterMix.length > 1 && (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3 border-b">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Droplets className="w-5 h-5 text-primary" /> Datos teóricos de la mezcla de agua
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3 text-sm">
+                    <p className="text-xs text-muted-foreground">
+                      Parámetros teóricos de la mezcla ponderada de las fuentes seleccionadas. Son los que el
+                      motor usa para calcular la abonada.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {calcMutation.data.waterMix.map((m) => (
+                        <span
+                          key={m.name}
+                          className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
+                        >
+                          {m.name} · {m.sharePct}%
+                        </span>
+                      ))}
+                    </div>
+                    {calcMutation.data.blendedWaterParameters != null &&
+                    calcMutation.data.blendedWaterParameters.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {calcMutation.data.blendedWaterParameters.map((p, i) => (
+                          <div
+                            key={`${p.name}-${i}`}
+                            className="rounded-md border border-border p-2 space-y-0.5"
+                          >
+                            <p className="text-xs text-muted-foreground truncate">{p.name}</p>
+                            <p className="font-semibold text-foreground">
+                              {formatNumber(p.value)} {p.unit ?? ""}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-600">
+                        No hay datos de analítica de agua suficientes para calcular los valores teóricos de la
+                        mezcla (se omiten los parámetros no presentes en todas las fuentes).
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {(calcMutation.data.blocks ?? []).length > 0 && (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3 border-b">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FlaskConical className="w-5 h-5 text-secondary" /> Bloques de mezcla por tanque
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3 text-sm">
+                    <p className="text-xs text-muted-foreground">
+                      Cada bloque indica qué productos pueden ir juntos en el mismo tanque. El calcio va siempre
+                      en tanque separado del NPK (y nunca con fosfatos/sulfatos) para evitar precipitados; el
+                      ácido se inyecta aparte. Así figura al guardar la recomendación.
+                    </p>
+                    {(calcMutation.data.blocks ?? []).map((b) => (
+                      <div key={b.key} className="rounded-md border bg-muted/20 p-3">
+                        <p className="font-medium flex items-center gap-2">
+                          {b.label}
+                          {b.key === "npk" && <Badge variant="outline" className="text-[10px]">tanque principal</Badge>}
+                          {b.key === "calcio" && <Badge variant="secondary" className="text-[10px]">tanque aparte</Badge>}
+                          {b.key === "acido" && <Badge variant="destructive" className="text-[10px]">inyección aparte</Badge>}
+                        </p>
+                        {b.note && <p className="text-xs text-muted-foreground mt-0.5">{b.note}</p>}
+                        <ul className="mt-2 space-y-0.5">
+                          {b.items.map((i, idx) => (
+                            <li key={idx} className="flex justify-between text-xs">
+                              <span>{i.name}</span>
+                              <span className="text-muted-foreground">ari {formatNumber(i.weeklyDose)} {i.unit}/sem</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {calcMutation.data.acid != null && (calcMutation.data.acid.litersPerWeek != null || calcMutation.data.acid.ecDsM > 0) && (
+                <Card className="border-secondary/40 bg-secondary/5">
+                  <CardHeader className="pb-3 border-b">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FlaskConical className="w-4 h-4 text-secondary" />
+                      {calcMutation.data.acid.type === "nitrico" ? "Ácido nítrico" : "Ácido sulfúrico"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Dosis</p>
+                      <p className="font-semibold">
+                        {calcMutation.data.acid.litersPerWeek != null
+                          ? `${formatNumber(calcMutation.data.acid.litersPerWeek)} L/sem`
+                          : "No estimable"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Aporte a la CE</p>
+                      <p className="font-semibold">
+                        {calcMutation.data.acid.ecDsM > 0
+                          ? `+${formatNumber(ecToUs(calcMutation.data.acid.ecDsM))} µS/cm`
+                          : "—"}
+                      </p>
+                    </div>
+                    {calcMutation.data.acid.targetPh != null && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground">Efecto orientativo sobre el pH de la solución</p>
+                        <p className="font-semibold">
+                          {calcMutation.data.estimatedWaterPh != null
+                            ? `≈ pH ${Math.round(calcMutation.data.estimatedWaterPh * 10) / 10} (agua ${calcMutation.data.waterPh})`
+                            : `Objetivo pH ${calcMutation.data.acid.targetPh}`}
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -815,14 +1024,14 @@ export default function CalculadoraTab({
   );
 }
 
-function NutrientBox({ label, value, color, sub = false }: { label: string, value: number, color: string, sub?: boolean }) {
-  if (value === 0 && sub) return null;
+function NutrientBox({ label, value, color, sub = false, micro = false }: { label: string, value: number, color: string, sub?: boolean, micro?: boolean }) {
+  if (value === 0 && (sub || micro)) return null;
   
   return (
     <div className={`p-4 flex flex-col items-center justify-center ${sub ? 'bg-muted/30' : ''}`}>
       <span className={`text-xs uppercase tracking-wider mb-1 ${sub ? 'text-muted-foreground' : 'font-medium'}`}>{label}</span>
       <span className={`text-xl font-bold ${value > 0 ? color : 'text-muted-foreground/30'}`}>
-        {formatNumber(value, value < 10 ? 2 : 1)}
+        {formatNumber(value, value < 0.1 ? 3 : value < 10 ? 2 : 1)}
       </span>
     </div>
   );

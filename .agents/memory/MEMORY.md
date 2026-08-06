@@ -26,3 +26,6 @@
 - [Delegar edits en app/farm/[id]](mobile-subagent-safety.md) — un subagente general puede borrar/romper archivos grandes compartidos (accidente en index.tsx); restaurar con git checkout y rehacer. Enviar cada área a subagente separado sin que compartan archivo.
 - [Push a GitHub](github-push.md) — git push directo falla; usar gitPush con remoto origin y upstream origin/main (crear ref con update-ref si no existe).
 - [Equilibrio catiónico](cation-balance.md) — diag. determinista compartido IA+web para calcio bloqueado por Na/Mg y pH alcalino; uncoupled de reglas frontend.
+- [pH estimado solución riego](ph-estimate.md) — engine devuelve waterPh + estimatedWaterPh; nunca fabricar pH sin pH y alcalinidad/bicarbonatos del agua.
+- [Ácido y bloques de tanque](acid-blocks.md) — solo ácido nítrico/sulfúrico (nunca cítrico); su CE suma a la estimada; bloques npk/calcio/acido se guardan vía RecommendationItem.block.
+- [Unificación unidades = consumo](units-consumption-scope.md) — alcance decidido: normalizar al calcular, no migrar datos; pH sin unidad.
