@@ -44,7 +44,7 @@ const queryClient = new QueryClient();
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: 'Atrás', headerShown: false }}>
-      <Stack.Screen name="index" />
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="login" />
       <Stack.Screen name="farm/form" />
       <Stack.Screen name="farm/[id]/index" />

@@ -59,7 +59,7 @@ export default function FarmsScreen() {
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <View style={[styles.header, { paddingTop: topInset + 12, borderBottomColor: c.border }]}>
         <Image
-          source={require('../assets/images/icon.png')}
+          source={require('../../assets/images/icon.png')}
           style={styles.headerLogo}
           contentFit="contain"
           accessibilityLabel="Logo de AgroNutri"
